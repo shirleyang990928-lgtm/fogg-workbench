@@ -13,6 +13,7 @@ async function doLogin(){
   if(error){errEl.textContent='邮箱或密码错误，请重试';return;}
   currentUser=data.user;
   await loadUserDataFromCloud();
+  await syncToCloud();
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('appShell').style.display='grid';
   document.getElementById('userBadge').textContent=email;
@@ -69,21 +70,26 @@ async function injectAdminUI(){
       <option value="">— 切换查看用户 —</option>
       ${users.map(u=>`<option value="${u.user_email}">${u.user_email}${u.display_name?' ('+u.display_name+')':''}</option>`).join('')}
     </select>
-    <button onclick="adminClearCurrentUser()" style="padding:5px 12px;border-radius:8px;border:none;background:#8b2020;color:#fff;font-size:12px;cursor:pointer;font-weight:900">清空当前用户数据</button>`;
+    <input id="adminEmailInput" placeholder="输入任意 email" style="padding:5px 10px;border-radius:8px;border:1px solid #555;background:#2a3028;color:#fff;font-size:12px;width:200px">
+    <button onclick="adminClearByEmail()" style="padding:5px 12px;border-radius:8px;border:none;background:#8b2020;color:#fff;font-size:12px;cursor:pointer;font-weight:900">清空该账号数据</button>`;
   document.body.appendChild(bar);
   // 给主应用加底部 padding 避免被遮住
   document.getElementById('appShell').style.paddingBottom='48px';
 }
-async function adminClearCurrentUser(){
-  const target=adminViewEmail||currentUser.email;
+async function adminClearByEmail(){
+  const input=document.getElementById('adminEmailInput');
+  const target=(input&&input.value.trim())||adminViewEmail||currentUser.email;
+  if(!target){showToast('请先输入要清空的 email');return;}
   if(!confirm('确认清空 '+target+' 的所有班级、话术和待办？此操作不可撤销。')) return;
   await sb.from('user_data').upsert({user_email:target,stickers:[],schedule:[],todos:{},updated_at:new Date().toISOString()},{onConflict:'user_email'});
-  if(!adminViewEmail){
+  if(target===currentUser.email){
     Object.values(STORAGE_KEYS).forEach(k=>localStorage.removeItem(k));
     localStorage.removeItem(DAILY_TODO_KEY);
     stickersData=[];scheduleData=[];
+    render();
   }
-  showToast('已清空 '+target+' 的所有数据');render();
+  if(input) input.value='';
+  showToast('已清空 '+target+' 的所有数据');
 }
 /* ===== END 管理员功能 ===== */
 
