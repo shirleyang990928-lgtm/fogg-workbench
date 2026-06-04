@@ -1,3 +1,52 @@
+/* ===== SUPABASE 配置 ===== */
+const SUPABASE_URL = 'https://wotsmkagmblzcfaggdwh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_y4wIYoLc8ZqhevLKKCK6Vg_FzxLX7LA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+
+async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '登录中…';
+  const {data,error} = await sb.auth.signInWithPassword({email,password:pass});
+  if(error){errEl.textContent='邮箱或密码错误，请重试';return;}
+  currentUser = data.user;
+  await loadUserDataFromCloud();
+  document.getElementById('loginOverlay').style.display='none';
+  document.getElementById('appShell').style.display='grid';
+  document.getElementById('userBadge').textContent = email;
+  updateClock();setInterval(updateClock,1000);
+  setInterval(()=>{if(view==='today')render();},60000);
+  render();
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function loadUserDataFromCloud(){
+  const {data} = await sb.from('user_data').select('*').eq('user_email',currentUser.email).single();
+  if(data){
+    if(data.stickers&&data.stickers.length) localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(data.stickers));
+    if(data.schedule&&data.schedule.length) localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(data.schedule));
+    if(data.todos&&Object.keys(data.todos).length) localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(data.todos));
+  }
+}
+
+async function syncToCloud(){
+  if(!currentUser) return;
+  const todos = JSON.parse(localStorage.getItem(DAILY_TODO_KEY)||'{}');
+  await sb.from('user_data').upsert({
+    user_email: currentUser.email,
+    stickers: stickersData,
+    schedule: scheduleData,
+    todos: todos,
+    updated_at: new Date().toISOString()
+  },{onConflict:'user_email'});
+}
+/* ===== END SUPABASE ===== */
 const DEFAULT_STICKERS = [
   {
     "stage": "before",
@@ -2457,8 +2506,20 @@ document.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",
 byId("detailClose").addEventListener("click",closeStickerDetail);
 byId("detailModal").addEventListener("click",e=>{if(e.target.id==="detailModal")closeStickerDetail();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&byId("detailModal").classList.contains("show"))closeStickerDetail();});
-updateClock();setInterval(updateClock,1000);setInterval(()=>{if(view==="today")render();},60000);render();
-
+// 先检查登录状态
+sb.auth.getSession().then(({data:{session}})=>{
+  if(session){
+    currentUser=session.user;
+    loadUserDataFromCloud().then(()=>{
+      document.getElementById('loginOverlay').style.display='none';
+      document.getElementById('appShell').style.display='grid';
+      document.getElementById('userBadge').textContent=session.user.email;
+      updateClock();setInterval(updateClock,1000);
+      setInterval(()=>{if(view==='today')render();},60000);
+      render();
+    });
+  }
+});
 /* ===== REDESIGNED CLASS DETAIL MODAL ===== */
 
 function classDetailHtml(item){
