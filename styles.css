@@ -5230,6 +5230,10 @@ body{
   font-size:15px!important;
   font-weight:950!important;
   line-height:1.2!important;
+  display:block!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
 }
 
 /* Meta info: teacher, student count, progress — muted, smaller */

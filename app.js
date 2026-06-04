@@ -1,4 +1,4 @@
-/* ===== SUPABASE 配置 ===== */
+﻿/* ===== SUPABASE 配置 ===== */
 const SUPABASE_URL='https://wotsmkagmblzcfaggdwh.supabase.co';
 const SUPABASE_KEY='sb_publishable_y4wIYoLc8ZqhevLKKCK6Vg_FzxLX7LA';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -68,10 +68,22 @@ async function injectAdminUI(){
     <select id="adminUserSelect" style="padding:5px 10px;border-radius:8px;border:1px solid #555;background:#2a3028;color:#fff;font-size:12px" onchange="adminSwitchTo(this.value)">
       <option value="">— 切换查看用户 —</option>
       ${users.map(u=>`<option value="${u.user_email}">${u.user_email}${u.display_name?' ('+u.display_name+')':''}</option>`).join('')}
-    </select>`;
+    </select>
+    <button onclick="adminClearCurrentUser()" style="padding:5px 12px;border-radius:8px;border:none;background:#8b2020;color:#fff;font-size:12px;cursor:pointer;font-weight:900">清空当前用户数据</button>`;
   document.body.appendChild(bar);
   // 给主应用加底部 padding 避免被遮住
   document.getElementById('appShell').style.paddingBottom='48px';
+}
+async function adminClearCurrentUser(){
+  const target=adminViewEmail||currentUser.email;
+  if(!confirm('确认清空 '+target+' 的所有班级、话术和待办？此操作不可撤销。')) return;
+  await sb.from('user_data').upsert({user_email:target,stickers:[],schedule:[],todos:{},updated_at:new Date().toISOString()},{onConflict:'user_email'});
+  if(!adminViewEmail){
+    Object.values(STORAGE_KEYS).forEach(k=>localStorage.removeItem(k));
+    localStorage.removeItem(DAILY_TODO_KEY);
+    stickersData=[];scheduleData=[];
+  }
+  showToast('已清空 '+target+' 的所有数据');render();
 }
 /* ===== END 管理员功能 ===== */
 
@@ -99,437 +111,7 @@ async function syncToCloud(){
 }
 /* ===== END SUPABASE ===== */
 
-const DEFAULT_STICKERS = [
-  {
-    "stage": "before",
-    "cat": "群提醒",
-    "type": "写作/议论文",
-    "title": "早安提醒",
-    "text": "☀️孩子们早安呀，今晚晚上7点我们准时上课哦！请记得提前打开 Zoom 和 Working Document 呀~！@所有人",
-    "id": "sticker-001",
-    "category": "群提醒",
-    "content": "☀️孩子们早安呀，今晚晚上7点我们准时上课哦！请记得提前打开 Zoom 和 Working Document 呀~！@所有人",
-    "tags": "写作/议论文",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "before",
-    "cat": "群提醒",
-    "type": "英文精读",
-    "title": "早安阅读提醒",
-    "text": "☀️孩子们早安呀，今天下午6点我们准时上课哦！请记得读完《xxx》xxx：第7-8章~！@所有人",
-    "id": "sticker-002",
-    "category": "群提醒",
-    "content": "☀️孩子们早安呀，今天下午6点我们准时上课哦！请记得读完《xxx》xxx：第7-8章~！@所有人",
-    "tags": "英文精读",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "before",
-    "cat": "家长",
-    "type": "作业",
-    "title": "作业没提交",
-    "text": "☀️孩子家长早上好呀，今天晚上我们就要上课啦。\n\n我看到孩子还没有提交上周的作业，请问有什么需要我协助的吗？\n\n他今天还有时间可以写哦，上课前两小时提交都可以！",
-    "id": "sticker-003",
-    "category": "家长",
-    "content": "☀️孩子家长早上好呀，今天晚上我们就要上课啦。\n\n我看到孩子还没有提交上周的作业，请问有什么需要我协助的吗？\n\n他今天还有时间可以写哦，上课前两小时提交都可以！",
-    "tags": "作业",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "before",
-    "cat": "家长",
-    "type": "作业",
-    "title": "文档停留上周",
-    "text": "☀️孩子家长早上好呀，今天晚上我们就要上课啦。\n\n我看孩子的作业最后一次编辑还在上周，请问有什么需要我协助的吗？\n\n如果他还有什么想要添加修改的，今天还有时间可以写哦，上课前两小时提交都可以！",
-    "id": "sticker-004",
-    "category": "家长",
-    "content": "☀️孩子家长早上好呀，今天晚上我们就要上课啦。\n\n我看孩子的作业最后一次编辑还在上周，请问有什么需要我协助的吗？\n\n如果他还有什么想要添加修改的，今天还有时间可以写哦，上课前两小时提交都可以！",
-    "tags": "作业",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "群提醒",
-    "type": "Zoom",
-    "title": "稍后上课 + Zoom 链接",
-    "text": "🌹孩子们，稍后下午6点我们准时上课哦！@所有人\n\n🔗上课链接：\nJoin Zoom Meeting\n[Zoom link]\n\nMeeting ID: [Meeting ID]\nPasscode: FOGG",
-    "id": "sticker-005",
-    "category": "群提醒",
-    "content": "🌹孩子们，稍后下午6点我们准时上课哦！@所有人\n\n🔗上课链接：\nJoin Zoom Meeting\n[Zoom link]\n\nMeeting ID: [Meeting ID]\nPasscode: FOGG",
-    "tags": "Zoom",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "群提醒",
-    "type": "上课",
-    "title": "准备进来上课",
-    "text": "@所有人 孩子们可以准备进来上课了哦[拥抱]",
-    "id": "sticker-006",
-    "category": "群提醒",
-    "content": "@所有人 孩子们可以准备进来上课了哦[拥抱]",
-    "tags": "上课",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "群提醒",
-    "type": "上课",
-    "title": "孩子们到齐啦",
-    "text": "[庆祝]孩子们到齐啦！开始上课了",
-    "id": "sticker-007",
-    "category": "群提醒",
-    "content": "[庆祝]孩子们到齐啦！开始上课了",
-    "tags": "上课",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "家长",
-    "type": "出席",
-    "title": "孩子还没进",
-    "text": "🤗孩子家长，孩子要上课了哦，但他还没有进来。",
-    "id": "sticker-008",
-    "category": "家长",
-    "content": "🤗孩子家长，孩子要上课了哦，但他还没有进来。",
-    "tags": "出席",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "家长",
-    "type": "出席",
-    "title": "孩子顺利进来",
-    "text": "🌹谢谢孩子家长，孩子顺利进来啦！",
-    "id": "sticker-009",
-    "category": "家长",
-    "content": "🌹谢谢孩子家长，孩子顺利进来啦！",
-    "tags": "出席",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "家长",
-    "type": "请假",
-    "title": "孩子请假回复",
-    "text": "好的，谢谢孩子家长，我课后给您发课堂回放😊",
-    "id": "sticker-010",
-    "category": "家长",
-    "content": "好的，谢谢孩子家长，我课后给您发课堂回放😊",
-    "tags": "请假",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "Teacher",
-    "type": "出席",
-    "title": "正在联系学生",
-    "text": "Teacher, I’m calling the students who haven’t joined yet.",
-    "id": "sticker-011",
-    "category": "Teacher",
-    "content": "Teacher, I’m calling the students who haven’t joined yet.",
-    "tags": "出席",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "Teacher",
-    "type": "缺席",
-    "title": "缺席 1 人",
-    "text": "Teacher, xxx is absent today, sorry.",
-    "id": "sticker-012",
-    "category": "Teacher",
-    "content": "Teacher, xxx is absent today, sorry.",
-    "tags": "缺席",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "Teacher",
-    "type": "缺席",
-    "title": "缺席 2 人",
-    "text": "Teacher, xxx and xxx are absent today, sorry.",
-    "id": "sticker-013",
-    "category": "Teacher",
-    "content": "Teacher, xxx and xxx are absent today, sorry.",
-    "tags": "缺席",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "Teacher",
-    "type": "等待",
-    "title": "老师稍晚进入",
-    "text": "Teacher, the students are waiting in Zoom. I’ll let them know that you may join a little later.",
-    "id": "sticker-014",
-    "category": "Teacher",
-    "content": "Teacher, the students are waiting in Zoom. I’ll let them know that you may join a little later.",
-    "tags": "等待",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "Teacher",
-    "type": "写作观察",
-    "title": "学生 stuck",
-    "text": "Teacher, I can see that XXXX has started writing, but he seems a little stuck.",
-    "id": "sticker-015",
-    "category": "Teacher",
-    "content": "Teacher, I can see that XXXX has started writing, but he seems a little stuck.",
-    "tags": "写作观察",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "Teacher",
-    "type": "迟到",
-    "title": "学生会晚到",
-    "text": "Teacher xxx, xxx’s mum said he will be a little late today.",
-    "id": "sticker-016",
-    "category": "Teacher",
-    "content": "Teacher xxx, xxx’s mum said he will be a little late today.",
-    "tags": "迟到",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "学生",
-    "type": "Camera",
-    "title": "打开摄像头",
-    "text": "xxx, could you please turn on your camera? Thank you.",
-    "id": "sticker-017",
-    "category": "学生",
-    "content": "xxx, could you please turn on your camera? Thank you.",
-    "tags": "Camera",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "学生",
-    "type": "Camera",
-    "title": "调整摄像头",
-    "text": "Sorry, I can’t really see you clearly. Could you adjust your camera a little? I’d like to see your upper body on screen 😊",
-    "id": "sticker-018",
-    "category": "学生",
-    "content": "Sorry, I can’t really see you clearly. Could you adjust your camera a little? I’d like to see your upper body on screen 😊",
-    "tags": "Camera",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "学生",
-    "type": "等待",
-    "title": "老师稍晚进入 Zoom",
-    "text": "Sorry, everyone. Teacher will join a little later today. Please wait for a while 😊",
-    "id": "sticker-019",
-    "category": "学生",
-    "content": "Sorry, everyone. Teacher will join a little later today. Please wait for a while 😊",
-    "tags": "等待",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "学生",
-    "type": "Help",
-    "title": "需要帮忙吗",
-    "text": "Sorry, do you need any help? I noticed that the Working Document doesn’t seem to be open on your side yet.",
-    "id": "sticker-020",
-    "category": "学生",
-    "content": "Sorry, do you need any help? I noticed that the Working Document doesn’t seem to be open on your side yet.",
-    "tags": "Help",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "学生",
-    "type": "Writing",
-    "title": "学生写作卡住",
-    "text": "Yolanda, I can see that you’ve started writing, but you seem a little stuck. If you need any help, feel free to ask the teacher directly.",
-    "id": "sticker-021",
-    "category": "学生",
-    "content": "Yolanda, I can see that you’ve started writing, but you seem a little stuck. If you need any help, feel free to ask the teacher directly.",
-    "tags": "Writing",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "文档技术",
-    "type": "Working Document",
-    "title": "Working Document 打不开",
-    "text": "If the Working Document doesn’t open smoothly, you can type in the chat box first 😊 I’ll help copy it into the Working Document.",
-    "id": "sticker-022",
-    "category": "文档技术",
-    "content": "If the Working Document doesn’t open smoothly, you can type in the chat box first 😊 I’ll help copy it into the Working Document.",
-    "tags": "Working Document",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "文档技术",
-    "type": "Working Document",
-    "title": "写在正确 tab",
-    "text": "Please write in the correct tab 😊 This week is T2-Week X.",
-    "id": "sticker-023",
-    "category": "文档技术",
-    "content": "Please write in the correct tab 😊 This week is T2-Week X.",
-    "tags": "Working Document",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "during",
-    "cat": "文档技术",
-    "type": "Working Document",
-    "title": "指定学生写错 tab",
-    "text": "Sorry, Yixuan, please write in the T2-Week 1 tab. If you can’t find it, just let me know.",
-    "id": "sticker-024",
-    "category": "文档技术",
-    "content": "Sorry, Yixuan, please write in the T2-Week 1 tab. If you can’t find it, just let me know.",
-    "tags": "Working Document",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "after",
-    "cat": "明日提醒",
-    "type": "写作/议论文",
-    "title": "明天上课 + 作业",
-    "text": "明日课前温馨提示：明天晚上7点我们就要上课啦，请孩子们记得在今晚提交作业哦，最晚在明天课前两小时提交作业哦！@所有人",
-    "id": "sticker-025",
-    "category": "明日提醒",
-    "content": "明日课前温馨提示：明天晚上7点我们就要上课啦，请孩子们记得在今晚提交作业哦，最晚在明天课前两小时提交作业哦！@所有人",
-    "tags": "写作/议论文",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "after",
-    "cat": "明日提醒",
-    "type": "英文精读",
-    "title": "明天阅读提醒",
-    "text": "明日课前温馨提示：明天下午6点我们就要上课啦，请孩子们记得读完《xxx》xxx：第7-8章哦！@所有人",
-    "id": "sticker-026",
-    "category": "明日提醒",
-    "content": "明日课前温馨提示：明天下午6点我们就要上课啦，请孩子们记得读完《xxx》xxx：第7-8章哦！@所有人",
-    "tags": "英文精读",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "ai",
-    "cat": "AI提示",
-    "type": "课堂总结",
-    "title": "【课堂总结】",
-    "text": "记得我给你的指令。等下当我说“告诉我刚刚老师和同学们进展”的时候，请根据会议发生的进程，整理并润色成一段可以直接发送给家长的课堂播报。\n\n输出风格：\n语气亲和、朴实，避免过于花哨或太严肃。\n\n内容与格式要求：\n1. 不要开场白和标题，直接从正文开始。\n2. 严格根据我提供的内容润色，不增添我没有提供的信息。\n3. 可适当加入自然、亲切的语气词，如“哦”“呢”“呀”。\n4. 可穿插对孩子课堂表现或作品的具体点评，如“很用心”“非常有层次感”等。\n5. 适当点出课堂环节或知识点的意义，例如“帮助孩子更好地理解人物的内心世界”。\n6. 播报时无需重复上下文。\n\n简单来说，我会给你课堂过程内容，你要整理成一段直接、亲切、有内容（点评 + 意义）的家长播报。",
-    "id": "sticker-027",
-    "category": "AI提示",
-    "content": "记得我给你的指令。等下当我说“告诉我刚刚老师和同学们进展”的时候，请根据会议发生的进程，整理并润色成一段可以直接发送给家长的课堂播报。\n\n输出风格：\n语气亲和、朴实，避免过于花哨或太严肃。\n\n内容与格式要求：\n1. 不要开场白和标题，直接从正文开始。\n2. 严格根据我提供的内容润色，不增添我没有提供的信息。\n3. 可适当加入自然、亲切的语气词，如“哦”“呢”“呀”。\n4. 可穿插对孩子课堂表现或作品的具体点评，如“很用心”“非常有层次感”等。\n5. 适当点出课堂环节或知识点的意义，例如“帮助孩子更好地理解人物的内心世界”。\n6. 播报时无需重复上下文。\n\n简单来说，我会给你课堂过程内容，你要整理成一段直接、亲切、有内容（点评 + 意义）的家长播报。",
-    "tags": "课堂总结",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "ai",
-    "cat": "AI提示",
-    "type": "学生观察",
-    "title": "【多个孩子观察】",
-    "text": "你可以帮我写每位同学一段完整的上课观察吗？\n\n要求：\n1. 每个孩子都写成一段完整观察。\n2. 根据我提供的课堂记录优化表达，但必须真实，不可以推测。\n3. 加入孩子在课堂中的见解，以及老师对孩子表现或见解的评价。\n4. 每位同学至少 200 字左右。\n5. 要回顾整堂约 1 小时的课堂内容表现，不要只写某一个短时间片段。",
-    "id": "sticker-028",
-    "category": "AI提示",
-    "content": "你可以帮我写每位同学一段完整的上课观察吗？\n\n要求：\n1. 每个孩子都写成一段完整观察。\n2. 根据我提供的课堂记录优化表达，但必须真实，不可以推测。\n3. 加入孩子在课堂中的见解，以及老师对孩子表现或见解的评价。\n4. 每位同学至少 200 字左右。\n5. 要回顾整堂约 1 小时的课堂内容表现，不要只写某一个短时间片段。",
-    "tags": "学生观察",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "ai",
-    "cat": "AI提示",
-    "type": "学生观察",
-    "title": "【1个孩子观察】",
-    "text": "你可以帮我写 Annika 同学一段完整的上课观察吗？\n\n要求：\n1. 根据我提供的课堂记录优化表达，但必须真实，不可以推测。\n2. 加入孩子在课堂中的见解，以及老师对孩子表现或见解的评价。\n3. 内容至少 200 字左右。\n4. 尽量回顾整堂课的整体表现，不要只写片段。",
-    "id": "sticker-029",
-    "category": "AI提示",
-    "content": "你可以帮我写 Annika 同学一段完整的上课观察吗？\n\n要求：\n1. 根据我提供的课堂记录优化表达，但必须真实，不可以推测。\n2. 加入孩子在课堂中的见解，以及老师对孩子表现或见解的评价。\n3. 内容至少 200 字左右。\n4. 尽量回顾整堂课的整体表现，不要只写片段。",
-    "tags": "学生观察",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "ai",
-    "cat": "AI提示",
-    "type": "课程总结",
-    "title": "【创意写作课总结】",
-    "text": "帮我总结三段叙述性文字，说明今天老师教了什么内容，以及孩子可以获得哪些技能与价值提升。这堂课是创意写作课。",
-    "id": "sticker-030",
-    "category": "AI提示",
-    "content": "帮我总结三段叙述性文字，说明今天老师教了什么内容，以及孩子可以获得哪些技能与价值提升。这堂课是创意写作课。",
-    "tags": "课程总结",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "ai",
-    "cat": "AI提示",
-    "type": "课程总结",
-    "title": "【议论写作课总结】",
-    "text": "帮我总结三段叙述性文字，说明今天老师教了什么内容，以及孩子可以获得哪些技能与价值提升。这堂课是议论写作课。",
-    "id": "sticker-031",
-    "category": "AI提示",
-    "content": "帮我总结三段叙述性文字，说明今天老师教了什么内容，以及孩子可以获得哪些技能与价值提升。这堂课是议论写作课。",
-    "tags": "课程总结",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "ai",
-    "cat": "AI提示",
-    "type": "课程总结",
-    "title": "【精读课总结】",
-    "text": "帮我总结三段叙述性文字，说明今天老师教了什么内容，以及孩子可以获得哪些技能与价值提升。这堂课是英文精读课。",
-    "id": "sticker-032",
-    "category": "AI提示",
-    "content": "帮我总结三段叙述性文字，说明今天老师教了什么内容，以及孩子可以获得哪些技能与价值提升。这堂课是英文精读课。",
-    "tags": "课程总结",
-    "color": "",
-    "note": ""
-  },
-  {
-    "stage": "ai",
-    "cat": "AI提示",
-    "type": "课堂作业",
-    "title": "【课堂什么作业】",
-    "text": "今天老师给孩子们布置了什么课堂写作？",
-    "id": "sticker-033",
-    "category": "AI提示",
-    "content": "今天老师给孩子们布置了什么课堂写作？",
-    "tags": "课堂作业",
-    "color": "",
-    "note": ""
-  }
-];
+const DEFAULT_STICKERS = []
 const SCENARIOS = DEFAULT_STICKERS;
 const DEFAULT_STICKER_CATEGORIES = [
   {
@@ -568,78 +150,7 @@ const DEFAULT_STICKER_CATEGORIES = [
     "color": "#f6eddf"
   }
 ];
-const DEFAULT_SCHEDULE = [
-  {
-    "id": "class-demo-1",
-    "weekday": "周一",
-    "time": "19:00",
-    "teacher": "Teacher Amy",
-    "courseType": "英文精读",
-    "className": "英文精读 T2",
-    "students": [
-      {
-        "id": "stu-1",
-        "name": "Annika",
-        "note": "阅读提醒"
-      },
-      {
-        "id": "stu-2",
-        "name": "Chester",
-        "note": "课堂积极"
-      }
-    ],
-    "notes": [
-      {
-        "id": "note-1",
-        "text": "课前检查阅读章节和 Zoom 链接。",
-        "createdAt": "2026-05-13T00:00:00.000Z",
-        "updatedAt": "2026-05-13T00:00:00.000Z"
-      }
-    ],
-    "status": "Active"
-  },
-  {
-    "id": "class-demo-2",
-    "weekday": "周三",
-    "time": "18:00",
-    "teacher": "Teacher Shirley",
-    "courseType": "创意写作",
-    "className": "创意写作小组课",
-    "students": [
-      {
-        "id": "stu-3",
-        "name": "Yolanda",
-        "note": "关注构思"
-      }
-    ],
-    "notes": [
-      {
-        "id": "note-2",
-        "text": "提醒孩子保留写作草稿，课后可补充细节。",
-        "createdAt": "2026-05-13T00:00:00.000Z",
-        "updatedAt": "2026-05-13T00:00:00.000Z"
-      }
-    ],
-    "status": "Active"
-  },
-  {
-    "id": "class-demo-3",
-    "weekday": "周六",
-    "time": "10:30",
-    "teacher": "Teacher Lee",
-    "courseType": "思辨写作",
-    "className": "议论文训练",
-    "students": [
-      {
-        "id": "stu-4",
-        "name": "Yixuan",
-        "note": "注意写在正确 tab"
-      }
-    ],
-    "notes": [],
-    "status": "Active"
-  }
-];
+const DEFAULT_SCHEDULE = []
 const DEFAULT_COURSE_CATEGORIES = [
   {
     "id": "course-01",
@@ -1096,7 +607,7 @@ function renderMonthCalendar(classes){
   const selectedItems=classesOnDate(classes,selected);
   return `<div class="month-overview refined-month"><section class="month-map"><div class="month-nav"><button class="btn" data-month-move="-1" type="button">上个月</button><b>${monthTitle(base)}</b><button class="btn" data-month-move="1" type="button">下个月</button></div><div class="month-weekdays">${WORKDAYS.map(d=>`<b>${esc(d.replace("周",""))}</b>`).join("")}</div><div class="month-dots-grid">${cells.map(d=>{
     const muted=d.getMonth()!==base.getMonth(),items=muted?[]:classesOnDate(classes,d),today=d.toDateString()===new Date().toDateString(),selectedDay=dateKey(d)===dateKey(selected);
-    return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.slice(0,4).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
+    return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.slice(0,5).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
   }).join("")}</div></section><section class="month-detail"><div class="panel-head"><h3>${dateLabel(selected)} 课程</h3><span>${selectedItems.length} 节</span></div><div class="month-detail-list">${selectedItems.map(renderMonthLesson).join("")||'<p class="no-class">这天没有课</p>'}</div></section></div>`;
 }
 
@@ -1251,7 +762,7 @@ function renderMonthCalendar(classes){
       <div class="month-weekdays">${WORKDAYS.map(d=>`<b>${esc(d.replace("周",""))}</b>`).join("")}</div>
       <div class="month-dots-grid">${cells.map(d=>{
         const muted=d.getMonth()!==base.getMonth(),items=muted?[]:classesOnDate(classes,d),today=d.toDateString()===new Date().toDateString(),selectedDay=dateKey(d)===dateKey(selected);
-        return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.slice(0,4).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
+        return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.slice(0,5).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
       }).join("")}</div>
     </section>
     <section class="month-detail">
@@ -1301,7 +812,7 @@ function renderMonthCalendar(classes){
         const items=muted?[]:classesOnDate(classes,d);
         const today=d.toDateString()===new Date().toDateString();
         const selectedDay=dateKey(d)===dateKey(selected);
-        return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"\u8282":""}</span><i>${items.slice(0,4).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
+        return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"\u8282":""}</span><i>${items.slice(0,5).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
       }).join("")}</div>
     </section>
     <section class="month-detail">
