@@ -44,8 +44,9 @@ async function adminRefreshUsers(){
   const users=await adminLoadUsers();
   const sel=document.getElementById('adminUserSelect');
   if(!sel) return;
-  sel.innerHTML=`<option value="">— 切换查看用户 —</option>`+users.map(u=>`<option value="${u.user_email}">${u.user_email}${u.display_name?' ('+u.display_name+')':''}</option>`).join('');
-  showToast('已刷新用户列表，共 '+users.length+' 人');
+  const others=users.filter(u=>u.user_email!==currentUser.email);
+  sel.innerHTML=`<option value="">— 切换查看用户 —</option>`+others.map(u=>`<option value="${u.user_email}">${u.user_email}${u.display_name?' ('+u.display_name+')':''}</option>`).join('');
+  showToast('已刷新用户列表，共 '+others.length+' 人');
 }
 
 async function adminSwitchTo(email){
@@ -74,7 +75,7 @@ async function injectAdminUI(){
   bar.innerHTML=`<span id="adminBar" style="flex:1;font-weight:900;cursor:pointer" onclick="adminSwitchTo(null)">🔍 管理员视角：自己</span>
     <select id="adminUserSelect" style="padding:5px 10px;border-radius:8px;border:1px solid #555;background:#2a3028;color:#fff;font-size:12px" onchange="adminSwitchTo(this.value)">
       <option value="">— 切换查看用户 —</option>
-      ${users.map(u=>`<option value="${u.user_email}">${u.user_email}${u.display_name?' ('+u.display_name+')':''}</option>`).join('')}
+      ${users.filter(u=>u.user_email!==currentUser.email).map(u=>`<option value="${u.user_email}">${u.user_email}${u.display_name?' ('+u.display_name+')':''}</option>`).join('')}
     </select>
     <input id="adminEmailInput" placeholder="输入任意 email" style="padding:5px 10px;border-radius:8px;border:1px solid #555;background:#2a3028;color:#fff;font-size:12px;width:200px">
     <button onclick="adminClearByEmail()" style="padding:5px 12px;border-radius:8px;border:none;background:#8b2020;color:#fff;font-size:12px;cursor:pointer;font-weight:900">清空该账号数据</button>
@@ -113,6 +114,14 @@ async function loadUserDataFromCloud(){
     localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(data.todos||{}));
     stickersData=(data.stickers||[]).map(normalizeSticker);
     scheduleData=(data.schedule||[]).map(normalizeClassItem);
+    if(data.stickerCategories&&Array.isArray(data.stickerCategories)&&data.stickerCategories.length){
+      localStorage.setItem(STORAGE_KEYS.stickerCategories,JSON.stringify(data.stickerCategories));
+      stickerCategories=data.stickerCategories.map(normalizeCategory);
+    }
+    if(data.courseCategories&&Array.isArray(data.courseCategories)&&data.courseCategories.length){
+      localStorage.setItem(STORAGE_KEYS.courseCategories,JSON.stringify(data.courseCategories));
+      courseCategories=data.courseCategories.map(normalizeCategory);
+    }
   }
 }
 
@@ -125,9 +134,14 @@ async function syncToCloud(){
       stickers:stickersData,
       schedule:scheduleData,
       todos:todos,
+      stickerCategories,
+      courseCategories,
       updated_at:new Date().toISOString()
     },{onConflict:'user_email'});
-  }catch(e){console.warn('sync failed',e);}
+  }catch(e){
+    console.warn('sync failed',e);
+    showToast('⚠️ 云端同步失败，请检查网络连接');
+  }
 }
 /* ===== END SUPABASE ===== */
 
@@ -232,8 +246,8 @@ function normalizeNote(n){const now=new Date().toISOString();return {id:n.id||ui
 function normalizeClassStatus(s){if(s==="Inactive")return "Paused";return ["Active","Paused","Archived","Deleted"].includes(s)?s:"Active";}
 function normalizeClassItem(x){return {id:x.id||uid("class"),weekday:x.weekday||"\u5468\u4e00",time:x.time||"",teacher:x.teacher||"",courseType:x.courseType||"\u82f1\u6587\u7cbe\u8bfb",className:x.className||"\u672a\u547d\u540d\u8bfe\u7a0b",status:normalizeClassStatus(x.status),term:x.term||x.semester||"",repeatMode:x.repeatMode||"weekly",repeatDays:Array.isArray(x.repeatDays)?x.repeatDays:[],repeatDates:Array.isArray(x.repeatDates)?x.repeatDates:[],students:(x.students||[]).map(normalizeStudent),notes:(x.notes||[]).map(normalizeNote),zoomLink:x.zoomLink||x.zoom||"",zoomId:x.zoomId||"",zoomLabel:x.zoomLabel||"",zoomPassword:x.zoomPassword||x.password||"",lesson:x.lesson||"",topic:x.topic||"",totalLessons:x.totalLessons||"20",startDate:x.startDate||"",homework:x.homework||"",report:x.report||"",classRecords:Array.isArray(x.classRecords)?x.classRecords:[],skippedDates:Array.isArray(x.skippedDates)?x.skippedDates:(Array.isArray(x.breakDates)?x.breakDates:[]),archivedAt:x.archivedAt||"",deletedAt:x.deletedAt||""};}
 function loadCollection(key,fallback,normalizer){try{const raw=localStorage.getItem(key);if(!raw)return fallback.map(normalizer);const parsed=JSON.parse(raw);if(!Array.isArray(parsed))throw new Error("not array");return parsed.map(normalizer);}catch(e){console.warn("local data failed",key,e);return fallback.map(normalizer);}}
-function saveStickers(){localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(stickersData));syncToCloud();}
-function saveSchedule(){localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(scheduleData));syncToCloud();}
+function saveStickers(){if(adminViewEmail)return;localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(stickersData));syncToCloud();}
+function saveSchedule(){if(adminViewEmail)return;localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(scheduleData));syncToCloud();}
 function updateClock(){const now=new Date();let h=now.getHours();const ampm=h>=12?"PM":"AM";h=h%12||12;byId("time").innerHTML=h+":"+String(now.getMinutes()).padStart(2,"0")+" <small>"+ampm+"</small>";byId("date").textContent=now.getFullYear()+"\u5e74"+(now.getMonth()+1)+"\u6708"+now.getDate()+"\u65e5 · "+WEEKDAYS[now.getDay()];}
 function todayName(offset=0){const d=new Date();d.setDate(d.getDate()+offset);return WEEKDAYS[d.getDay()];}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
@@ -342,7 +356,7 @@ function renderWeekLesson(x){
   </button>`;
 }
 function renderWeekCards(classes){const start=weekStart();return `<div class="week-card-grid earth-week">${WORKDAYS.map((day,i)=>{const d=addDays(start,i),items=classesOnDate(classes,d);return `<section class="week-day-card ${day===todayName(0)?'today':''}"><div class="day-card-head"><div><b>${esc(day)}</b><small>${dateLabel(d)}</small></div><span>${items.length} 节</span></div><div class="day-card-list">${items.map(renderWeekLesson).join("")||'<p class="empty mini">没课</p>'}</div></section>`;}).join("")}</div>`;}
-function renderMonthCalendar(classes){const now=new Date(),first=new Date(now.getFullYear(),now.getMonth(),1),last=new Date(now.getFullYear(),now.getMonth()+1,0),offset=(first.getDay()+6)%7,start=addDays(first,-offset),cellCount=Math.ceil((offset+last.getDate())/7)*7,cells=Array.from({length:cellCount},(_,i)=>addDays(start,i));const selected=parseLocalDate(monthSelectedDate)||now;const selectedItems=classesOnDate(classes,selected);return `<div class="month-overview"><section class="month-map"><div class="month-weekdays">${WORKDAYS.map(d=>`<b>${esc(d.replace("周",""))}</b>`).join("")}</div><div class="month-dots-grid">${cells.map(d=>{const muted=d.getMonth()!==now.getMonth(),items=muted?[]:classesOnDate(classes,d),today=d.toDateString()===now.toDateString(),selectedDay=dateKey(d)===monthSelectedDate;return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.slice(0,3).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;}).join("")}</div></section><section class="month-detail"><div class="panel-head"><h3>${dateLabel(selected)} 课程</h3><span>${selectedItems.length} 节</span></div><div class="month-detail-list">${selectedItems.map(x=>renderScheduleCard(x,false)).join("")||'<p class="empty">这天没有课。</p>'}</div></section></div>`;}
+function renderMonthCalendar(classes){const now=new Date(),first=new Date(now.getFullYear(),now.getMonth(),1),last=new Date(now.getFullYear(),now.getMonth()+1,0),offset=(first.getDay()+6)%7,start=addDays(first,-offset),cellCount=Math.ceil((offset+last.getDate())/7)*7,cells=Array.from({length:cellCount},(_,i)=>addDays(start,i));const selected=parseLocalDate(monthSelectedDate)||now;const selectedItems=classesOnDate(classes,selected);return `<div class="month-overview"><section class="month-map"><div class="month-weekdays">${WORKDAYS.map(d=>`<b>${esc(d.replace("周",""))}</b>`).join("")}</div><div class="month-dots-grid">${cells.map(d=>{const muted=d.getMonth()!==now.getMonth(),items=muted?[]:classesOnDate(classes,d),today=d.toDateString()===now.toDateString(),selectedDay=dateKey(d)===monthSelectedDate;return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;}).join("")}</div></section><section class="month-detail"><div class="panel-head"><h3>${dateLabel(selected)} 课程</h3><span>${selectedItems.length} 节</span></div><div class="month-detail-list">${selectedItems.map(x=>renderScheduleCard(x,false)).join("")||'<p class="empty">这天没有课。</p>'}</div></section></div>`;}
 function renderMonthCourse(x){return renderScheduleCard(x,false);}
 function renderScheduleCard(x,active){const zoom=zoomName(x),tone=courseTone(x),status=statusTone(x);return `<button class="schedule-card ${tone} ${status} ${active?'active':''}" data-schedule-id="${safeAttr(x.id)}" data-occurrence-date="${safeAttr(x._occurrenceDate||"")}" type="button"><div class="course-card-top"><span class="mini-time">${esc(formatTimeCN(x.time))}</span><span class="countdown-pill">${esc(countdownText(x))}</span></div><b>${esc(x.className)}</b><small>${esc(x.teacher||"未填老师")} · ${x.students.length||0} 人</small><em>${zoom?esc(zoom):"未填 Zoom"} · ${esc(lessonLabel(x))}</em></button>`;}
 function classDetailHtml(item){const zoomLink=item.zoomLink?`<a href="${safeAttr(item.zoomLink)}" target="_blank" rel="noreferrer">${esc(item.zoomLink)}</a>`:"未填";return `<div class="detail-section"><h4>上课信息</h4><div class="detail-grid">${fieldCard("老师",item.teacher)}${fieldCard("学生",item.students.map(s=>s.name).join("、")||"暂无")}${fieldCard("课程",item.courseType)}${fieldCard("进度",lessonLabel(item))}${fieldCard("主题",item.topic)}${fieldCard("状态",STATUS_LABELS[item.status])}</div></div><div class="detail-section"><h4>Zoom</h4><div class="detail-grid">${fieldCard("账号",zoomName(item))}<div class="detail-line"><span>链接</span><b>${zoomLink}</b></div>${fieldCard("会议号",item.zoomId)}${fieldCard("密码",item.zoomPassword)}</div></div><div class="detail-section">${fieldCard("上周作业",item.homework,true)}${fieldCard("课堂记录",item.report||(item.notes[0]&&item.notes[0].text),true)}</div>`;}
@@ -429,7 +443,7 @@ function renderMonthCalendar(classes){
         return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button">
           <b>${muted?'':d.getDate()}</b>
           <span>${items.length?items.length+"节":""}</span>
-          <i>${items.slice(0,3).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i>
+          <i>${items.map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i>
         </button>`;
       }).join("")}</div>
     </section>
@@ -502,7 +516,7 @@ function renderTodayDesk(classes){
 function renderMonthCalendar(classes){
   const base=addMonths(new Date(),calendarMonthOffset),first=new Date(base.getFullYear(),base.getMonth(),1),last=new Date(base.getFullYear(),base.getMonth()+1,0),offset=(first.getDay()+6)%7,start=addDays(first,-offset),cellCount=Math.ceil((offset+last.getDate())/7)*7,cells=Array.from({length:cellCount},(_,i)=>addDays(start,i));
   const selected=parseLocalDate(monthSelectedDate)||new Date(base.getFullYear(),base.getMonth(),1),selectedItems=classesOnDate(classes,selected);
-  return `<div class="month-overview refined-month"><section class="month-map"><div class="month-nav"><button class="btn" data-month-move="-1" type="button">上个月</button><b>${monthTitle(base)}</b><button class="btn" data-month-move="1" type="button">下个月</button></div><div class="month-weekdays">${WORKDAYS.map(d=>`<b>${esc(d.replace("周",""))}</b>`).join("")}</div><div class="month-dots-grid">${cells.map(d=>{const muted=d.getMonth()!==base.getMonth(),items=muted?[]:classesOnDate(classes,d),today=d.toDateString()===new Date().toDateString(),selectedDay=dateKey(d)===dateKey(selected);return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.slice(0,3).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;}).join("")}</div></section><section class="month-detail"><div class="panel-head"><h3>${dateLabel(selected)} 课程</h3><span>${selectedItems.length} 节</span></div><div class="month-detail-list">${selectedItems.map(renderMonthLesson).join("")||'<p class="no-class">这天没有课。</p>'}</div></section></div>`;
+  return `<div class="month-overview refined-month"><section class="month-map"><div class="month-nav"><button class="btn" data-month-move="-1" type="button">上个月</button><b>${monthTitle(base)}</b><button class="btn" data-month-move="1" type="button">下个月</button></div><div class="month-weekdays">${WORKDAYS.map(d=>`<b>${esc(d.replace("周",""))}</b>`).join("")}</div><div class="month-dots-grid">${cells.map(d=>{const muted=d.getMonth()!==base.getMonth(),items=muted?[]:classesOnDate(classes,d),today=d.toDateString()===new Date().toDateString(),selectedDay=dateKey(d)===dateKey(selected);return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;}).join("")}</div></section><section class="month-detail"><div class="panel-head"><h3>${dateLabel(selected)} 课程</h3><span>${selectedItems.length} 节</span></div><div class="month-detail-list">${selectedItems.map(renderMonthLesson).join("")||'<p class="no-class">这天没有课。</p>'}</div></section></div>`;
 }
 
 function renderStickers(){
@@ -627,7 +641,7 @@ function renderMonthCalendar(classes){
   const selectedItems=classesOnDate(classes,selected);
   return `<div class="month-overview refined-month"><section class="month-map"><div class="month-nav"><button class="btn" data-month-move="-1" type="button">上个月</button><b>${monthTitle(base)}</b><button class="btn" data-month-move="1" type="button">下个月</button></div><div class="month-weekdays">${WORKDAYS.map(d=>`<b>${esc(d.replace("周",""))}</b>`).join("")}</div><div class="month-dots-grid">${cells.map(d=>{
     const muted=d.getMonth()!==base.getMonth(),items=muted?[]:classesOnDate(classes,d),today=d.toDateString()===new Date().toDateString(),selectedDay=dateKey(d)===dateKey(selected);
-    return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.slice(0,5).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
+    return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
   }).join("")}</div></section><section class="month-detail"><div class="panel-head"><h3>${dateLabel(selected)} 课程</h3><span>${selectedItems.length} 节</span></div><div class="month-detail-list">${selectedItems.map(renderMonthLesson).join("")||'<p class="no-class">这天没有课</p>'}</div></section></div>`;
 }
 
@@ -782,7 +796,7 @@ function renderMonthCalendar(classes){
       <div class="month-weekdays">${WORKDAYS.map(d=>`<b>${esc(d.replace("周",""))}</b>`).join("")}</div>
       <div class="month-dots-grid">${cells.map(d=>{
         const muted=d.getMonth()!==base.getMonth(),items=muted?[]:classesOnDate(classes,d),today=d.toDateString()===new Date().toDateString(),selectedDay=dateKey(d)===dateKey(selected);
-        return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.slice(0,5).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
+        return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"节":""}</span><i>${items.map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
       }).join("")}</div>
     </section>
     <section class="month-detail">
@@ -832,7 +846,7 @@ function renderMonthCalendar(classes){
         const items=muted?[]:classesOnDate(classes,d);
         const today=d.toDateString()===new Date().toDateString();
         const selectedDay=dateKey(d)===dateKey(selected);
-        return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"\u8282":""}</span><i>${items.slice(0,5).map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
+        return `<button class="month-dot-cell ${muted?'muted':''} ${today?'today':''} ${selectedDay?'selected':''}" data-month-day="${safeAttr(dateKey(d))}" type="button"><b>${muted?'':d.getDate()}</b><span>${items.length?items.length+"\u8282":""}</span><i>${items.map(x=>`<em class="${courseTone(x)}"></em>`).join("")}</i></button>`;
       }).join("")}</div>
     </section>
     <section class="month-detail">
