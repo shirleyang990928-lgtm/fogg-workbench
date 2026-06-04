@@ -317,7 +317,7 @@ function renderStickerCard(x){const audience=x.scene==="ai"&&x.audience==="ai"?"
 function bindCopy(list){document.querySelectorAll("[data-copy-id]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();const item=list.find(x=>x.id===btn.dataset.copyId);if(item)copyText(item.content);}));}
 function bindDetail(list){document.querySelectorAll("[data-detail-id]").forEach(btn=>btn.addEventListener("click",()=>{const item=list.find(x=>x.id===btn.dataset.detailId);if(item)openStickerDetail(item);}));}
 function openStickerDetail(item){byId("detailTags").innerHTML=`<span class="scene-tag">${SCENE_LABELS[item.scene]}</span>${item.audience==="ai"&&item.scene==="ai"?"":`<span class="audience-tag">${AUDIENCE_LABELS[item.audience]}</span>`}`;byId("detailTitle").textContent=item.title;byId("detailContent").textContent=item.content;byId("detailOpenZoom").hidden=true;byId("detailEdit").hidden=true;byId("detailCopy").textContent="\u590d\u5236\u8fd9\u6761\u8bdd\u672f";byId("detailCopy").onclick=()=>copyText(item.content);byId("detailModal").classList.add("show");byId("detailModal").setAttribute("aria-hidden","false");}
-function closeStickerDetail(){byId("detailModal").classList.remove("show");byId("detailModal").setAttribute("aria-hidden","true");}
+function closeStickerDetail(){byId("detailModal").classList.remove("show");byId("detailModal").setAttribute("aria-hidden","true");document.body.focus();}
 function bindTodayEvents(){document.querySelectorAll("[data-scheduleMode]").forEach(b=>b.addEventListener("click",()=>{scheduleMode=b.dataset.schedulemode;render();}));document.querySelectorAll("[data-range]").forEach(b=>b.addEventListener("click",()=>{range=b.dataset.range;selectedClassId=null;render();}));document.querySelectorAll("[data-class-pick]").forEach(b=>b.addEventListener("click",()=>{selectedClassId=b.dataset.classPick;render();}));document.querySelectorAll("[data-quickScene]").forEach(b=>b.addEventListener("click",()=>{quickScene=b.dataset.quickscene;render();}));document.querySelectorAll("[data-quickAudience]").forEach(b=>b.addEventListener("click",()=>{quickAudience=b.dataset.quickaudience;render();}));}
 function bindLibraryEvents(){document.querySelectorAll("[data-libraryScene]").forEach(b=>b.addEventListener("click",()=>{libraryScene=b.dataset.libraryscene;render();}));document.querySelectorAll("[data-libraryAudience]").forEach(b=>b.addEventListener("click",()=>{libraryAudience=b.dataset.libraryaudience;render();}));document.querySelectorAll("[data-cardSize]").forEach(b=>b.addEventListener("click",()=>{cardSize=b.dataset.cardsize;render();}));}
 function renderManage(){setHead("\u7ba1\u7406","\u5206\u6b65\u6574\u7406\u8bdd\u672f\u3001\u8bfe\u7a0b\u3001\u56de\u6536\u7ad9\u548c\u5907\u4efd","");byId("tabs").innerHTML=tabs([{value:"home",label:"\u5165\u53e3"},{value:"stickers",label:"\u7ba1\u7406\u8bdd\u672f"},{value:"classes",label:"\u7ba1\u7406\u8bfe\u7a0b"},{value:"trash",label:"\u56de\u6536\u7ad9"},{value:"backup",label:"\u5907\u4efd"}],manageMode,"manage");if(manageMode==="home")renderManageHome();if(manageMode==="stickers")renderStickerManage();if(manageMode==="classes")renderClassManage();if(manageMode==="trash")renderTrash();if(manageMode==="backup")renderBackup();bindManageEvents();}
@@ -2697,38 +2697,29 @@ function renderTodoNotebook(day,items){
   </section>`;
 }
 
-/* Intercept #todoAdd to handle course link */
+/* Todo add — 不拦截传播，让 bindTodayEvents 的 doAdd 正常执行 */
+/* 此块仅保留课程关联的 classRecords 写入（doAdd 不做这一步）*/
 document.addEventListener("click",function(e){
   if(e.target.id!=="todoAdd") return;
-  e.stopImmediatePropagation();
+  const classLink=(byId("todoClassLink")?.value||"").trim();
+  if(!classLink) return; // 无课程关联时跳过，让 doAdd 单独处理
   const input=byId("todoInput");
   const text=(input&&input.value||"").trim();
   if(!text) return;
-  const day=todoDate();
-  const items=classesOnDate(displayClasses(),day);
-  const todos=todosForDay(day,items);
-  const classLink=(byId("todoClassLink")?.value||"").trim();
-  let classLinkName="";
-  if(classLink){
-    const [cid,cdate]=classLink.split("|");
-    const cls=scheduleData.find(x=>x.id===cid);
-    if(cls){
-      classLinkName=cls.className||"";
-      const records=Array.isArray(cls.classRecords)?cls.classRecords.slice():[];
-      const ridx=records.findIndex(r=>r.date===cdate);
-      const existing=ridx>=0?(records[ridx].notes||""):"";
-      const updated=(existing?existing+"\n":"")+`[Todo] ${text}`;
-      const rec={date:cdate,notes:updated,materials:updated,updatedAt:new Date().toISOString()};
-      if(ridx>=0) records[ridx]={...records[ridx],...rec}; else records.push(rec);
-      cls.classRecords=records;
-      saveSchedule();
-    }
+  const [cid,cdate]=classLink.split("|");
+  const cls=scheduleData.find(x=>x.id===cid);
+  if(cls){
+    const records=Array.isArray(cls.classRecords)?cls.classRecords.slice():[];
+    const ridx=records.findIndex(r=>r.date===cdate);
+    const existing=ridx>=0?(records[ridx].notes||""):"";
+    const updated=(existing?existing+"\n":"")+`[Todo] ${text}`;
+    const rec={date:cdate,notes:updated,materials:updated,updatedAt:new Date().toISOString()};
+    if(ridx>=0) records[ridx]={...records[ridx],...rec}; else records.push(rec);
+    cls.classRecords=records;
+    try{saveSchedule();}catch(err){console.warn("classRecord save failed",err);}
   }
-  todos.push({id:uid("todo"),text,done:false,classLink:classLink||undefined,classLinkName:classLinkName||undefined});
-  saveDailyTodos(day,todos);
-  if(input) input.value="";
-  render();
-},true);
+  // 不调用 render()，由 doAdd 统一处理
+},false);
 
 /* ============================================================
    REDESIGN: renderScheduleCard — compact, clear hierarchy
@@ -2819,6 +2810,7 @@ function renderWeekCards(classes){
 /* FIX: renderRecentCourseCard — split time from name */
 function renderRecentCourseCard(x){
   const occ=nextClassOccurrence(x);
+  if(!occ) return "";
   const d=parseLocalDate(occ._occurrenceDate)||new Date();
   const dayText=`${todayName(daysBetween(d,new Date()))} ${(d.getMonth()+1)}/${d.getDate()}`;
   return `<button class="recent-course-card ${courseTone(x)}" data-schedule-id="${safeAttr(x.id)}" data-occurrence-date="${safeAttr(occ._occurrenceDate||"")}" type="button">
