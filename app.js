@@ -1526,7 +1526,7 @@ function todosForDay(day,items){
   return seeded;
 }
 
-// Bug4修复：查找所有日期里关联某节课的未完成待办
+// 查找所有日期里关联某节课的未完成待办（课程卡用）
 function allPendingTodosForClass(classId){
   const all=readDailyTodos();
   const result=[];
@@ -1537,6 +1537,18 @@ function allPendingTodosForClass(classId){
     }
   });
   return result;
+}
+
+// 按日期分组查找关联某节课的所有待办（含已完成，历史页用）
+function allTodosForClassByDate(classId){
+  const all=readDailyTodos();
+  const byDate={};
+  Object.entries(all).forEach(([date,todos])=>{
+    if(!Array.isArray(todos)) return;
+    const linked=todos.filter(t=>t.classLink&&t.classLink.startsWith(classId));
+    if(linked.length) byDate[date]=linked;
+  });
+  return byDate;
 }
 
 function renderTodoNotebook(day,items){
@@ -3280,10 +3292,27 @@ function renderRecentCourseCard(x){
 function classDetailHtml(item){
   const date=classRecordDate(item);
   const todayNote=classRecordTextForDate(item,date)||"";
-  const history=(Array.isArray(item.classRecords)?item.classRecords:[])
-    .filter(r=>r.date&&r.date!==date&&(r.notes||r.materials))
-    .sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,10);
-  return `<div class="detail-section"><h4>上课信息</h4><div class="detail-grid final-detail-grid">${fieldCard("老师",item.teacher)}${fieldCard("课程",item.courseType)}${fieldCard("进度",lessonLabel(item))}${fieldCard("主题",item.topic)}${fieldCard("学期",classTermLabel(item))}${fieldCard("Zoom",zoomName(item))}${fieldCard("学生",item.students.map(s=>s.name).join("、")||"暂无",true)}</div></div><div class="detail-section detail-note-section"><div class="note-section-head"><h4>${formatDateShort(date)} 课堂笔记</h4>${history.length?`<button class="btn ghost detail-history-toggle" id="detailHistoryToggle" type="button">历史 (${history.length})</button>`:""}</div><textarea id="detailNoteInput" class="detail-note-input" placeholder="今天发生了什么？只属于这一天。">${esc(todayNote)}</textarea><button class="btn note-save-btn" id="detailNoteSave" type="button">保存笔记</button></div>${history.length?`<div class="detail-history-section" id="detailHistory" style="display:none">${history.map(r=>`<div class="history-entry"><span class="history-date">${esc(formatDateShort(r.date))}</span><p>${esc(r.notes||r.materials||"")}</p></div>`).join("")}</div>`:""}`;
+  const noteRecords=(Array.isArray(item.classRecords)?item.classRecords:[])
+    .filter(r=>r.date&&r.date!==date&&(r.notes||r.materials));
+  const todoByDate=allTodosForClassByDate(item.id);
+  // 合并所有有记录的日期（笔记或 todo）
+  const allDates=new Set([
+    ...noteRecords.map(r=>r.date),
+    ...Object.keys(todoByDate).filter(d=>d!==date)
+  ]);
+  const merged=[...allDates].sort((a,b)=>b.localeCompare(a)).slice(0,15).map(d=>{
+    const rec=noteRecords.find(r=>r.date===d);
+    const todos=todoByDate[d]||[];
+    return {date:d,notes:rec?rec.notes||rec.materials||"":"",todos};
+  }).filter(e=>e.notes||e.todos.length);
+  const historyHtml=merged.map(e=>`<div class="history-entry">
+    <span class="history-date">${esc(formatDateShort(e.date))}</span>
+    ${e.notes?`<p>${esc(e.notes)}</p>`:""}
+    ${e.todos.length?`<div class="history-todos">${e.todos.map(t=>`<span class="history-todo-item ${t.done?"done":""}">${t.done?"✓ ":"○ "}${esc(t.text)}</span>`).join("")}</div>`:""}
+  </div>`).join("");
+  const todayTodos=(todoByDate[date]||[]);
+  const todayTodosHtml=todayTodos.length?`<div class="today-todo-in-detail"><b>今日关联待办</b><div class="history-todos">${todayTodos.map(t=>`<span class="history-todo-item ${t.done?"done":""}">${t.done?"✓ ":"○ "}${esc(t.text)}</span>`).join("")}</div></div>`:"";
+  return `<div class="detail-section"><h4>上课信息</h4><div class="detail-grid final-detail-grid">${fieldCard("老师",item.teacher)}${fieldCard("课程",item.courseType)}${fieldCard("进度",lessonLabel(item))}${fieldCard("主题",item.topic)}${fieldCard("学期",classTermLabel(item))}${fieldCard("Zoom",zoomName(item))}${fieldCard("学生",item.students.map(s=>s.name).join("、")||"暂无",true)}</div></div><div class="detail-section detail-note-section"><div class="note-section-head"><h4>${formatDateShort(date)} 课堂笔记</h4>${merged.length?`<button class="btn ghost detail-history-toggle" id="detailHistoryToggle" type="button">历史 (${merged.length})</button>`:""}</div>${todayTodosHtml}<textarea id="detailNoteInput" class="detail-note-input" placeholder="今天发生了什么？只属于这一天。">${esc(todayNote)}</textarea><button class="btn note-save-btn" id="detailNoteSave" type="button">保存笔记</button></div>${merged.length?`<div class="detail-history-section" id="detailHistory" style="display:none">${historyHtml}</div>`:""}`;
 }
 
 /* 2. renderMonthLesson — add draggable="true" */
