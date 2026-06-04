@@ -134,8 +134,6 @@ async function syncToCloud(){
       stickers:stickersData,
       schedule:scheduleData,
       todos:todos,
-      stickerCategories,
-      courseCategories,
       updated_at:new Date().toISOString()
     },{onConflict:'user_email'});
   }catch(e){
