@@ -48,6 +48,17 @@
     </div>
   </div>
 </div>
+  <script>
+(function(){
+  if(localStorage.getItem("fogg_auth")==="fogg2026ok") return;
+  var p=prompt("请输入访问密码：");
+  if(p!=="fogg2026"){
+    document.body.innerHTML="<div style='display:flex;align-items:center;justify-content:center;height:100vh;font-size:20px;font-family:sans-serif'>密码错误，请联系管理员</div>";
+    return;
+  }
+  localStorage.setItem("fogg_auth","fogg2026ok");
+})();
+</script>
 <script src="app.js"></script>
 </body>
 </html>
