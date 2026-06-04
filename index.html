@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>&#35838;&#22530;&#24037;&#20316;&#21488;</title>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<main class="app-shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">FOGG</span>
+      <div>
+        <div class="brand-kicker">FOGG Academy</div>
+        <h1>&#35838;&#22530;&#24037;&#20316;&#21488;</h1>
+      </div>
+    </div>
+    <div class="clock"><div class="time" id="time">--:--</div><div class="date" id="date">----</div></div>
+  </header>
+
+  <nav class="main-nav" aria-label="main navigation">
+    <button class="nav-btn active" data-view="today"><span>&#26085;&#31243;</span><small>&#26412;&#21608;&#35838;&#34920;</small></button>
+    <button class="nav-btn" data-view="stickers"><span>&#35805;&#26415;</span><small>&#24555;&#36895;&#22797;&#21046;</small></button>
+    <button class="nav-btn" data-view="manage"><span>&#31649;&#29702;</span><small>&#25972;&#29702;&#19982;&#22791;&#20221;</small></button>
+  </nav>
+
+  <section class="workspace">
+    <div class="workspace-head">
+      <div><h2 id="viewTitle">&#20170;&#26085;</h2><p id="viewSubtitle">&#33258;&#21160;&#25512;&#33616;&#24403;&#21069;&#35838;&#31243;&#21644;&#21487;&#22797;&#21046;&#35805;&#26415;</p></div>
+      <div class="count-pill" id="counter"></div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="content" id="content"></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<div class="detail-modal" id="detailModal" aria-hidden="true">
+  <div class="detail-panel">
+    <button class="detail-close" id="detailClose" type="button">&#20851;&#38381;</button>
+    <div class="tag-row" id="detailTags"></div>
+    <h3 id="detailTitle"></h3>
+    <div class="detail-content" id="detailContent"></div>
+    <div class="detail-footer">
+      <button class="btn" id="detailOpenZoom" type="button">Zoom</button>
+      <button class="btn" id="detailEdit" type="button">&#32534;&#36753;</button>
+      <button class="btn primary" id="detailCopy" type="button">&#22797;&#21046;&#36825;&#26465;&#35805;&#26415;</button>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
