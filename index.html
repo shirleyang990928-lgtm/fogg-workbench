@@ -3,62 +3,78 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>&#35838;&#22530;&#24037;&#20316;&#21488;</title>
+<title>课堂工作台</title>
 <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-<main class="app-shell">
+
+<!-- 登录页 -->
+<div id="loginOverlay" style="position:fixed;inset:0;background:#f5f2e6;display:flex;align-items:center;justify-content:center;z-index:100;background-image:radial-gradient(rgba(28,33,26,.13) 1.25px,transparent 1.25px);background-size:24px 24px">
+  <div style="background:#fffdf5;border:2px solid #1c211a;border-radius:20px;padding:36px 32px;width:340px;box-shadow:4px 4px 0 #1c211a;font-family:'Microsoft YaHei',system-ui,sans-serif">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="width:56px;height:40px;background:#de8a62;border:2px solid #1c211a;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:950;margin-bottom:10px">FOGG</div>
+      <div style="font-size:22px;font-weight:950">课堂工作台</div>
+      <div style="font-size:13px;color:#888;margin-top:4px">FOGG Academy</div>
+    </div>
+    <label style="display:block;margin-bottom:14px;font-size:13px;font-weight:900;color:#333">邮箱
+      <input id="loginEmail" type="email" style="display:block;width:100%;margin-top:6px;padding:11px 13px;border:2px solid #1c211a;border-radius:11px;font-size:14px;box-sizing:border-box;background:#fff;outline:none" placeholder="your@email.com">
+    </label>
+    <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:900;color:#333">密码
+      <input id="loginPassword" type="password" style="display:block;width:100%;margin-top:6px;padding:11px 13px;border:2px solid #1c211a;border-radius:11px;font-size:14px;box-sizing:border-box;background:#fff;outline:none" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </label>
+    <div id="loginError" style="color:#c0392b;font-size:12px;min-height:20px;margin-bottom:8px;padding-left:2px"></div>
+    <button onclick="doLogin()" style="width:100%;padding:13px;background:#de8a62;border:2px solid #1c211a;border-radius:11px;font-size:15px;font-weight:950;cursor:pointer;box-shadow:3px 3px 0 #1c211a">登录</button>
+    <p style="font-size:11px;color:#aaa;text-align:center;margin:14px 0 0">如需账号请联系管理员</p>
+  </div>
+</div>
+
+<!-- 主应用 -->
+<main class="app-shell" id="appShell" style="display:none">
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark">FOGG</span>
       <div>
         <div class="brand-kicker">FOGG Academy</div>
-        <h1>&#35838;&#22530;&#24037;&#20316;&#21488;</h1>
+        <h1>课堂工作台</h1>
       </div>
     </div>
-    <div class="clock"><div class="time" id="time">--:--</div><div class="date" id="date">----</div></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span id="userBadge" style="font-size:12px;color:#666;font-weight:850"></span>
+      <button onclick="doLogout()" style="font-size:12px;padding:5px 10px;border:1.5px solid rgba(28,33,26,.4);border-radius:8px;background:#fff;cursor:pointer;font-weight:900">退出</button>
+      <div class="clock"><div class="time" id="time">--:--</div><div class="date" id="date">----</div></div>
+    </div>
   </header>
-
   <nav class="main-nav" aria-label="main navigation">
-    <button class="nav-btn active" data-view="today"><span>&#26085;&#31243;</span><small>&#26412;&#21608;&#35838;&#34920;</small></button>
-    <button class="nav-btn" data-view="stickers"><span>&#35805;&#26415;</span><small>&#24555;&#36895;&#22797;&#21046;</small></button>
-    <button class="nav-btn" data-view="manage"><span>&#31649;&#29702;</span><small>&#25972;&#29702;&#19982;&#22791;&#20221;</small></button>
+    <button class="nav-btn active" data-view="today"><span>日程</span><small>本周课表</small></button>
+    <button class="nav-btn" data-view="stickers"><span>话术</span><small>快速复制</small></button>
+    <button class="nav-btn" data-view="manage"><span>管理</span><small>整理与备份</small></button>
   </nav>
-
   <section class="workspace">
     <div class="workspace-head">
-      <div><h2 id="viewTitle">&#20170;&#26085;</h2><p id="viewSubtitle">&#33258;&#21160;&#25512;&#33616;&#24403;&#21069;&#35838;&#31243;&#21644;&#21487;&#22797;&#21046;&#35805;&#26415;</p></div>
+      <div><h2 id="viewTitle">今日</h2><p id="viewSubtitle"></p></div>
       <div class="count-pill" id="counter"></div>
     </div>
     <div class="tabs" id="tabs"></div>
     <div class="content" id="content"></div>
   </section>
 </main>
+
 <div class="toast" id="toast"></div>
 <div class="detail-modal" id="detailModal" aria-hidden="true">
   <div class="detail-panel">
-    <button class="detail-close" id="detailClose" type="button">&#20851;&#38381;</button>
+    <button class="detail-close" id="detailClose" type="button">关闭</button>
     <div class="tag-row" id="detailTags"></div>
     <h3 id="detailTitle"></h3>
     <div class="detail-content" id="detailContent"></div>
     <div class="detail-footer">
       <button class="btn" id="detailOpenZoom" type="button">Zoom</button>
-      <button class="btn" id="detailEdit" type="button">&#32534;&#36753;</button>
-      <button class="btn primary" id="detailCopy" type="button">&#22797;&#21046;&#36825;&#26465;&#35805;&#26415;</button>
+      <button class="btn" id="detailEdit" type="button">编辑</button>
+      <button class="btn primary" id="detailCopy" type="button">复制这条话术</button>
     </div>
   </div>
 </div>
-  <script>
-(function(){
-  if(localStorage.getItem("fogg_auth")==="fogg2026ok") return;
-  var p=prompt("请输入访问密码：");
-  if(p!=="fogg2026"){
-    document.body.innerHTML="<div style='display:flex;align-items:center;justify-content:center;height:100vh;font-size:20px;font-family:sans-serif'>密码错误，请联系管理员</div>";
-    return;
-  }
-  localStorage.setItem("fogg_auth","fogg2026ok");
-})();
-</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
 </body>
 </html>

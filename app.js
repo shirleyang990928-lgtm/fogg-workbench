@@ -1,21 +1,21 @@
 /* ===== SUPABASE 配置 ===== */
-const SUPABASE_URL = 'https://wotsmkagmblzcfaggdwh.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_y4wIYoLc8ZqhevLKKCK6Vg_FzxLX7LA';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let currentUser = null;
+const SUPABASE_URL='https://wotsmkagmblzcfaggdwh.supabase.co';
+const SUPABASE_KEY='sb_publishable_y4wIYoLc8ZqhevLKKCK6Vg_FzxLX7LA';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null;
 
 async function doLogin(){
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass  = document.getElementById('loginPassword').value;
-  const errEl = document.getElementById('loginError');
-  errEl.textContent = '登录中…';
-  const {data,error} = await sb.auth.signInWithPassword({email,password:pass});
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPassword').value;
+  const errEl=document.getElementById('loginError');
+  errEl.textContent='登录中…';
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){errEl.textContent='邮箱或密码错误，请重试';return;}
-  currentUser = data.user;
+  currentUser=data.user;
   await loadUserDataFromCloud();
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('appShell').style.display='grid';
-  document.getElementById('userBadge').textContent = email;
+  document.getElementById('userBadge').textContent=email;
   updateClock();setInterval(updateClock,1000);
   setInterval(()=>{if(view==='today')render();},60000);
   render();
@@ -27,26 +27,29 @@ async function doLogout(){
 }
 
 async function loadUserDataFromCloud(){
-  const {data} = await sb.from('user_data').select('*').eq('user_email',currentUser.email).single();
+  const {data}=await sb.from('user_data').select('*').eq('user_email',currentUser.email).single();
   if(data){
-    if(data.stickers&&data.stickers.length) localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(data.stickers));
-    if(data.schedule&&data.schedule.length) localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(data.schedule));
-    if(data.todos&&Object.keys(data.todos).length) localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(data.todos));
+    if(data.stickers&&data.stickers.length)localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(data.stickers));
+    if(data.schedule&&data.schedule.length)localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(data.schedule));
+    if(data.todos&&Object.keys(data.todos).length)localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(data.todos));
   }
 }
 
 async function syncToCloud(){
-  if(!currentUser) return;
-  const todos = JSON.parse(localStorage.getItem(DAILY_TODO_KEY)||'{}');
-  await sb.from('user_data').upsert({
-    user_email: currentUser.email,
-    stickers: stickersData,
-    schedule: scheduleData,
-    todos: todos,
-    updated_at: new Date().toISOString()
-  },{onConflict:'user_email'});
+  if(!currentUser)return;
+  try{
+    const todos=JSON.parse(localStorage.getItem(DAILY_TODO_KEY)||'{}');
+    await sb.from('user_data').upsert({
+      user_email:currentUser.email,
+      stickers:stickersData,
+      schedule:scheduleData,
+      todos:todos,
+      updated_at:new Date().toISOString()
+    },{onConflict:'user_email'});
+  }catch(e){console.warn('sync failed',e);}
 }
 /* ===== END SUPABASE ===== */
+
 const DEFAULT_STICKERS = [
   {
     "stage": "before",
@@ -649,8 +652,8 @@ function normalizeNote(n){const now=new Date().toISOString();return {id:n.id||ui
 function normalizeClassStatus(s){if(s==="Inactive")return "Paused";return ["Active","Paused","Archived","Deleted"].includes(s)?s:"Active";}
 function normalizeClassItem(x){return {id:x.id||uid("class"),weekday:x.weekday||"\u5468\u4e00",time:x.time||"",teacher:x.teacher||"",courseType:x.courseType||"\u82f1\u6587\u7cbe\u8bfb",className:x.className||"\u672a\u547d\u540d\u8bfe\u7a0b",status:normalizeClassStatus(x.status),term:x.term||x.semester||"",repeatMode:x.repeatMode||"weekly",repeatDays:Array.isArray(x.repeatDays)?x.repeatDays:[],repeatDates:Array.isArray(x.repeatDates)?x.repeatDates:[],students:(x.students||[]).map(normalizeStudent),notes:(x.notes||[]).map(normalizeNote),zoomLink:x.zoomLink||x.zoom||"",zoomId:x.zoomId||"",zoomLabel:x.zoomLabel||"",zoomPassword:x.zoomPassword||x.password||"",lesson:x.lesson||"",topic:x.topic||"",totalLessons:x.totalLessons||"20",startDate:x.startDate||"",homework:x.homework||"",report:x.report||"",classRecords:Array.isArray(x.classRecords)?x.classRecords:[],skippedDates:Array.isArray(x.skippedDates)?x.skippedDates:(Array.isArray(x.breakDates)?x.breakDates:[]),archivedAt:x.archivedAt||"",deletedAt:x.deletedAt||""};}
 function loadCollection(key,fallback,normalizer){try{const raw=localStorage.getItem(key);if(!raw)return fallback.map(normalizer);const parsed=JSON.parse(raw);if(!Array.isArray(parsed))throw new Error("not array");return parsed.map(normalizer);}catch(e){console.warn("local data failed",key,e);return fallback.map(normalizer);}}
-function saveStickers(){localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(stickersData));}
-function saveSchedule(){localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(scheduleData));}
+function saveStickers(){localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(stickersData));syncToCloud();}
+function saveSchedule(){localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(scheduleData));syncToCloud();}
 function updateClock(){const now=new Date();let h=now.getHours();const ampm=h>=12?"PM":"AM";h=h%12||12;byId("time").innerHTML=h+":"+String(now.getMinutes()).padStart(2,"0")+" <small>"+ampm+"</small>";byId("date").textContent=now.getFullYear()+"\u5e74"+(now.getMonth()+1)+"\u6708"+now.getDate()+"\u65e5 · "+WEEKDAYS[now.getDay()];}
 function todayName(offset=0){const d=new Date();d.setDate(d.getDate()+offset);return WEEKDAYS[d.getDay()];}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
@@ -1474,6 +1477,19 @@ function todosForDay(day,items){
   return seeded;
 }
 
+// Bug4修复：查找所有日期里关联某节课的未完成待办
+function allPendingTodosForClass(classId){
+  const all=readDailyTodos();
+  const result=[];
+  Object.values(all).forEach(todos=>{
+    if(Array.isArray(todos)){
+      todos.filter(t=>!t.done&&t.classLink&&t.classLink.startsWith(classId))
+           .forEach(t=>result.push(t));
+    }
+  });
+  return result;
+}
+
 function renderTodoNotebook(day,items){
   const todos=todosForDay(day,items);
   const isToday=dateKey(day)===dateKey(new Date());
@@ -1551,7 +1567,7 @@ function renderTodayDesk(classes){
     return ad-bd||timeMinutes(a.time)-timeMinutes(b.time);
   }).slice(0,6);
   const renderCard=(x)=>{
-    const linked=todos.filter(t=>!t.done&&t.classLink&&t.classLink.startsWith(x.id));
+    const linked=allPendingTodosForClass(x.id); // 跨所有日期查找关联待办
     return renderTodayCourseCard(x,linked);
   };
   return `<div class="today-board clean-today todo-today">
@@ -1919,12 +1935,26 @@ function renderScheduleControls(){
 
 function renderToday(){
   const classes=displayClasses();
-  const labels={
-    today:["今日",""],
-    week:["本周",""],
-    month:["月总览",""]
-  };
-  setHead(labels[scheduleMode][0],labels[scheduleMode][1],classes.length+" classes");
+  const labels={today:["今日",""],week:["本周",""],month:["月总览",""]};
+  // 计算各视图的实际课程节数
+  let counterText="";
+  if(scheduleMode==="today"){
+    const n=classesOnDate(classes,todoDate()).length;
+    counterText=n+" 节课";
+  }else if(scheduleMode==="week"){
+    const start=activeWeekStart();
+    let total=0;
+    WORKDAYS.forEach((_,i)=>{total+=classesOnDate(classes,addDays(start,i)).length;});
+    counterText="本周 "+total+" 节";
+  }else{
+    const base=addMonths(new Date(),calendarMonthOffset);
+    const first=new Date(base.getFullYear(),base.getMonth(),1);
+    const last=new Date(base.getFullYear(),base.getMonth()+1,0);
+    let total=0;
+    for(let d=new Date(first);d<=last;d=addDays(d,1))total+=classesOnDate(classes,d).length;
+    counterText="本月 "+total+" 节";
+  }
+  setHead(labels[scheduleMode][0],labels[scheduleMode][1],counterText);
   byId("tabs").innerHTML=renderScheduleControls();
   if(scheduleMode==="today")byId("content").innerHTML=renderTodayDesk(classes);
   if(scheduleMode==="week")byId("content").innerHTML=renderWeekCards(classes);
@@ -2506,11 +2536,13 @@ document.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",
 byId("detailClose").addEventListener("click",closeStickerDetail);
 byId("detailModal").addEventListener("click",e=>{if(e.target.id==="detailModal")closeStickerDetail();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&byId("detailModal").classList.contains("show"))closeStickerDetail();});
-// 先检查登录状态
+// 启动时检查登录状态
 sb.auth.getSession().then(({data:{session}})=>{
   if(session){
     currentUser=session.user;
     loadUserDataFromCloud().then(()=>{
+      stickersData=loadCollection(STORAGE_KEYS.stickers,DEFAULT_STICKERS,normalizeSticker);
+      scheduleData=loadCollection(STORAGE_KEYS.schedule,DEFAULT_SCHEDULE,normalizeClassItem);
       document.getElementById('loginOverlay').style.display='none';
       document.getElementById('appShell').style.display='grid';
       document.getElementById('userBadge').textContent=session.user.email;
@@ -2519,7 +2551,9 @@ sb.auth.getSession().then(({data:{session}})=>{
       render();
     });
   }
+  // 未登录时显示登录页（loginOverlay 默认显示，appShell 默认 display:none）
 });
+
 /* ===== REDESIGNED CLASS DETAIL MODAL ===== */
 
 function classDetailHtml(item){

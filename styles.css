@@ -6385,6 +6385,23 @@ small.list-note{
 }
 
 /* ============================================================
+   FIX BUG2 — 拖拽目标区域视觉反馈
+   ============================================================ */
+.weekday-lane.drop-target{
+  outline:3px dashed var(--earth-blue,#2d7897)!important;
+  outline-offset:-3px!important;
+  background:rgba(45,120,151,.08)!important;
+}
+.month-dot-cell.drop-target{
+  outline:3px dashed var(--earth-blue,#2d7897)!important;
+  background:rgba(45,120,151,.12)!important;
+}
+.week-lesson.dragging,.month-lesson.dragging{
+  opacity:.45!important;
+  pointer-events:none!important;
+}
+
+/* ============================================================
    FIX — 今日课程卡：流式单卡，无格子感
    ============================================================ */
 .tcc-card{
