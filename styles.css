@@ -6398,7 +6398,7 @@ small.list-note{
 }
 .week-lesson.dragging,.month-lesson.dragging{
   opacity:.45!important;
-  pointer-events:none!important;
+  /* pointer-events:none 会中断拖拽，不能加 */
 }
 
 /* ============================================================

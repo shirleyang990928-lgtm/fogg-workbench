@@ -19,12 +19,61 @@ async function doLogin(){
   updateClock();setInterval(updateClock,1000);
   setInterval(()=>{if(view==='today')render();},60000);
   render();
+  injectAdminUI();
 }
 
 async function doLogout(){
   await sb.auth.signOut();
   location.reload();
 }
+
+/* ===== 管理员功能 ===== */
+const ADMIN_EMAIL='shirleyang990928@gmail.com';
+let adminViewEmail=null; // null=看自己，否则=正在看某个同事
+
+function isAdmin(){return currentUser&&currentUser.email===ADMIN_EMAIL;}
+
+async function adminLoadUsers(){
+  if(!isAdmin()) return [];
+  const {data}=await sb.from('user_data').select('user_email,display_name');
+  return data||[];
+}
+
+async function adminSwitchTo(email){
+  if(!isAdmin()) return;
+  if(!email){
+    adminViewEmail=null;
+    stickersData=loadCollection(STORAGE_KEYS.stickers,DEFAULT_STICKERS,normalizeSticker);
+    scheduleData=loadCollection(STORAGE_KEYS.schedule,DEFAULT_SCHEDULE,normalizeClassItem);
+    document.getElementById('adminBar').textContent='🔍 管理员视角：自己';
+    showToast('已切回自己的数据');render();return;
+  }
+  const {data,error}=await sb.from('user_data').select('*').eq('user_email',email).single();
+  if(error||!data){showToast('找不到该用户数据');return;}
+  adminViewEmail=email;
+  if(data.stickers&&data.stickers.length) stickersData=data.stickers.map(normalizeSticker);
+  else stickersData=[];
+  if(data.schedule&&data.schedule.length) scheduleData=data.schedule.map(normalizeClassItem);
+  else scheduleData=[];
+  document.getElementById('adminBar').textContent='🔍 正在查看：'+email+' （点此切回自己）';
+  showToast('已切换到：'+email);render();
+}
+
+async function injectAdminUI(){
+  if(!isAdmin()) return;
+  const users=await adminLoadUsers();
+  const bar=document.createElement('div');
+  bar.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1c211a;color:#fff;padding:8px 16px;display:flex;align-items:center;gap:10px;z-index:200;font-size:13px;font-family:inherit';
+  bar.innerHTML=`<span id="adminBar" style="flex:1;font-weight:900;cursor:pointer" onclick="adminSwitchTo(null)">🔍 管理员视角：自己</span>
+    <select id="adminUserSelect" style="padding:5px 10px;border-radius:8px;border:1px solid #555;background:#2a3028;color:#fff;font-size:12px" onchange="adminSwitchTo(this.value)">
+      <option value="">— 切换查看用户 —</option>
+      ${users.map(u=>`<option value="${u.user_email}">${u.user_email}${u.display_name?' ('+u.display_name+')':''}</option>`).join('')}
+    </select>`;
+  document.body.appendChild(bar);
+  // 给主应用加底部 padding 避免被遮住
+  document.getElementById('appShell').style.paddingBottom='48px';
+}
+/* ===== END 管理员功能 ===== */
 
 async function loadUserDataFromCloud(){
   const {data}=await sb.from('user_data').select('*').eq('user_email',currentUser.email).single();
@@ -2549,6 +2598,7 @@ sb.auth.getSession().then(({data:{session}})=>{
       updateClock();setInterval(updateClock,1000);
       setInterval(()=>{if(view==='today')render();},60000);
       render();
+      injectAdminUI();
     });
   }
   // 未登录时显示登录页（loginOverlay 默认显示，appShell 默认 display:none）
@@ -3193,72 +3243,8 @@ function renderTodoNotebook(day,items){
 /* ============================================================
    DRAG TO RESCHEDULE (B: one-time occurrence change)
    ============================================================ */
-var _dragClassId=null, _dragOrigDate=null;
-
-function setupDragDrop(){
-  // Draggable: week lesson cards
-  document.querySelectorAll(".week-lesson[data-schedule-id][data-occurrence-date]").forEach(el=>{
-    el.addEventListener("dragstart",e=>{
-      _dragClassId=el.dataset.scheduleId;
-      _dragOrigDate=el.dataset.occurrenceDate;
-      e.dataTransfer.effectAllowed="move";
-      el.classList.add("dragging");
-    });
-    el.addEventListener("dragend",()=>el.classList.remove("dragging"));
-  });
-  // Draggable: month lesson cards
-  document.querySelectorAll(".month-lesson[data-schedule-id], .month-dot-cell:not(.muted)").forEach(el=>{
-    if(el.classList.contains("month-lesson")){
-      el.setAttribute("draggable","true");
-      el.addEventListener("dragstart",e=>{
-        _dragClassId=el.dataset.scheduleId;
-        _dragOrigDate=el.dataset.occurrenceDate;
-        e.dataTransfer.effectAllowed="move";
-      });
-    }
-  });
-  // Drop zones: week lanes
-  document.querySelectorAll(".weekday-lane[data-lane-date]").forEach(zone=>{
-    zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("drop-target");});
-    zone.addEventListener("dragleave",()=>zone.classList.remove("drop-target"));
-    zone.addEventListener("drop",e=>{
-      e.preventDefault();zone.classList.remove("drop-target");
-      applyReschedule(zone.dataset.laneDate);
-    });
-  });
-  // Drop zones: month cells
-  document.querySelectorAll(".month-dot-cell:not(.muted)").forEach(zone=>{
-    zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("drop-target");});
-    zone.addEventListener("dragleave",()=>zone.classList.remove("drop-target"));
-    zone.addEventListener("drop",e=>{
-      e.preventDefault();zone.classList.remove("drop-target");
-      applyReschedule(zone.dataset.monthDay);
-    });
-  });
-}
-
-function applyReschedule(newDate){
-  if(!_dragClassId||!_dragOrigDate||!newDate||newDate===_dragOrigDate){_dragClassId=null;return;}
-  const cls=scheduleData.find(x=>x.id===_dragClassId);
-  if(!cls){_dragClassId=null;return;}
-  const skipped=(cls.skippedDates||[]).slice();
-  if(!skipped.includes(_dragOrigDate)) skipped.push(_dragOrigDate);
-  cls.skippedDates=skipped;
-  const dates=(cls.repeatDates||[]).slice();
-  if(!dates.includes(newDate)) dates.push(newDate);
-  cls.repeatDates=dates;
-  saveSchedule();
-  showToast(`已改到 ${newDate}`);
-  _dragClassId=null;_dragOrigDate=null;
-  render();
-}
-
-// Hook setupDragDrop into render cycle
-const _origRender=render;
-render=function(){
-  _origRender();
-  requestAnimationFrame(setupDragDrop);
-};
+// 旧拖拽系统已停用，由下方 IIFE 统一处理
+function setupDragDrop(){} // no-op
 
 /* renderWeekCards with data-lane-date for drag-drop */
 function renderWeekCards(classes){
