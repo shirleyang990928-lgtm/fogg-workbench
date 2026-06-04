@@ -40,6 +40,14 @@ async function adminLoadUsers(){
   return data||[];
 }
 
+async function adminRefreshUsers(){
+  const users=await adminLoadUsers();
+  const sel=document.getElementById('adminUserSelect');
+  if(!sel) return;
+  sel.innerHTML=`<option value="">— 切换查看用户 —</option>`+users.map(u=>`<option value="${u.user_email}">${u.user_email}${u.display_name?' ('+u.display_name+')':''}</option>`).join('');
+  showToast('已刷新用户列表，共 '+users.length+' 人');
+}
+
 async function adminSwitchTo(email){
   if(!isAdmin()) return;
   if(!email){
@@ -50,12 +58,10 @@ async function adminSwitchTo(email){
     showToast('已切回自己的数据');render();return;
   }
   const {data,error}=await sb.from('user_data').select('*').eq('user_email',email).single();
-  if(error||!data){showToast('找不到该用户数据');return;}
+  if(error||!data){showToast('该用户暂无云端记录，可直接在输入框填 email 清空');return;}
   adminViewEmail=email;
-  if(data.stickers&&data.stickers.length) stickersData=data.stickers.map(normalizeSticker);
-  else stickersData=[];
-  if(data.schedule&&data.schedule.length) scheduleData=data.schedule.map(normalizeClassItem);
-  else scheduleData=[];
+  stickersData=(data.stickers||[]).map(normalizeSticker);
+  scheduleData=(data.schedule||[]).map(normalizeClassItem);
   document.getElementById('adminBar').textContent='🔍 正在查看：'+email+' （点此切回自己）';
   showToast('已切换到：'+email);render();
 }
@@ -71,7 +77,8 @@ async function injectAdminUI(){
       ${users.map(u=>`<option value="${u.user_email}">${u.user_email}${u.display_name?' ('+u.display_name+')':''}</option>`).join('')}
     </select>
     <input id="adminEmailInput" placeholder="输入任意 email" style="padding:5px 10px;border-radius:8px;border:1px solid #555;background:#2a3028;color:#fff;font-size:12px;width:200px">
-    <button onclick="adminClearByEmail()" style="padding:5px 12px;border-radius:8px;border:none;background:#8b2020;color:#fff;font-size:12px;cursor:pointer;font-weight:900">清空该账号数据</button>`;
+    <button onclick="adminClearByEmail()" style="padding:5px 12px;border-radius:8px;border:none;background:#8b2020;color:#fff;font-size:12px;cursor:pointer;font-weight:900">清空该账号数据</button>
+    <button onclick="adminRefreshUsers()" style="padding:5px 10px;border-radius:8px;border:none;background:#2a5c3f;color:#fff;font-size:12px;cursor:pointer;font-weight:900">刷新用户列表</button>`;
   document.body.appendChild(bar);
   // 给主应用加底部 padding 避免被遮住
   document.getElementById('appShell').style.paddingBottom='48px';
@@ -96,9 +103,11 @@ async function adminClearByEmail(){
 async function loadUserDataFromCloud(){
   const {data}=await sb.from('user_data').select('*').eq('user_email',currentUser.email).single();
   if(data){
-    if(data.stickers&&data.stickers.length)localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(data.stickers));
-    if(data.schedule&&data.schedule.length)localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(data.schedule));
-    if(data.todos&&Object.keys(data.todos).length)localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(data.todos));
+    localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(data.stickers||[]));
+    localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(data.schedule||[]));
+    localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(data.todos||{}));
+    stickersData=(data.stickers||[]).map(normalizeSticker);
+    scheduleData=(data.schedule||[]).map(normalizeClassItem);
   }
 }
 
