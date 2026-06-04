@@ -101,6 +101,11 @@ async function adminClearByEmail(){
 /* ===== END 管理员功能 ===== */
 
 async function loadUserDataFromCloud(){
+  // 先清掉本地所有旧数据，确保云端是唯一来源
+  Object.values(STORAGE_KEYS).forEach(k=>localStorage.removeItem(k));
+  localStorage.removeItem(DAILY_TODO_KEY);
+  stickersData=[];
+  scheduleData=[];
   const {data}=await sb.from('user_data').select('*').eq('user_email',currentUser.email).single();
   if(data){
     localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(data.stickers||[]));
