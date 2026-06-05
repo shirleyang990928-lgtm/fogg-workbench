@@ -3048,18 +3048,9 @@ function bindTodayEvents(){
     if(input) input.value="";
     render();
   };
-  const addBtn=byId("todoAdd"),todoInput=byId("todoInput");
-  if(addBtn) addBtn.addEventListener("click",doAdd);
-  if(todoInput) todoInput.addEventListener("keydown",e=>{if(e.key==="Enter")doAdd();});
-  // Todo: toggle/delete use data-todo-toggle / data-todo-delete (not data-toggle-todo / data-delete-todo)
-  document.querySelectorAll("[data-todo-toggle]").forEach(b=>b.addEventListener("click",()=>{
-    const day=todoDate();
-    const items=classesOnDate(displayClasses(),day);
-    const todos=todosForDay(day,items);
-    const i=Number(b.dataset.todoToggle);
-    if(todos[i]){todos[i].done=!todos[i].done;saveDailyTodos(day,todos);render();}
-  }));
-  document.querySelectorAll("[data-todo-delete]").forEach(b=>b.addEventListener("click",()=>{
+  // ⚠️ 添加/勾选/删除 todo 已移至文档级委托，这里不再重复绑定
+  // (避免与文档级监听器双重触发)
+  document.querySelectorAll("[data-todo-delete-OLD]").forEach(b=>b.addEventListener("click",()=>{
     const day=todoDate();
     const items=classesOnDate(displayClasses(),day);
     const todos=todosForDay(day,items);
