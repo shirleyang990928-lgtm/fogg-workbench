@@ -76,5 +76,125 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
+<script>
+/* ===== TODO 修复：在 app.js 之后强制覆盖，确保生效 ===== */
+(function(){
+  /* 缓存输入值 */
+  var _cache="";
+  document.addEventListener("input",function(e){
+    if(e.target&&e.target.id==="todoInput") _cache=e.target.value;
+  },true);
+
+  /* 覆盖 renderTodoNotebook */
+  window.renderTodoNotebook=function(day,items){
+    var dk=dateKey(day);
+    var raw=localStorage.getItem(DAILY_TODO_KEY)||"{}";
+    var obj={};try{obj=JSON.parse(raw);}catch(e){}
+    var todos=Array.isArray(obj[dk])?obj[dk]:[];
+    var isToday=dk===dateKey(new Date());
+    var courses=activeClasses();
+    var opts=courses.length?'<select id="todoClassLink" class="todo-class-select-mini"><option value="">↳ 不关联课程</option>'+courses.map(function(c){return '<option value="'+c.id+'|'+dk+'">'+esc(c.weekday)+" "+esc(formatTimeCN(c.time))+" "+esc(c.className)+"</option>";}).join("")+"</select>":"";
+    var listHtml="";
+    if(todos.length){
+      for(var i=0;i<todos.length;i++){
+        var t=todos[i];
+        var cls=t.done?"todo-item done":"todo-item";
+        var badge=t.classLinkName?'<em class="todo-class-badge">↳'+esc(t.classLinkName)+"</em>":"";
+        listHtml+='<div class="'+cls+'"><button class="todo-check" data-todo-idx="'+i+'" type="button"></button><span class="todo-text">'+esc(t.text)+badge+'</span><button class="todo-delete" data-todo-rm="'+i+'" type="button">✕</button></div>';
+      }
+    }else{
+      listHtml='<div class="todo-empty">还没有待办，随手加一条。</div>';
+    }
+    return '<section class="todo-notebook today-summary"><div class="todo-top"><div><span>当天待办</span><h3>'+(isToday?"今天":dateLabel(day))+'</h3></div><input id="todoDatePicker" type="date" value="'+dk+'"></div><div class="todo-date-nav"><button class="btn" data-todo-move="-1" type="button">前一天</button><b>'+monthTitle(day)+" "+day.getDate()+" · "+todayName(daysBetween(day,new Date()))+'</b><button class="btn" data-todo-move="1" type="button">后一天</button></div><div class="todo-list">'+listHtml+'</div><div class="todo-compact-add"><input id="todoInput" class="todo-compact-input" placeholder="随手记…"><button id="todoAdd" class="todo-plus-btn" type="button">+</button>'+opts+'</div></section>';
+  };
+
+  /* 覆盖 todosForDay */
+  window.todosForDay=function(day,items){
+    var raw=localStorage.getItem(DAILY_TODO_KEY)||"{}";
+    var obj={};try{obj=JSON.parse(raw);}catch(e){}
+    var dk=dateKey(day);
+    return Array.isArray(obj[dk])?obj[dk]:[];
+  };
+
+  /* 保存 todos 到 localStorage */
+  function saveTodos(dk,todos){
+    var raw=localStorage.getItem(DAILY_TODO_KEY)||"{}";
+    var obj={};try{obj=JSON.parse(raw);}catch(e){}
+    obj[dk]=todos;
+    localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(obj));
+    if(typeof syncToCloud==="function"&&currentUser) syncToCloud().catch(function(){});
+  }
+
+  /* 添加 */
+  function addTodo(){
+    var text=_cache.trim();
+    if(!text){
+      var el=document.getElementById("todoInput");
+      if(el) text=el.value.trim();
+    }
+    if(!text){showToast("请先输入内容");return;}
+    var day=todoDate();
+    var dk=dateKey(day);
+    var items=classesOnDate(displayClasses(),day);
+    var todos=todosForDay(day,items);
+    var linkEl=document.getElementById("todoClassLink");
+    var linkVal=linkEl?linkEl.value.trim():"";
+    var linkName="";
+    if(linkVal){
+      var cid=linkVal.split("|")[0];
+      var c=scheduleData.find(function(x){return x.id===cid;});
+      if(c) linkName=c.className||"";
+    }
+    todos.push({id:uid("todo"),text:text,done:false,classLink:linkVal||undefined,classLinkName:linkName||undefined});
+    saveTodos(dk,todos);
+    _cache="";
+    var inp=document.getElementById("todoInput");
+    if(inp) inp.value="";
+    render();
+    showToast("已添加："+text);
+  }
+
+  /* 事件委托 - capture 阶段最先触发 */
+  document.addEventListener("click",function(e){
+    var t=e.target;
+    /* + 按钮 */
+    if(t.id==="todoAdd"||t.classList.contains("todo-plus-btn")){
+      e.stopImmediatePropagation();addTodo();return;
+    }
+    if(t.parentElement&&(t.parentElement.id==="todoAdd"||t.parentElement.classList.contains("todo-plus-btn"))){
+      e.stopImmediatePropagation();addTodo();return;
+    }
+    /* 勾选 */
+    var tog=t.closest?t.closest("[data-todo-idx]"):null;
+    if(tog){
+      e.stopImmediatePropagation();
+      var day=todoDate(),dk=dateKey(day);
+      var items=classesOnDate(displayClasses(),day);
+      var todos=todosForDay(day,items);
+      var idx=Number(tog.dataset.todoIdx);
+      if(todos[idx]){todos[idx].done=!todos[idx].done;saveTodos(dk,todos);render();}
+      return;
+    }
+    /* 删除 */
+    var del=t.closest?t.closest("[data-todo-rm]"):null;
+    if(del){
+      e.stopImmediatePropagation();
+      var day2=todoDate(),dk2=dateKey(day2);
+      var items2=classesOnDate(displayClasses(),day2);
+      var todos2=todosForDay(day2,items2);
+      todos2.splice(Number(del.dataset.todoRm),1);
+      saveTodos(dk2,todos2);render();
+      return;
+    }
+  },true);
+
+  /* Enter 键 */
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Enter"&&e.target&&e.target.id==="todoInput"){
+      e.preventDefault();e.stopImmediatePropagation();addTodo();
+    }
+  },true);
+})();
+</script>
 </body>
 </html>

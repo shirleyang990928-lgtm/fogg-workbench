@@ -1059,11 +1059,11 @@ function defaultTodosForDay(day,items){
 
 function todosForDay(day,items){
   const all=readDailyTodos();
-  const saved=all[dateKey(day)];
+  const dk=dateKey(day);
+  const saved=all[dk];
+  console.log("[todosForDay] key="+dk+" saved="+JSON.stringify(saved)+" allKeys="+Object.keys(all).join(","));
   if(Array.isArray(saved)) return saved;
-  const seeded=defaultTodosForDay(day,items);
-  if(seeded.length) saveDailyTodos(day,seeded);
-  return seeded;
+  return [];
 }
 
 // 查找所有日期里关联某节课的未完成待办（课程卡用）
@@ -3078,8 +3078,13 @@ function _doAddTodo(){
     }
     todos.push({id:uid("todo"),text:text,done:false,classLink:linkVal||undefined,classLinkName:classLinkName||undefined});
     var all=readDailyTodos();
-    all[dateKey(day)]=todos;
+    var dk=dateKey(day);
+    all[dk]=todos;
     localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
+    /* 验证写入 */
+    var verify=localStorage.getItem(DAILY_TODO_KEY);
+    var vobj=JSON.parse(verify||"{}");
+    console.log("[_doAddTodo] saved key="+dk+" count="+todos.length+" verify="+(Array.isArray(vobj[dk])?vobj[dk].length:"MISSING"));
     if(currentUser) syncToCloud().catch(function(e){console.warn("sync failed",e);});
     /* 清缓存 */
     _todoInputCache="";
