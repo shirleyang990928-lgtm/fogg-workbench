@@ -2897,11 +2897,16 @@ function renderMonthLesson(x){
 
 /* 4. renderTodoNotebook — compact "+" button design */
 function renderTodoNotebook(day,items){
-  const todos=todosForDay(day,items);
-  const isToday=dateKey(day)===dateKey(new Date());
-  const allCourses=activeClasses();
-  const classOpts=allCourses.length?`<select id="todoClassLink" class="todo-class-select-mini"><option value="">↳ 不关联课程</option>${allCourses.map(c=>`<option value="${safeAttr(c.id)}|${safeAttr(dateKey(day))}">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} ${esc(c.className)}</option>`).join("")}</select>`:"";
-  const dayKey=dateKey(day);
+  /* 直接从 localStorage 读，不经过 todosForDay，排除中间环节 */
+  var dayKey=dateKey(day);
+  var rawData=localStorage.getItem(DAILY_TODO_KEY)||"{}";
+  var allTodos={};
+  try{allTodos=JSON.parse(rawData)||{};}catch(e){allTodos={};}
+  var todos=Array.isArray(allTodos[dayKey])?allTodos[dayKey]:[];
+  var debugInfo="[DEBUG key="+dayKey+" todos="+todos.length+" keys="+Object.keys(allTodos).join(",")+"]";
+  var isToday=dayKey===dateKey(new Date());
+  var allCourses=activeClasses();
+  var classOpts=allCourses.length?`<select id="todoClassLink" class="todo-class-select-mini"><option value="">↳ 不关联课程</option>${allCourses.map(c=>`<option value="${safeAttr(c.id)}|${safeAttr(dayKey)}">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} ${esc(c.className)}</option>`).join("")}</select>`:"";
   return `<section class="todo-notebook today-summary">
     <div class="todo-top">
       <div><span>当天待办</span><h3>${isToday?"今天":dateLabel(day)}</h3></div>
@@ -2912,12 +2917,13 @@ function renderTodoNotebook(day,items){
       <b>${monthTitle(day)} ${day.getDate()} · ${todayName(daysBetween(day,new Date()))}</b>
       <button class="btn" data-todo-move="1" type="button">后一天</button>
     </div>
+    <div style="font-size:11px;color:#999;padding:4px 12px">${debugInfo}</div>
     <div class="todo-list">
-      ${todos.map((todo,i)=>`<div class="todo-item ${todo.done?'done':''}">
+      ${todos.map(function(todo,i){return `<div class="todo-item ${todo.done?'done':''}">
         <button class="todo-check" data-todo-toggle="${i}" type="button"></button>
         <span class="todo-text">${esc(todo.text)}${todo.classLinkName?`<em class="todo-class-badge">↳${esc(todo.classLinkName)}</em>`:""}</span>
         <button class="todo-delete" data-todo-delete="${i}" type="button">✕</button>
-      </div>`).join("")||`<div class="todo-empty">还没有待办，随手加一条。</div>`}
+      </div>`;}).join("")||`<div class="todo-empty">还没有待办，随手加一条。</div>`}
     </div>
     <div class="todo-compact-add">
       <input id="todoInput" class="todo-compact-input" placeholder="随手记…">
