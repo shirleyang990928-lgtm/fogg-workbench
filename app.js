@@ -13,6 +13,19 @@ async function doLogin(){
   if(error){errEl.textContent='邮箱或密码错误，请重试';return;}
   currentUser=data.user;
   await loadUserDataFromCloud();
+  // ===== 硬塞测试 todo =====
+  (function(){
+    const testDate="2026-06-29";
+    const all=readDailyTodos();
+    if(!all[testDate]) all[testDate]=[];
+    const already=all[testDate].some(t=>t.text==="test1");
+    if(!already){
+      const cls=scheduleData.find(x=>x.className&&x.className.includes("LR-7-8"));
+      all[testDate].push({id:uid("todo"),text:"test1",done:false,classLink:cls?cls.id+"|":"",classLinkName:cls?cls.className:"LR-7-8级"});
+      localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
+    }
+  })();
+  // ===== END =====
   await syncToCloud();
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('appShell').style.display='grid';
@@ -2945,8 +2958,8 @@ function renderTodoNotebook(day,items){
       </div>`).join("")||`<div class="todo-empty">还没有待办，随手加一条。</div>`}
     </div>
     <div class="todo-compact-add">
-      <input id="todoInput" class="todo-compact-input" placeholder="随手记…">
-      <button id="todoAdd" class="todo-plus-btn" type="button">+</button>
+      <input id="todoInput" class="todo-compact-input" placeholder="随手记…" onkeydown="if(event.key==='Enter')window._addTodo()">
+      <button class="todo-plus-btn" type="button" onclick="window._addTodo()">+</button>
       ${classOpts}
     </div>
   </section>`;
@@ -3060,4 +3073,72 @@ function bindTodayEvents(){
     render();
   }));
 }
+
+/* 测试函数：在 Console 里输入 _testTodo() 执行 */
+window._testTodo=function(){
+  try{
+    const testDate="2026-06-29";
+    const cls=scheduleData.find(x=>x.className&&x.className.includes("LR-7-8"));
+    const clsId=cls?cls.id:"";
+    const clsName=cls?cls.className:"LR-7-8级";
+    const all=readDailyTodos();
+    if(!all[testDate]) all[testDate]=[];
+    all[testDate].push({id:uid("todo"),text:"test1",done:false,classLink:clsId?clsId+"|":"",classLinkName:clsName});
+    localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
+    // 跳到 6/29 那天
+    const target=new Date(2026,5,29);
+    todoDateOffset=Math.round((target-new Date())/(1000*60*60*24));
+    render();
+    showToast("test1 已写入 "+testDate+"，当前日期跳转到 6/29");
+    console.log("cls found:",cls);
+    console.log("todos for "+testDate+":",all[testDate]);
+  }catch(e){
+    console.error("testTodo error:",e);
+    showToast("❌ 测试失败："+e.message);
+  }
+};
+
+/* 全局 todo 添加函数，通过 onclick 直接调用，不依赖事件监听 */
+window._addTodo=function(){
+  try{
+    const input=byId("todoInput");
+    const text=(input&&input.value||"").trim();
+    if(!text){showToast("请先输入内容");return;}
+    const day=todoDate();
+    const items=classesOnDate(displayClasses(),day);
+    const todos=todosForDay(day,items);
+    const todoClassLinkEl=byId("todoClassLink");
+    const linkVal=(todoClassLinkEl?todoClassLinkEl.value:"").trim();
+    let classLinkName="";
+    if(linkVal){
+      const cid=linkVal.split("|")[0];
+      const cls=scheduleData.find(x=>x.id===cid);
+      if(cls) classLinkName=cls.className||"";
+    }
+    todos.push({id:uid("todo"),text,done:false,classLink:linkVal||undefined,classLinkName:classLinkName||undefined});
+    // 直接存 localStorage，不依赖 syncToCloud 成功与否
+    try{
+      const all=readDailyTodos();
+      all[dateKey(day)]=todos;
+      localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
+    }catch(storageErr){
+      showToast("⚠️ 本地存储失败："+storageErr.message);
+      return;
+    }
+    // 云端同步（后台，失败不影响显示）
+    if(currentUser){
+      syncToCloud().catch(e=>console.warn("sync failed",e));
+    }
+    if(input) input.value="";
+    try{
+      render();
+    }catch(renderErr){
+      showToast("⚠️ 刷新失败："+renderErr.message);
+      console.error("render error after addTodo:",renderErr);
+    }
+  }catch(e){
+    showToast("⚠️ 添加失败："+e.message);
+    console.error("_addTodo error:",e);
+  }
+};
 
