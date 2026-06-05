@@ -2958,8 +2958,8 @@ function renderTodoNotebook(day,items){
       </div>`).join("")||`<div class="todo-empty">还没有待办，随手加一条。</div>`}
     </div>
     <div class="todo-compact-add">
-      <input id="todoInput" class="todo-compact-input" placeholder="随手记…" onkeydown="if(event.key==='Enter')window._addTodo()">
-      <button class="todo-plus-btn" type="button" onclick="window._addTodo()">+</button>
+      <input id="todoInput" class="todo-compact-input" placeholder="随手记…">
+      <button id="todoAdd" class="todo-plus-btn" type="button">+</button>
       ${classOpts}
     </div>
   </section>`;
