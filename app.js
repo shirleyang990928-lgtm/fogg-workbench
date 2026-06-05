@@ -13,19 +13,6 @@ async function doLogin(){
   if(error){errEl.textContent='邮箱或密码错误，请重试';return;}
   currentUser=data.user;
   await loadUserDataFromCloud();
-  // ===== 硬塞测试 todo =====
-  (function(){
-    const testDate="2026-06-29";
-    const all=readDailyTodos();
-    if(!all[testDate]) all[testDate]=[];
-    const already=all[testDate].some(t=>t.text==="test1");
-    if(!already){
-      const cls=scheduleData.find(x=>x.className&&x.className.includes("LR-7-8"));
-      all[testDate].push({id:uid("todo"),text:"test1",done:false,classLink:cls?cls.id+"|":"",classLinkName:cls?cls.className:"LR-7-8级"});
-      localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
-    }
-  })();
-  // ===== END =====
   await syncToCloud();
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('appShell').style.display='grid';
@@ -2706,29 +2693,7 @@ function renderTodoNotebook(day,items){
   </section>`;
 }
 
-/* Todo add — 不拦截传播，让 bindTodayEvents 的 doAdd 正常执行 */
-/* 此块仅保留课程关联的 classRecords 写入（doAdd 不做这一步）*/
-document.addEventListener("click",function(e){
-  if(e.target.id!=="todoAdd") return;
-  const classLink=(byId("todoClassLink")?.value||"").trim();
-  if(!classLink) return; // 无课程关联时跳过，让 doAdd 单独处理
-  const input=byId("todoInput");
-  const text=(input&&input.value||"").trim();
-  if(!text) return;
-  const [cid,cdate]=classLink.split("|");
-  const cls=scheduleData.find(x=>x.id===cid);
-  if(cls){
-    const records=Array.isArray(cls.classRecords)?cls.classRecords.slice():[];
-    const ridx=records.findIndex(r=>r.date===cdate);
-    const existing=ridx>=0?(records[ridx].notes||""):"";
-    const updated=(existing?existing+"\n":"")+`[Todo] ${text}`;
-    const rec={date:cdate,notes:updated,materials:updated,updatedAt:new Date().toISOString()};
-    if(ridx>=0) records[ridx]={...records[ridx],...rec}; else records.push(rec);
-    cls.classRecords=records;
-    try{saveSchedule();}catch(err){console.warn("classRecord save failed",err);}
-  }
-  // 不调用 render()，由 doAdd 统一处理
-},false);
+/* OLD Todo handler removed — replaced by unified handler at end of file */
 
 /* ============================================================
    REDESIGN: renderScheduleCard — compact, clear hierarchy
@@ -2935,11 +2900,12 @@ function renderTodoNotebook(day,items){
   const todos=todosForDay(day,items);
   const isToday=dateKey(day)===dateKey(new Date());
   const allCourses=activeClasses();
-  const classOpts=allCourses.length?`<select id="todoClassLink" class="todo-class-select-mini"><option value="">↳ 不关联课程</option>${allCourses.map(c=>`<option value="${safeAttr(c.id)}|">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} ${esc(c.className)}</option>`).join("")}</select>`:"";
+  const classOpts=allCourses.length?`<select id="todoClassLink" class="todo-class-select-mini"><option value="">↳ 不关联课程</option>${allCourses.map(c=>`<option value="${safeAttr(c.id)}|${safeAttr(dateKey(day))}">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} ${esc(c.className)}</option>`).join("")}</select>`:"";
+  const dayKey=dateKey(day);
   return `<section class="todo-notebook today-summary">
     <div class="todo-top">
       <div><span>当天待办</span><h3>${isToday?"今天":dateLabel(day)}</h3></div>
-      <input id="todoDatePicker" type="date" value="${safeAttr(dateKey(day))}">
+      <input id="todoDatePicker" type="date" value="${safeAttr(dayKey)}">
     </div>
     <div class="todo-date-nav">
       <button class="btn" data-todo-move="-1" type="button">前一天</button>
@@ -2955,7 +2921,7 @@ function renderTodoNotebook(day,items){
     </div>
     <div class="todo-compact-add">
       <input id="todoInput" class="todo-compact-input" placeholder="随手记…">
-      <button id="todoAdd" class="todo-plus-btn" type="button">+</button>
+      <button id="todoAdd" class="todo-plus-btn" type="button" data-todo-day="${safeAttr(dayKey)}">+</button>
       ${classOpts}
     </div>
   </section>`;
@@ -3061,159 +3027,124 @@ function bindTodayEvents(){
   }));
 }
 
-/* 测试函数：在 Console 里输入 _testTodo() 执行 */
-window._testTodo=function(){
-  try{
-    const testDate="2026-06-29";
-    const cls=scheduleData.find(x=>x.className&&x.className.includes("LR-7-8"));
-    const clsId=cls?cls.id:"";
-    const clsName=cls?cls.className:"LR-7-8级";
-    const all=readDailyTodos();
-    if(!all[testDate]) all[testDate]=[];
-    all[testDate].push({id:uid("todo"),text:"test1",done:false,classLink:clsId?clsId+"|":"",classLinkName:clsName});
-    localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
-    // 跳到 6/29 那天
-    const target=new Date(2026,5,29);
-    todoDateOffset=Math.round((target-new Date())/(1000*60*60*24));
-    render();
-    showToast("test1 已写入 "+testDate+"，当前日期跳转到 6/29");
-    console.log("cls found:",cls);
-    console.log("todos for "+testDate+":",all[testDate]);
-  }catch(e){
-    console.error("testTodo error:",e);
-    showToast("❌ 测试失败："+e.message);
-  }
-};
+/* ===== 统一 TODO 处理 ===== */
+/* 用全局变量缓存输入值，避免 DOM 被刷新后丢失 */
+var _todoInputCache="";
+var _todoLinkCache="";
 
-/* 全局 todo 添加函数，通过 onclick 直接调用，不依赖事件监听 */
-window._addTodo=function(){
+/* 监听每次打字，实时缓存 */
+document.addEventListener("input",function(e){
+  if(e.target&&e.target.id==="todoInput"){
+    _todoInputCache=e.target.value;
+  }
+  if(e.target&&e.target.id==="todoClassLink"){
+    _todoLinkCache=e.target.value;
+  }
+},true);
+
+/* 核心：添加 todo */
+function _doAddTodo(){
+  var text=_todoInputCache.trim();
+  /* 双保险：如果缓存为空，再尝试直接读 DOM */
+  if(!text){
+    var el=document.getElementById("todoInput");
+    if(el) text=el.value.trim();
+  }
+  if(!text){
+    showToast("请先输入内容");
+    return;
+  }
   try{
-    const input=byId("todoInput");
-    const text=(input&&input.value||"").trim();
-    if(!text){showToast("请先输入内容");return;}
-    const day=todoDate();
-    const items=classesOnDate(displayClasses(),day);
-    const todos=todosForDay(day,items);
-    const todoClassLinkEl=byId("todoClassLink");
-    const linkVal=(todoClassLinkEl?todoClassLinkEl.value:"").trim();
-    let classLinkName="";
+    var day=todoDate();
+    var items=classesOnDate(displayClasses(),day);
+    var todos=todosForDay(day,items);
+    var linkVal=_todoLinkCache.trim();
+    /* 再试读 DOM */
+    if(!linkVal){
+      var linkEl=document.getElementById("todoClassLink");
+      if(linkEl) linkVal=linkEl.value.trim();
+    }
+    var classLinkName="";
     if(linkVal){
-      const cid=linkVal.split("|")[0];
-      const cls=scheduleData.find(x=>x.id===cid);
+      var cid=linkVal.split("|")[0];
+      var cls=scheduleData.find(function(x){return x.id===cid;});
       if(cls) classLinkName=cls.className||"";
     }
-    todos.push({id:uid("todo"),text,done:false,classLink:linkVal||undefined,classLinkName:classLinkName||undefined});
-    // 直接存 localStorage，不依赖 syncToCloud 成功与否
-    try{
-      const all=readDailyTodos();
-      all[dateKey(day)]=todos;
-      localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
-    }catch(storageErr){
-      showToast("⚠️ 本地存储失败："+storageErr.message);
-      return;
-    }
-    // 云端同步（后台，失败不影响显示）
-    if(currentUser){
-      syncToCloud().catch(e=>console.warn("sync failed",e));
-    }
-    if(input) input.value="";
-    try{
-      render();
-    }catch(renderErr){
-      showToast("⚠️ 刷新失败："+renderErr.message);
-      console.error("render error after addTodo:",renderErr);
-    }
+    todos.push({id:uid("todo"),text:text,done:false,classLink:linkVal||undefined,classLinkName:classLinkName||undefined});
+    var all=readDailyTodos();
+    all[dateKey(day)]=todos;
+    localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
+    if(currentUser) syncToCloud().catch(function(e){console.warn("sync failed",e);});
+    /* 清缓存 */
+    _todoInputCache="";
+    _todoLinkCache="";
+    var inp=document.getElementById("todoInput");
+    if(inp) inp.value="";
+    render();
+    showToast("已添加："+text);
   }catch(e){
-    showToast("⚠️ 添加失败："+e.message);
-    console.error("_addTodo error:",e);
+    showToast("添加失败："+e.message);
+    console.error("_doAddTodo error:",e);
   }
-};
+}
 
-/* ===== 文档级事件委托：+ 按钮和 Enter 键 ===== */
-/* 这段代码只在脚本加载时注册一次，不会因 render() 重置而丢失 */
-(function(){
-  function doAddTodo(){
+/* 单一事件委托：所有 todo 操作 */
+document.addEventListener("click",function(e){
+  if(!e.target) return;
+  /* + 按钮 */
+  var t=e.target;
+  if(t.id==="todoAdd"||t.classList.contains("todo-plus-btn")||(t.parentElement&&(t.parentElement.id==="todoAdd"||t.parentElement.classList.contains("todo-plus-btn")))){
+    e.stopPropagation();
+    _doAddTodo();
+    return;
+  }
+  /* 勾选完成 */
+  var toggle=t.closest?t.closest("[data-todo-toggle]"):null;
+  if(!toggle&&t.parentElement) toggle=t.parentElement.closest?t.parentElement.closest("[data-todo-toggle]"):null;
+  if(toggle){
+    e.stopPropagation();
     try{
-      const input=byId("todoInput");
-      if(!input) return;
-      const text=input.value.trim();
-      if(!text){showToast("请先输入内容");return;}
-      const day=todoDate();
-      const items=classesOnDate(displayClasses(),day);
-      const todos=todosForDay(day,items);
-      const linkEl=byId("todoClassLink");
-      const linkVal=linkEl?linkEl.value.trim():"";
-      let classLinkName="";
-      if(linkVal){
-        const cid=linkVal.split("|")[0];
-        const cls=scheduleData.find(x=>x.id===cid);
-        if(cls) classLinkName=cls.className||"";
-      }
-      todos.push({id:uid("todo"),text,done:false,
-        classLink:linkVal||undefined,
-        classLinkName:classLinkName||undefined});
-      const all=readDailyTodos();
-      all[dateKey(day)]=todos;
-      localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
-      if(currentUser) syncToCloud().catch(e=>console.warn("sync failed",e));
-      input.value="";
-      render();
-      showToast("已添加："+text);
-    }catch(e){
-      showToast("⚠️ 添加失败："+e.message);
-      console.error("doAddTodo error:",e);
-    }
-  }
-
-  // 点击 + 按钮
-  document.addEventListener("click",function(e){
-    const btn=e.target.closest("#todoAdd,.todo-plus-btn");
-    if(btn){doAddTodo();return;}
-
-    // 勾选完成
-    const toggleBtn=e.target.closest("[data-todo-toggle]");
-    if(toggleBtn){
-      try{
-        const i=Number(toggleBtn.dataset.todoToggle);
-        const day=todoDate();
-        const items=classesOnDate(displayClasses(),day);
-        const todos=todosForDay(day,items);
-        if(todos[i]){
-          todos[i].done=!todos[i].done;
-          const all=readDailyTodos();
-          all[dateKey(day)]=todos;
-          localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
-          if(currentUser) syncToCloud().catch(e=>console.warn("sync failed",e));
-          render();
-        }
-      }catch(e){console.error("toggle todo error:",e);}
-      return;
-    }
-
-    // 删除
-    const deleteBtn=e.target.closest("[data-todo-delete]");
-    if(deleteBtn){
-      try{
-        const i=Number(deleteBtn.dataset.todoDelete);
-        const day=todoDate();
-        const items=classesOnDate(displayClasses(),day);
-        const todos=todosForDay(day,items);
-        todos.splice(i,1);
-        const all=readDailyTodos();
+      var i=Number(toggle.dataset.todoToggle);
+      var day=todoDate();
+      var items=classesOnDate(displayClasses(),day);
+      var todos=todosForDay(day,items);
+      if(todos[i]){
+        todos[i].done=!todos[i].done;
+        var all=readDailyTodos();
         all[dateKey(day)]=todos;
         localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
-        if(currentUser) syncToCloud().catch(e=>console.warn("sync failed",e));
+        if(currentUser) syncToCloud().catch(function(e){console.warn("sync",e);});
         render();
-      }catch(e){console.error("delete todo error:",e);}
-      return;
-    }
-  },false);
+      }
+    }catch(err){console.error("toggle error:",err);}
+    return;
+  }
+  /* 删除 */
+  var del=t.closest?t.closest("[data-todo-delete]"):null;
+  if(!del&&t.parentElement) del=t.parentElement.closest?t.parentElement.closest("[data-todo-delete]"):null;
+  if(del){
+    e.stopPropagation();
+    try{
+      var i2=Number(del.dataset.todoDelete);
+      var day2=todoDate();
+      var items2=classesOnDate(displayClasses(),day2);
+      var todos2=todosForDay(day2,items2);
+      todos2.splice(i2,1);
+      var all2=readDailyTodos();
+      all2[dateKey(day2)]=todos2;
+      localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all2));
+      if(currentUser) syncToCloud().catch(function(e){console.warn("sync",e);});
+      render();
+    }catch(err2){console.error("delete error:",err2);}
+    return;
+  }
+},true); /* capture: true 最先触发，不被其他处理器抢先 */
 
-  // 在 todoInput 里按 Enter
-  document.addEventListener("keydown",function(e){
-    if(e.key==="Enter" && e.target && e.target.id==="todoInput"){
-      e.preventDefault();
-      doAddTodo();
-    }
-  },false);
-})();
+/* Enter 键 */
+document.addEventListener("keydown",function(e){
+  if(e.key==="Enter"&&e.target&&e.target.id==="todoInput"){
+    e.preventDefault();
+    e.stopPropagation();
+    _doAddTodo();
+  }
+},true);
