@@ -1066,12 +1066,8 @@ function saveDailyTodos(day,todos){
 }
 
 function defaultTodosForDay(day,items){
-  if(!items.length) return [];
-  return items.map(x=>({
-    id:uid("todo"),
-    text:`${formatTimeCN(x.time)} ${x.className}\uff1a\u786e\u8ba4 Zoom\u3001\u8d44\u6599\u548c\u8bfe\u540e\u8bb0\u5f55`,
-    done:false
-  }));
+  // \u4e0d\u81ea\u52a8\u751f\u6210\uff0c\u5f85\u529e\u53ea\u80fd\u7531\u7528\u6237\u624b\u52a8\u8f93\u5165
+  return [];
 }
 
 function todosForDay(day,items){
@@ -3142,3 +3138,91 @@ window._addTodo=function(){
   }
 };
 
+/* ===== 文档级事件委托：+ 按钮和 Enter 键 ===== */
+/* 这段代码只在脚本加载时注册一次，不会因 render() 重置而丢失 */
+(function(){
+  function doAddTodo(){
+    try{
+      const input=byId("todoInput");
+      if(!input) return;
+      const text=input.value.trim();
+      if(!text){showToast("请先输入内容");return;}
+      const day=todoDate();
+      const items=classesOnDate(displayClasses(),day);
+      const todos=todosForDay(day,items);
+      const linkEl=byId("todoClassLink");
+      const linkVal=linkEl?linkEl.value.trim():"";
+      let classLinkName="";
+      if(linkVal){
+        const cid=linkVal.split("|")[0];
+        const cls=scheduleData.find(x=>x.id===cid);
+        if(cls) classLinkName=cls.className||"";
+      }
+      todos.push({id:uid("todo"),text,done:false,
+        classLink:linkVal||undefined,
+        classLinkName:classLinkName||undefined});
+      const all=readDailyTodos();
+      all[dateKey(day)]=todos;
+      localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
+      if(currentUser) syncToCloud().catch(e=>console.warn("sync failed",e));
+      input.value="";
+      render();
+      showToast("已添加："+text);
+    }catch(e){
+      showToast("⚠️ 添加失败："+e.message);
+      console.error("doAddTodo error:",e);
+    }
+  }
+
+  // 点击 + 按钮
+  document.addEventListener("click",function(e){
+    const btn=e.target.closest("#todoAdd,.todo-plus-btn");
+    if(btn){doAddTodo();return;}
+
+    // 勾选完成
+    const toggleBtn=e.target.closest("[data-todo-toggle]");
+    if(toggleBtn){
+      try{
+        const i=Number(toggleBtn.dataset.todoToggle);
+        const day=todoDate();
+        const items=classesOnDate(displayClasses(),day);
+        const todos=todosForDay(day,items);
+        if(todos[i]){
+          todos[i].done=!todos[i].done;
+          const all=readDailyTodos();
+          all[dateKey(day)]=todos;
+          localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
+          if(currentUser) syncToCloud().catch(e=>console.warn("sync failed",e));
+          render();
+        }
+      }catch(e){console.error("toggle todo error:",e);}
+      return;
+    }
+
+    // 删除
+    const deleteBtn=e.target.closest("[data-todo-delete]");
+    if(deleteBtn){
+      try{
+        const i=Number(deleteBtn.dataset.todoDelete);
+        const day=todoDate();
+        const items=classesOnDate(displayClasses(),day);
+        const todos=todosForDay(day,items);
+        todos.splice(i,1);
+        const all=readDailyTodos();
+        all[dateKey(day)]=todos;
+        localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
+        if(currentUser) syncToCloud().catch(e=>console.warn("sync failed",e));
+        render();
+      }catch(e){console.error("delete todo error:",e);}
+      return;
+    }
+  },false);
+
+  // 在 todoInput 里按 Enter
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Enter" && e.target && e.target.id==="todoInput"){
+      e.preventDefault();
+      doAddTodo();
+    }
+  },false);
+})();
