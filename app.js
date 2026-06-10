@@ -1,4 +1,8 @@
-﻿/* ===== SUPABASE 配置 ===== */
+﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
+const APP_VERSION='20260610b';
+console.log('课堂工作台 app.js 版本：'+APP_VERSION);
+
+/* ===== SUPABASE 配置 ===== */
 const SUPABASE_URL='https://wotsmkagmblzcfaggdwh.supabase.co';
 const SUPABASE_KEY='sb_publishable_y4wIYoLc8ZqhevLKKCK6Vg_FzxLX7LA';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -12,11 +16,15 @@ async function doLogin(){
   const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){errEl.textContent='邮箱或密码错误，请重试';return;}
   currentUser=data.user;
-  await loadUserDataFromCloud();
+  const loaded=await loadUserDataFromCloud();
+  if(!loaded){
+    errEl.textContent='加载云端数据失败，请检查网络后重试';
+    return;
+  }
   await syncToCloud();
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('appShell').style.display='grid';
-  document.getElementById('userBadge').textContent=email;
+  document.getElementById('userBadge').textContent=email+' · v'+APP_VERSION;
   updateClock();setInterval(updateClock,1000);
   setInterval(()=>{if(view==='today')render();},60000);
   render();
@@ -102,16 +110,25 @@ async function adminClearByEmail(){
 /* ===== END 管理员功能 ===== */
 
 async function loadUserDataFromCloud(){
-  // 先清掉本地所有旧数据，确保云端是唯一来源
+  // 先请求云端数据，确认成功后才清空本地；请求失败时返回 false，
+  // 避免后续 syncToCloud 把空数组写回云端导致数据丢失
+  const {data,error}=await sb.from('user_data').select('*').eq('user_email',currentUser.email).maybeSingle();
+  if(error){
+    console.warn('load from cloud failed',error);
+    return false;
+  }
   Object.values(STORAGE_KEYS).forEach(k=>localStorage.removeItem(k));
   localStorage.removeItem(DAILY_TODO_KEY);
   stickersData=[];
   scheduleData=[];
-  const {data}=await sb.from('user_data').select('*').eq('user_email',currentUser.email).single();
   if(data){
     localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(data.stickers||[]));
     localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(data.schedule||[]));
-    localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(data.todos||{}));
+    // 云端 todos 可能是历史坏格式（字符串/数组），先归一成对象再落地
+    let cloudTodos=data.todos;
+    if(typeof cloudTodos==="string"){try{cloudTodos=JSON.parse(cloudTodos);}catch(e){cloudTodos={};}}
+    if(!cloudTodos||typeof cloudTodos!=="object"||Array.isArray(cloudTodos)) cloudTodos={};
+    localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(cloudTodos));
     stickersData=(data.stickers||[]).map(normalizeSticker);
     scheduleData=(data.schedule||[]).map(normalizeClassItem);
     if(data.stickerCategories&&Array.isArray(data.stickerCategories)&&data.stickerCategories.length){
@@ -123,12 +140,13 @@ async function loadUserDataFromCloud(){
       courseCategories=data.courseCategories.map(normalizeCategory);
     }
   }
+  return true;
 }
 
 async function syncToCloud(){
   if(!currentUser)return;
   try{
-    const todos=JSON.parse(localStorage.getItem(DAILY_TODO_KEY)||'{}');
+    const todos=readDailyTodos();
     await sb.from('user_data').upsert({
       user_email:currentUser.email,
       stickers:stickersData,
@@ -1042,7 +1060,14 @@ function daysBetween(a,b){
 }
 
 function readDailyTodos(){
-  try{return JSON.parse(localStorage.getItem(DAILY_TODO_KEY)||"{}")||{};}catch(e){return {};}
+  try{
+    let parsed=JSON.parse(localStorage.getItem(DAILY_TODO_KEY)||"{}");
+    // 历史数据可能被双重编码成字符串，再解一层
+    if(typeof parsed==="string") parsed=JSON.parse(parsed);
+    // 必须是 {日期: [待办...]} 形式的对象；字符串/数组等坏格式一律重置
+    if(!parsed||typeof parsed!=="object"||Array.isArray(parsed)) return {};
+    return parsed;
+  }catch(e){return {};}
 }
 
 function saveDailyTodos(day,todos){
@@ -1061,7 +1086,6 @@ function todosForDay(day,items){
   const all=readDailyTodos();
   const dk=dateKey(day);
   const saved=all[dk];
-  console.log("[todosForDay] key="+dk+" saved="+JSON.stringify(saved)+" allKeys="+Object.keys(all).join(","));
   if(Array.isArray(saved)) return saved;
   return [];
 }
@@ -2897,13 +2921,9 @@ function renderMonthLesson(x){
 
 /* 4. renderTodoNotebook — compact "+" button design */
 function renderTodoNotebook(day,items){
-  /* 直接从 localStorage 读，不经过 todosForDay，排除中间环节 */
   var dayKey=dateKey(day);
-  var rawData=localStorage.getItem(DAILY_TODO_KEY)||"{}";
-  var allTodos={};
-  try{allTodos=JSON.parse(rawData)||{};}catch(e){allTodos={};}
+  var allTodos=readDailyTodos();
   var todos=Array.isArray(allTodos[dayKey])?allTodos[dayKey]:[];
-  var debugInfo="[DEBUG key="+dayKey+" todos="+todos.length+" keys="+Object.keys(allTodos).join(",")+"]";
   var isToday=dayKey===dateKey(new Date());
   var allCourses=activeClasses();
   var classOpts=allCourses.length?`<select id="todoClassLink" class="todo-class-select-mini"><option value="">↳ 不关联课程</option>${allCourses.map(c=>`<option value="${safeAttr(c.id)}|${safeAttr(dayKey)}">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} ${esc(c.className)}</option>`).join("")}</select>`:"";
@@ -2917,7 +2937,6 @@ function renderTodoNotebook(day,items){
       <b>${monthTitle(day)} ${day.getDate()} · ${todayName(daysBetween(day,new Date()))}</b>
       <button class="btn" data-todo-move="1" type="button">后一天</button>
     </div>
-    <div style="font-size:11px;color:#999;padding:4px 12px">${debugInfo}</div>
     <div class="todo-list">
       ${todos.map(function(todo,i){return `<div class="todo-item ${todo.done?'done':''}">
         <button class="todo-check" data-todo-toggle="${i}" type="button"></button>
@@ -2926,7 +2945,7 @@ function renderTodoNotebook(day,items){
       </div>`;}).join("")||`<div class="todo-empty">还没有待办，随手加一条。</div>`}
     </div>
     <div class="todo-compact-add">
-      <input id="todoInput" class="todo-compact-input" placeholder="随手记…">
+      <input id="todoInput" class="todo-compact-input" placeholder="随手记…" value="${safeAttr(_todoInputCache||"")}">
       <button id="todoAdd" class="todo-plus-btn" type="button" data-todo-day="${safeAttr(dayKey)}">+</button>
       ${classOpts}
     </div>
@@ -3081,10 +3100,6 @@ function _doAddTodo(){
     var dk=dateKey(day);
     all[dk]=todos;
     localStorage.setItem(DAILY_TODO_KEY,JSON.stringify(all));
-    /* 验证写入 */
-    var verify=localStorage.getItem(DAILY_TODO_KEY);
-    var vobj=JSON.parse(verify||"{}");
-    console.log("[_doAddTodo] saved key="+dk+" count="+todos.length+" verify="+(Array.isArray(vobj[dk])?vobj[dk].length:"MISSING"));
     if(currentUser) syncToCloud().catch(function(e){console.warn("sync failed",e);});
     /* 清缓存 */
     _todoInputCache="";
