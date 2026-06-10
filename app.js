@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260610c';
+const APP_VERSION='20260610d';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -8,6 +8,27 @@ const SUPABASE_KEY='sb_publishable_y4wIYoLc8ZqhevLKKCK6Vg_FzxLX7LA';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let currentUser=null;
 
+/* 登录成功后的统一入口：手动登录(doLogin)和自动恢复会话都走这里。
+   返回 false 表示云端数据加载失败——此时绝不进入主界面、绝不 syncToCloud，
+   防止把空数据写回云端覆盖真实数据 */
+async function enterApp(user){
+  currentUser=user;
+  const loaded=await loadUserDataFromCloud();
+  if(!loaded){
+    currentUser=null;
+    return false;
+  }
+  await syncToCloud();
+  document.getElementById('loginOverlay').style.display='none';
+  document.getElementById('appShell').style.display='grid';
+  document.getElementById('userBadge').textContent=user.email+' · v'+APP_VERSION;
+  updateClock();setInterval(updateClock,1000);
+  setInterval(()=>{if(view==='today')render();},60000);
+  render();
+  injectAdminUI();
+  return true;
+}
+
 async function doLogin(){
   const email=document.getElementById('loginEmail').value.trim();
   const pass=document.getElementById('loginPassword').value;
@@ -15,20 +36,8 @@ async function doLogin(){
   errEl.textContent='登录中…';
   const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){errEl.textContent='邮箱或密码错误，请重试';return;}
-  currentUser=data.user;
-  const loaded=await loadUserDataFromCloud();
-  if(!loaded){
-    errEl.textContent='加载云端数据失败，请检查网络后重试';
-    return;
-  }
-  await syncToCloud();
-  document.getElementById('loginOverlay').style.display='none';
-  document.getElementById('appShell').style.display='grid';
-  document.getElementById('userBadge').textContent=email+' · v'+APP_VERSION;
-  updateClock();setInterval(updateClock,1000);
-  setInterval(()=>{if(view==='today')render();},60000);
-  render();
-  injectAdminUI();
+  const ok=await enterApp(data.user);
+  errEl.textContent=ok?'':'加载云端数据失败，请检查网络后重试';
 }
 
 async function doLogout(){
@@ -2133,23 +2142,16 @@ document.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",
 byId("detailClose").addEventListener("click",closeStickerDetail);
 byId("detailModal").addEventListener("click",e=>{if(e.target.id==="detailModal")closeStickerDetail();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&byId("detailModal").classList.contains("show"))closeStickerDetail();});
-// 启动时检查登录状态
-sb.auth.getSession().then(({data:{session}})=>{
-  if(session){
-    currentUser=session.user;
-    loadUserDataFromCloud().then(()=>{
-      stickersData=loadCollection(STORAGE_KEYS.stickers,DEFAULT_STICKERS,normalizeSticker);
-      scheduleData=loadCollection(STORAGE_KEYS.schedule,DEFAULT_SCHEDULE,normalizeClassItem);
-      document.getElementById('loginOverlay').style.display='none';
-      document.getElementById('appShell').style.display='grid';
-      document.getElementById('userBadge').textContent=session.user.email;
-      updateClock();setInterval(updateClock,1000);
-      setInterval(()=>{if(view==='today')render();},60000);
-      render();
-      injectAdminUI();
-    });
+// 启动时检查登录状态：有有效会话就直接进入主界面，免去每次重输密码
+sb.auth.getSession().then(async ({data})=>{
+  const session=data&&data.session;
+  // 未登录时保持登录页（loginOverlay 默认显示，appShell 默认 display:none）
+  if(!session||!session.user) return;
+  const ok=await enterApp(session.user);
+  if(!ok){
+    const errEl=document.getElementById('loginError');
+    if(errEl) errEl.textContent='已检测到登录状态，但云端数据加载失败，请检查网络后刷新或重新登录';
   }
-  // 未登录时显示登录页（loginOverlay 默认显示，appShell 默认 display:none）
 });
 
 /* ===== REDESIGNED CLASS DETAIL MODAL ===== */
