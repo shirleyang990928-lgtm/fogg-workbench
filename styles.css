@@ -6654,3 +6654,76 @@ b.tcc-name{
 .sticker-card .sticker-open > b{
   padding-right:0!important;
 }
+
+/* ============================================================
+   FIX 2026-06-11 — 月总览右侧课程卡：倒计时徽章移到右上角
+   原来徽章排在卡片底部，卡片高度又被旧规则钉死在 116px，
+   内容一超高就把"还有 X 天"挤到老师那行字上。改成：
+   卡片高度按内容自适应 + 徽章固定右上角（与时间同一行）
+   ============================================================ */
+.month-detail-list .month-lesson{
+  position:relative!important;
+  height:auto!important;
+  min-height:0!important;
+  overflow:visible!important;
+}
+.month-detail-list .month-lesson .month-lesson-time{
+  padding-right:88px!important; /* 给右上角徽章留位置，避免压住时间文字 */
+}
+.month-detail-list .month-lesson em{
+  position:absolute!important;
+  top:11px!important;
+  right:11px!important;
+  margin-top:0!important;
+}
+
+/* ============================================================
+   2026-06-11 学生名册（新导航页）
+   ============================================================ */
+.main-nav{grid-template-columns:repeat(4,1fr)!important}
+@media(max-width:700px){.main-nav{grid-template-columns:1fr!important}}
+
+/* 学生页：左列表 + 右详情（复用管理页的 manage-layout/list-panel/edit-panel 骨架） */
+.student-manage .edit-panel{overflow-y:auto}
+.student-detail-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:21px;margin-bottom:10px}
+.stu-status{
+  display:inline-block;font-style:normal;font-size:11px;font-weight:950;
+  border:1.5px solid rgba(23,27,20,.4);border-radius:999px;padding:1px 9px;vertical-align:1px;
+}
+.stu-active{background:#ddf3e4;color:#1f5e30}
+.stu-pause{background:#fff0c9;color:#7a5a12}
+.stu-done{background:#e8e6f7;color:#4a4480}
+.stu-none{background:#f1ece2;color:#8a7a5c;border-style:dashed}
+.student-form textarea{min-height:74px}
+.student-empty-hint{
+  display:grid;align-content:center;justify-items:center;text-align:center;
+  height:100%;min-height:260px;gap:10px;color:var(--muted);
+}
+.student-empty-hint h3{font-size:22px;color:var(--ink)}
+.student-empty-hint p{font-weight:800;line-height:1.7}
+.student-detail-extra{margin-top:16px;border-top:2px dashed rgba(23,27,20,.18);padding-top:12px;display:grid;gap:9px}
+.student-detail-extra h4{font-size:14px;font-weight:950}
+.student-phase-hint{font-size:12px;color:var(--muted);font-weight:800}
+.student-note{
+  font-size:12.5px;color:#6b5537;font-weight:800;
+  background:#fff6dd;border:1.5px dashed rgba(23,27,20,.25);
+  border-radius:10px;padding:6px 9px;
+}
+.student-classes{display:flex;flex-wrap:wrap;gap:6px}
+.student-class-chip{
+  border:1.5px solid rgba(23,27,20,.45);border-radius:999px;
+  background:#eef5f0;padding:4px 11px;
+  font-size:12px;font-weight:900;cursor:pointer;font-family:inherit;
+  transition:.12s;
+}
+.student-class-chip:hover{background:#ddeee4;transform:translateY(-1px)}
+.student-class-chip.archived{opacity:.55}
+
+/* 课程详情弹窗里的可点学生名 */
+.student-links{display:flex;flex-wrap:wrap;gap:5px}
+.student-link{
+  border:1.5px solid rgba(23,27,20,.5);border-radius:999px;
+  background:#e7f0fa;padding:3px 11px;
+  font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;
+}
+.student-link:hover{background:#d2e5f6}
