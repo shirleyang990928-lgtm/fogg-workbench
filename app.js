@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260610b';
+const APP_VERSION='20260610c';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -1115,35 +1115,7 @@ function allTodosForClassByDate(classId){
   return byDate;
 }
 
-function renderTodoNotebook(day,items){
-  const todos=todosForDay(day,items);
-  const isToday=dateKey(day)===dateKey(new Date());
-  return `<section class="todo-notebook today-summary">
-    <div class="todo-top">
-      <div>
-        <span>\u5f53\u5929\u5f85\u529e</span>
-        <h3>${isToday?"\u4eca\u5929":dateLabel(day)}</h3>
-      </div>
-      <input id="todoDatePicker" type="date" value="${safeAttr(dateKey(day))}">
-    </div>
-    <div class="todo-date-nav">
-      <button class="btn" data-todo-move="-1" type="button">\u524d\u4e00\u5929</button>
-      <b>${monthTitle(day)} ${day.getDate()} \u00b7 ${todayName(daysBetween(day,new Date()))}</b>
-      <button class="btn" data-todo-move="1" type="button">\u540e\u4e00\u5929</button>
-    </div>
-    <div class="todo-list">
-      ${todos.map((todo,i)=>`<div class="todo-item ${todo.done?'done':''}">
-        <button class="todo-check" data-todo-toggle="${i}" type="button" aria-label="\u5b8c\u6210\u5f85\u529e"></button>
-        <span>${esc(todo.text)}</span>
-        <button class="todo-delete" data-todo-delete="${i}" type="button">\u5220</button>
-      </div>`).join("")||`<div class="todo-empty">\u8fd9\u5929\u8fd8\u6ca1\u6709\u5f85\u529e\uff0c\u4e0b\u9762\u53ef\u4ee5\u968f\u624b\u52a0\u4e00\u6761\u3002</div>`}
-    </div>
-    <div class="todo-add-row">
-      <input id="todoInput" placeholder="\u4f8b\uff1a\u7ed9\u5bb6\u957f\u53d1\u8bfe\u540e\u8bb0\u5f55">
-      <button id="todoAdd" class="btn primary" type="button">\u52a0\u5165</button>
-    </div>
-  </section>`;
-}
+/* renderTodoNotebook \u7684\u552f\u4e00\u5b9e\u73b0\u5728\u6587\u4ef6\u672b\u5c3e"\u7edf\u4e00 TODO \u5904\u7406"\u533a\u57df */
 
 function renderTodayCourseCard(x){
   const status=cleanStatusList(x);
@@ -2686,40 +2658,6 @@ function openClassDetailModal(item){
 }
 
 /* ============================================================
-   FEATURE: 建议3 — Todo linked to course
-   ============================================================ */
-function renderTodoNotebook(day,items){
-  const todos=todosForDay(day,items);
-  const isToday=dateKey(day)===dateKey(new Date());
-  const classOpts=items.length?`<select id="todoClassLink" class="todo-class-select"><option value="">不关联课程</option>${items.map(c=>`<option value="${safeAttr(c.id)}|${safeAttr(c._occurrenceDate||dateKey(day))}">${esc(formatTimeCN(c.time))} ${esc(c.className)}</option>`).join("")}</select>`:"";
-  return `<section class="todo-notebook today-summary">
-    <div class="todo-top">
-      <div><span>当天待办</span><h3>${isToday?"今天":dateLabel(day)}</h3></div>
-      <input id="todoDatePicker" type="date" value="${safeAttr(dateKey(day))}">
-    </div>
-    <div class="todo-date-nav">
-      <button class="btn" data-todo-move="-1" type="button">前一天</button>
-      <b>${monthTitle(day)} ${day.getDate()} · ${todayName(daysBetween(day,new Date()))}</b>
-      <button class="btn" data-todo-move="1" type="button">后一天</button>
-    </div>
-    <div class="todo-list">
-      ${todos.map((todo,i)=>`<div class="todo-item ${todo.done?'done':''}">
-        <button class="todo-check" data-todo-toggle="${i}" type="button" aria-label="完成待办"></button>
-        <span>${esc(todo.text)}${todo.classLinkName?`<em class="todo-class-badge">↳${esc(todo.classLinkName)}</em>`:""}</span>
-        <button class="todo-delete" data-todo-delete="${i}" type="button">删</button>
-      </div>`).join("")||`<div class="todo-empty">这天还没有待办，下面可以随手加一条。</div>`}
-    </div>
-    <div class="todo-add-row">
-      <input id="todoInput" placeholder="例如：给家长发课后记录">
-      ${classOpts}
-      <button id="todoAdd" class="btn primary" type="button">加入</button>
-    </div>
-  </section>`;
-}
-
-/* OLD Todo handler removed — replaced by unified handler at end of file */
-
-/* ============================================================
    REDESIGN: renderScheduleCard — compact, clear hierarchy
    ============================================================ */
 function renderScheduleCard(x,active){
@@ -2751,38 +2689,6 @@ function renderWeekLesson(x){
     ${zoom?`<span class="wl-zoom">${esc(zoom)}</span>`:""}
     ${warnItems.length?`<i>${warnItems.map(esc).join(" · ")}</i>`:""}
   </button>`;
-}
-
-/* ============================================================
-   REDESIGN: renderTodoNotebook — cleaner layout
-   ============================================================ */
-function renderTodoNotebook(day,items){
-  const todos=todosForDay(day,items);
-  const isToday=dateKey(day)===dateKey(new Date());
-  const classOpts=items.length?`<div class="todo-link-row"><span>关联课程</span><select id="todoClassLink" class="todo-class-select"><option value="">不关联</option>${items.map(c=>`<option value="${safeAttr(c.id)}|${safeAttr(c._occurrenceDate||dateKey(day))}">${esc(formatTimeCN(c.time))} ${esc(c.className)}</option>`).join("")}</select></div>`:"";
-  return `<section class="todo-notebook today-summary">
-    <div class="todo-top">
-      <div><span>当天待办</span><h3>${isToday?"今天":dateLabel(day)}</h3></div>
-      <input id="todoDatePicker" type="date" value="${safeAttr(dateKey(day))}">
-    </div>
-    <div class="todo-date-nav">
-      <button class="btn" data-todo-move="-1" type="button">前一天</button>
-      <b>${monthTitle(day)} ${day.getDate()} · ${todayName(daysBetween(day,new Date()))}</b>
-      <button class="btn" data-todo-move="1" type="button">后一天</button>
-    </div>
-    <div class="todo-list">
-      ${todos.map((todo,i)=>`<div class="todo-item ${todo.done?'done':''}">
-        <button class="todo-check" data-todo-toggle="${i}" type="button"></button>
-        <span class="todo-text">${esc(todo.text)}${todo.classLinkName?`<em class="todo-class-badge">↳${esc(todo.classLinkName)}</em>`:""}</span>
-        <button class="todo-delete" data-todo-delete="${i}" type="button">删</button>
-      </div>`).join("")||`<div class="todo-empty">还没有待办，随手加一条。</div>`}
-    </div>
-    <div class="todo-input-area">
-      <input id="todoInput" class="todo-main-input" placeholder="随手记：跟进事项、备注…">
-      ${classOpts}
-      <button id="todoAdd" class="btn primary todo-add-btn" type="button">加入</button>
-    </div>
-  </section>`;
 }
 
 /* ============================================================
@@ -3015,41 +2921,10 @@ function bindTodayEvents(){
   document.querySelectorAll("[data-month-current]").forEach(b=>b.addEventListener("click",()=>{calendarMonthOffset=0;monthSelectedDate=dateKey(new Date());render();}));
   document.querySelectorAll("[data-month-day]").forEach(b=>b.addEventListener("click",()=>{monthSelectedDate=b.dataset.monthDay;render();}));
   document.querySelectorAll("[data-schedule-add-class]").forEach(b=>b.addEventListener("click",()=>{view="manage";manageMode="classes";editingClassId=null;manageClassSearch="";render();}));
-  // Todo: date navigation uses data-todo-move (not data-todo-date)
+  // Todo 日期切换；添加/勾选/删除在文件末尾的文档级委托里统一处理，这里不重复绑定
   document.querySelectorAll("[data-todo-move]").forEach(b=>b.addEventListener("click",()=>{todoDateOffset+=Number(b.dataset.todoMove);render();}));
   const picker=byId("todoDatePicker");
   if(picker) picker.addEventListener("change",()=>{const picked=parseLocalDate(picker.value);if(picked){todoDateOffset=daysBetween(picked,new Date());render();}});
-  // Todo: add uses id="todoAdd" + id="todoInput" (not data-add-todo)
-  const doAdd=()=>{
-    const input=byId("todoInput");
-    const text=(input&&input.value||"").trim();
-    if(!text) return;
-    const day=todoDate();
-    const items=classesOnDate(displayClasses(),day);
-    const todos=todosForDay(day,items);
-    const linkVal=(byId("todoClassLink")?.value||"").trim();
-    let classLinkName="";
-    if(linkVal){
-      const cid=linkVal.split("|")[0];
-      const cls=scheduleData.find(x=>x.id===cid);
-      if(cls) classLinkName=cls.className||"";
-    }
-    todos.push({id:uid("todo"),text,done:false,classLink:linkVal||undefined,classLinkName:classLinkName||undefined});
-    saveDailyTodos(day,todos);
-    if(input) input.value="";
-    render();
-  };
-  // ⚠️ 添加/勾选/删除 todo 已移至文档级委托，这里不再重复绑定
-  // (避免与文档级监听器双重触发)
-  document.querySelectorAll("[data-todo-delete-OLD]").forEach(b=>b.addEventListener("click",()=>{
-    const day=todoDate();
-    const items=classesOnDate(displayClasses(),day);
-    const todos=todosForDay(day,items);
-    const i=Number(b.dataset.todoDelete);
-    todos.splice(i,1);
-    saveDailyTodos(day,todos);
-    render();
-  }));
 }
 
 /* ===== 统一 TODO 处理 ===== */
