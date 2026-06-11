@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260611b';
+const APP_VERSION='20260611e';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -337,7 +337,7 @@ function filterStickers(list,scene,audience){return list.filter(x=>(scene==="all
 function updateNav(){document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));}
 function setHead(title,sub,count){byId("viewTitle").textContent=title;byId("viewSubtitle").textContent=sub;byId("viewSubtitle").hidden=!sub;byId("counter").textContent=count||"";}
 function tabs(items,current,key){return items.map(x=>`<button class="tab ${x.value===current?'active':''}" data-${key}="${safeAttr(x.value)}">${esc(x.label)}</button>`).join("");}
-function render(){updateNav();if(view==="today")renderToday();if(view==="stickers")renderStickers();if(view==="students")renderStudents();if(view==="manage")renderManage();}
+function render(){updateNav();if(view==="today")renderToday();if(view==="stickers")renderStickers();if(view==="courses")renderCourses();if(view==="students")renderStudents();if(view==="manage")renderManage();if(view==="courseHome")renderCourseHome();}
 function renderFocus(current,suggested){if(!current)return `<div class="panel-head"><h3>\u5f53\u524d\u4efb\u52a1</h3><span>\u6682\u65e0\u8bfe\u7a0b</span></div><p class="empty">\u4eca\u5929\u6ca1\u6709\u8bfe\u65f6\uff0c\u5de5\u4f5c\u53f0\u4f1a\u81ea\u52a8\u663e\u793a\u6700\u8fd1\u7684\u8fdb\u884c\u4e2d\u8bfe\u7a0b\u3002</p>`;return `<div class="panel-head"><h3>\u5f53\u524d\u4efb\u52a1</h3><span>\u5efa\u8bae\uff1a${SCENE_LABELS[suggested]}</span></div><div class="focus-card"><div class="focus-top"><div><div class="course-time">${esc(current.time||"\u672a\u5b9a")}</div><div class="course-name">${esc(current.className)}</div></div><span class="chip ok">${STATUS_LABELS[current.status]}</span></div><div class="meta-row"><span class="chip">${esc(current.weekday)}</span><span class="chip">${esc(current.courseType)}</span><span class="chip">${esc(current.teacher||"\u672a\u586b\u8001\u5e08")}</span></div><div class="student-row">${current.students.map(s=>`<span class="chip">${esc(s.name)}</span>`).join("")||'<span class="chip">\u6682\u65e0\u5b66\u751f</span>'}</div><div class="course-note">${esc((current.notes[0]&&current.notes[0].text)||"\u6682\u65e0\u5907\u6ce8\u3002")}</div></div>`;}
 function renderCourseCards(classes,current){return `<div class="course-card-grid">${classes.map(x=>renderScheduleCard(x,current&&x.id===current.id)).join("")||'<p class="empty">\u6682\u65e0\u53ef\u663e\u793a\u8bfe\u7a0b\u3002</p>'}</div>`;}
 function renderDayColumn(day,items){return `<section class="week-day-card"><div class="day-card-head"><b>${esc(day)}</b><span>${items.length} \u8282</span></div><div class="day-card-list">${items.map(x=>renderScheduleCard(x,false)).join("")||'<p class="empty mini">\u6ca1\u8bfe</p>'}</div></section>`;}
@@ -1256,8 +1256,14 @@ function openClassDetailModal(item){
   document.querySelectorAll("[data-quick-text]").forEach(btn=>{
     btn.addEventListener("click",()=>copyText(btn.dataset.quickText));
   });
-  // 本节课点名（二期）
+  // 本节课点名（二期）+ 作业（三期）+ 课程主页入口
   bindAttendanceSection(item);
+  bindHomeworkSection(item);
+  const homeBtn=byId("detailCourseHome");
+  if(homeBtn){
+    homeBtn.hidden=isDemo;
+    homeBtn.onclick=()=>{closeStickerDetail();openCourseHome(item.id);};
+  }
   // Note save
   const saveBtn=byId("detailNoteSave");
   if(saveBtn) saveBtn.addEventListener("click",()=>{
@@ -1382,7 +1388,7 @@ function classDetailHtml(item){
   const todayTodos=(todoByDate[date]||[]);
   const todayTodosHtml=todayTodos.length?`<div class="today-todo-in-detail"><b>今日关联待办</b><div class="history-todos">${todayTodos.map(t=>`<span class="history-todo-item ${t.done?"done":""}">${t.done?"✓ ":"○ "}${esc(t.text)}</span>`).join("")}</div></div>`:"";
   const studentsHtml=item.students.length?item.students.map(s=>`<button class="student-link" data-student-name="${safeAttr(s.name)}" type="button">${esc(s.name)}</button>`).join(""):"暂无";
-  return `<div class="detail-section"><h4>上课信息</h4><div class="detail-grid final-detail-grid">${fieldCard("老师",item.teacher)}${fieldCard("课程",item.courseType)}${fieldCard("进度",lessonLabel(item))}${fieldCard("主题",item.topic)}${fieldCard("学期",classTermLabel(item))}${fieldCard("Zoom",zoomName(item))}<div class="detail-line wide"><span>学生（点名字看名册）</span><b class="student-links">${studentsHtml}</b></div></div></div>${attendanceSectionHtml(item,date)}<div class="detail-section detail-note-section"><div class="note-section-head"><h4>${formatDateShort(date)} 课堂笔记</h4>${merged.length?`<button class="btn ghost detail-history-toggle" id="detailHistoryToggle" type="button">历史 (${merged.length})</button>`:""}</div>${todayTodosHtml}<textarea id="detailNoteInput" class="detail-note-input" placeholder="今天发生了什么？只属于这一天。">${esc(todayNote)}</textarea><button class="btn note-save-btn" id="detailNoteSave" type="button">保存笔记</button></div>${merged.length?`<div class="detail-history-section" id="detailHistory" style="display:none">${historyHtml}</div>`:""}`;
+  return `<div class="detail-section"><h4>上课信息</h4><div class="detail-grid final-detail-grid">${fieldCard("老师",item.teacher)}${fieldCard("课程",item.courseType)}${fieldCard("进度",lessonLabel(item))}${fieldCard("主题",item.topic)}${fieldCard("学期",classTermLabel(item))}${fieldCard("Zoom",zoomName(item))}<div class="detail-line wide"><span>学生（点名字看名册）</span><b class="student-links">${studentsHtml}</b></div></div></div>${attendanceSectionHtml(item,date)}${homeworkSectionHtml(item,date)}<div class="detail-section detail-note-section"><div class="note-section-head"><h4>${formatDateShort(date)} 课堂笔记</h4>${merged.length?`<button class="btn ghost detail-history-toggle" id="detailHistoryToggle" type="button">历史 (${merged.length})</button>`:""}</div>${todayTodosHtml}<textarea id="detailNoteInput" class="detail-note-input" placeholder="今天发生了什么？只属于这一天。">${esc(todayNote)}</textarea><button class="btn note-save-btn" id="detailNoteSave" type="button">保存笔记</button></div>${merged.length?`<div class="detail-history-section" id="detailHistory" style="display:none">${historyHtml}</div>`:""}`;
 }
 
 /* 2. renderMonthLesson — add draggable="true" */
@@ -1699,13 +1705,17 @@ function normalizeStudentProfile(p){
   return {
     id:p.id||uid("stu"),
     name:(p.name||"").trim()||"未命名学生",
+    gender:["男","女"].includes(p.gender)?p.gender:"",
+    birthday:p.birthday||"",
     grade:p.grade||"",
     school:p.school||"",
     city:p.city||"",
     parentName:p.parentName||"",
     parentContact:p.parentContact||"",
     enrollDate:p.enrollDate||"",
-    status:STUDENT_STATUSES.includes(p.status)?p.status:"在读",
+    // 这里不能用 STUDENT_STATUSES 常量：本函数在文件顶部 loadCollection 时就会被调用，
+    // 而 const 声明在下面，会报"before initialization"导致本地缓存的学生档案读不出来
+    status:["在读","停课","结课"].includes(p.status)?p.status:"在读",
     note:p.note||"",
     createdAt:p.createdAt||new Date().toISOString(),
     updatedAt:p.updatedAt||new Date().toISOString()
@@ -1757,12 +1767,25 @@ function studentListHtml(){
   }).join("")||'<p class="empty">没找到学生。课程里填过的学生名会自动出现在这里。</p>';
 }
 
+function studentAgeText(p){
+  if(!p.birthday)return "";
+  const b=parseLocalDate(p.birthday);
+  if(!b)return "";
+  const now=new Date();
+  let age=now.getFullYear()-b.getFullYear();
+  if(now.getMonth()<b.getMonth()||(now.getMonth()===b.getMonth()&&now.getDate()<b.getDate()))age--;
+  return age>=0&&age<120?age+" 岁":"";
+}
+
 function studentViewHtml(p){
   const tile=(label,value,tone)=>`<div class="stu-tile ${tone}${value?"":" no-val"}"><span>${esc(label)}</span><b>${esc(value||"未填")}</b></div>`;
+  const ageText=studentAgeText(p);
   return `<div class="stu-info-grid">
-    ${tile("年级/级别",p.grade,"t-blue")}
+    ${tile("性别",p.gender,"t-blue")}
+    ${tile("年龄",ageText?`${ageText}（${formatDateShort(p.birthday)} 生日）`:"","t-green")}
+    ${tile("年级/级别",p.grade,"t-yellow")}
     ${tile("学校",p.school,"t-green")}
-    ${tile("城市",p.city,"t-yellow")}
+    ${tile("城市",p.city,"t-blue")}
     ${tile("家长称呼",p.parentName,"t-yellow")}
     ${tile("家长联系",p.parentContact,"t-blue")}
     ${tile("入学日期",p.enrollDate,"t-green")}
@@ -1773,6 +1796,8 @@ function studentViewHtml(p){
 function studentFormHtml(p,isNew){
   return `<div class="form-grid student-form">
     <label class="field">姓名<input id="stuName" value="${safeAttr(p.name)}" placeholder="要和课程里填的名字一致"></label>
+    <label class="field">性别<select id="stuGender">${["","男","女"].map(g=>`<option value="${g}" ${p.gender===g?'selected':''}>${g||"未填"}</option>`).join("")}</select></label>
+    <label class="field">生日（用来自动算年龄）<input id="stuBirthday" type="date" value="${safeAttr(p.birthday)}"></label>
     <label class="field">年级/级别<input id="stuGrade" value="${safeAttr(p.grade)}" placeholder="如 五年级 / LR-3"></label>
     <label class="field">学校<input id="stuSchool" value="${safeAttr(p.school)}"></label>
     <label class="field">城市<input id="stuCity" value="${safeAttr(p.city)}"></label>
@@ -1792,17 +1817,30 @@ function studentFormHtml(p,isNew){
 function studentTimelineHtml(name,classes){
   const entries=[];
   classes.forEach(c=>{(Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
-    const a=rec.attendance&&rec.attendance[name];
-    if(a&&(a.status||(a.remark||"").trim()))entries.push({date:rec.date||"",cls:c,status:a.status||"",remark:(a.remark||"").trim()});
+    const n=normalizeAttendanceEntry((rec.attendance||{})[name]);
+    const hw=rec.homework||{};
+    const assigned=homeworkAssigned(hw);
+    const he=assigned?((hw.entries||{})[name]||{}):null;
+    const hwState=assigned?(HOMEWORK_STATES.includes(he.state)?he.state:"未交"):"";
+    if(!n.status&&!n.tag&&!n.remark&&!assigned)return;
+    entries.push({date:rec.date||"",cls:c,...n,hwState,hwScore:(he&&he.score)||""});
   });});
-  if(!entries.length)return `<h4>课堂时间线</h4><p class="empty">还没有点名记录：上课时打开课程详情点名，记录会自动出现在这里。</p>`;
+  if(!entries.length)return `<h4>课堂时间线</h4><p class="empty">还没有记录：上课时在课程详情里点名、记作业，会自动出现在这里。</p>`;
   entries.sort((a,b)=>b.date.localeCompare(a.date));
+  // 出勤统计只看 到/缺席（请假算缺席）；迟到/请假标记单独小字展示
   const stat={};entries.forEach(e=>{if(e.status)stat[e.status]=(stat[e.status]||0)+1;});
-  const statLine=ATTENDANCE_ALL.filter(s=>stat[s]).map(s=>`<i class="att-chip ${attendanceStatusClass(s)}">${s} ${stat[s]}</i>`).join("");
-  return `<h4 class="stu-tl-head">课堂时间线${statLine?`<span class="stu-tl-stats">${statLine}</span>`:""}</h4>
+  const extraStat={};entries.forEach(e=>{if(e.tag)extraStat[e.tag]=(extraStat[e.tag]||0)+1;});
+  const hwAssigned=entries.filter(e=>e.hwState).length;
+  const hwDone=entries.filter(e=>e.hwState==="已交"||e.hwState==="已批改").length;
+  const statLine=ATTENDANCE_MAIN.filter(s=>stat[s]).map(s=>`<i class="att-chip ${attendanceStatusClass(s)}">${s} ${stat[s]}</i>`).join("")
+    +(hwAssigned?`<i class="att-chip hw-chip">作业 ${hwDone}/${hwAssigned}</i>`:"");
+  const extraLine=ATTENDANCE_EXTRA.filter(t=>extraStat[t]).map(t=>`${t} ${extraStat[t]}`).join(" · ");
+  return `<h4 class="stu-tl-head">课堂时间线${statLine?`<span class="stu-tl-stats">${statLine}</span>`:""}${extraLine?`<small class="stu-tl-extra-stat">（${extraLine}）</small>`:""}</h4>
   <div class="stu-timeline">${entries.slice(0,20).map(e=>`<div class="stu-tl-entry">
     <span class="stu-tl-date">${esc(formatDateShort(e.date))}</span>
     ${e.status?`<i class="att-chip ${attendanceStatusClass(e.status)}">${esc(e.status)}</i>`:""}
+    ${e.tag?`<i class="att-chip att-tag-chip ${attendanceStatusClass(e.tag)}">${esc(e.tag)}</i>`:""}
+    ${e.hwState?`<i class="att-chip hw-chip ${hwStateClass(e.hwState)}">📚${esc(e.hwState)}${e.hwScore?` ${esc(e.hwScore)}`:""}</i>`:""}
     <span class="stu-tl-class">${esc(e.cls.className)}</span>
     ${e.remark?`<span class="stu-tl-remark">${esc(e.remark)}</span>`:""}
   </div>`).join("")}</div>
@@ -1828,9 +1866,9 @@ function studentDetailHtml(){
   <div class="student-detail-extra">
     <h4>TA 的课程（${classes.length}）</h4>
     <div class="student-classes">${classes.map(c=>`<button class="student-class-chip${c.archivedAt?' archived':''}" data-schedule-id="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${c.archivedAt?'（已归档）':''}</button>`).join("")||'<p class="empty">还没关联课程：去课程编辑页把 TA 的名字填进"学生"栏即可。</p>'}</div>
-    ${classNotes.length?`<h4>课程里的随笔备注</h4><p class="student-note">📝 ${esc(classNotes.join("；"))}</p>`:""}
+    ${classNotes.length?`<h4>课程"学生"栏里的小备注</h4><p class="student-note">📝 ${esc(classNotes.join("；"))}<small class="student-note-hint">（在课程编辑页"学生"栏用"姓名 | 备注"的写法写的，会显示在这里）</small></p>`:""}
     ${studentTimelineHtml(editingStudentName,classes)}
-    <p class="student-phase-hint">⏳ 作业跟踪（三期）以后会出现在这里。</p>
+    <p class="student-phase-hint">⏳ 周看板与预警（四期）以后会出现在这里。</p>
   </div>`;
 }
 
@@ -1880,6 +1918,8 @@ function bindStudentEvents(){
       id:old?old.id:undefined,
       createdAt:old?old.createdAt:undefined,
       name:name,
+      gender:byId("stuGender").value,
+      birthday:byId("stuBirthday").value,
       grade:byId("stuGrade").value.trim(),
       school:byId("stuSchool").value.trim(),
       city:byId("stuCity").value.trim(),
@@ -1939,15 +1979,26 @@ document.addEventListener("click",function(e){
   render();
 },true);
 
-/* ===== 学生管理 二期（v20260611b）：课堂点名 =====
+/* ===== 学生管理 二期（v20260611c）：课堂点名 =====
    出勤+表现存在课程 classRecords 里（按日期），随 saveSchedule 同步云端：
-   classRecords[i].attendance = { 学生名: {status:"到/迟到/缺席/请假", remark:"表现一句话"} }
-   出勤两版可切换：简单版=到/缺席，专业版=到/迟到/缺席/请假（记在 localStorage，按老师习惯） */
-const ATTENDANCE_ALL=["到","迟到","缺席","请假"];
-const ATTENDANCE_SIMPLE=["到","缺席"];
+   classRecords[i].attendance = { 学生名: {status:"到/缺席", tag:"迟到/请假", remark:"表现一句话"} }
+   统计口径（Shirley 拍板）：只有 到/缺席 计入出勤统计；
+   迟到/请假是额外备注标记，单独一组按钮，永远可见，不参与统计。 */
+const ATTENDANCE_MAIN=["到","缺席"];
+const ATTENDANCE_EXTRA=["迟到","请假"];
 
-function attendanceMode(){return localStorage.getItem("attendanceMode")==="pro"?"pro":"simple";}
 function attendanceStatusClass(st){return st==="到"?"att-ok":st==="迟到"?"att-late":st==="缺席"?"att-absent":"att-leave";}
+
+/* 兼容 v20260611b 的旧数据：当时 迟到/请假 存在 status 里。
+   口径（Shirley 2026-06-11 定）：迟到 = 到 + 迟到标记；请假 = 缺席 + 请假标记
+   （人没来就是缺席，请假只是缺席的原因，所以请假计入缺席统计）。 */
+function normalizeAttendanceEntry(a){
+  a=a||{};
+  let status=a.status||"",tag=a.tag||"";
+  if(status==="迟到"){status="到";tag=tag||"迟到";}
+  if(status==="请假"){status="缺席";tag=tag||"请假";}
+  return {status,tag,remark:(a.remark||"").trim()};
+}
 
 function classAttendance(item,date){
   const records=Array.isArray(item.classRecords)?item.classRecords:[];
@@ -1959,23 +2010,22 @@ function attendanceSectionHtml(item,date){
   const students=item.students||[];
   if(!students.length)return "";
   const att=classAttendance(item,date);
-  const statuses=attendanceMode()==="pro"?ATTENDANCE_ALL:ATTENDANCE_SIMPLE;
-  const marked=students.filter(s=>att[s.name]&&att[s.name].status).length;
-  return `<div class="detail-section attendance-section">
+  const marked=students.filter(s=>normalizeAttendanceEntry(att[s.name]).status).length;
+  return `<div class="attendance-section">
     <div class="att-head">
-      <h4>${formatDateShort(date)} 点名 <i class="att-count" id="attCount">${marked}/${students.length}</i></h4>
-      <button class="btn ghost att-mode-toggle" id="attModeToggle" type="button">${attendanceMode()==="pro"?"专业版 · 切回简单版":"简单版 · 切到专业版"}</button>
+      <h4>📋 ${formatDateShort(date)} 点名</h4>
+      <i class="att-count" id="attCount">${marked}/${students.length}</i>
     </div>
     <div class="att-rows">${students.map(s=>{
-      const a=att[s.name]||{};
-      const list=!a.status||statuses.includes(a.status)?statuses:[...statuses,a.status];
+      const a=normalizeAttendanceEntry(att[s.name]);
       return `<div class="att-row" data-att-name="${safeAttr(s.name)}">
         <b class="att-name">${esc(s.name)}</b>
-        <span class="att-btns">${list.map(st=>`<button class="att-btn ${attendanceStatusClass(st)} ${a.status===st?'on':''}" data-att-status="${safeAttr(st)}" type="button">${st}</button>`).join("")}</span>
-        <input class="att-remark" data-att-remark placeholder="表现一句话，可不填" value="${safeAttr(a.remark||"")}">
+        <span class="att-btns">${ATTENDANCE_MAIN.map(st=>`<button class="att-btn ${attendanceStatusClass(st)} ${a.status===st?'on':''}" data-att-status="${safeAttr(st)}" type="button">${st}</button>`).join("")}</span>
+        <span class="att-btns att-extra">${ATTENDANCE_EXTRA.map(t=>`<button class="att-btn att-tag ${attendanceStatusClass(t)} ${a.tag===t?'on':''}" data-att-tag="${safeAttr(t)}" type="button">${t}</button>`).join("")}</span>
+        <input class="att-remark" data-att-remark placeholder="表现一句话，可不填" value="${safeAttr(a.remark)}">
       </div>`;
     }).join("")}</div>
-    <p class="att-hint">点一下记出勤（再点取消），表现写完点别处自动保存；记录会出现在学生页的课堂时间线里。</p>
+    <p class="att-hint">出勤只统计 到 / 缺席。点"迟到"会自动算"到"、点"请假"会自动算"缺席"（标记只是补充原因）。点一下记上、再点取消，表现写完点别处自动保存。</p>
   </div>`;
 }
 
@@ -1988,8 +2038,8 @@ function saveAttendanceEntry(item,date,name,patch){
   if(idx<0){records.push({date});idx=records.length-1;}
   const rec={...records[idx]};
   const att={...(rec.attendance||{})};
-  const cur={...(att[name]||{}),...patch};
-  if(!cur.status&&!(cur.remark||"").trim())delete att[name];else att[name]=cur;
+  const cur={...normalizeAttendanceEntry(att[name]),...patch};
+  if(!cur.status&&!cur.tag&&!(cur.remark||"").trim())delete att[name];else att[name]=cur;
   rec.attendance=att;
   rec.updatedAt=new Date().toISOString();
   records[idx]=rec;
@@ -2005,25 +2055,316 @@ function bindAttendanceSection(item){
   const date=classRecordDate(item);
   const refreshCount=()=>{
     const total=section.querySelectorAll(".att-row").length;
-    const marked=section.querySelectorAll(".att-row .att-btn.on").length;
+    const marked=section.querySelectorAll(".att-row [data-att-status].on").length;
     const el=byId("attCount");
     if(el)el.textContent=marked+"/"+total;
   };
   section.querySelectorAll(".att-btn").forEach(btn=>btn.addEventListener("click",()=>{
     const row=btn.closest(".att-row");
     const wasOn=btn.classList.contains("on");
-    if(!saveAttendanceEntry(item,date,row.dataset.attName,{status:wasOn?"":btn.dataset.attStatus}))return;
-    row.querySelectorAll(".att-btn").forEach(b=>b.classList.remove("on"));
+    const isTag=!!btn.dataset.attTag;
+    const patch=isTag?{tag:wasOn?"":btn.dataset.attTag}:{status:wasOn?"":btn.dataset.attStatus};
+    // 点标记自动带出勤：迟到默认算"到"，请假默认算"缺席"（已手动点过出勤则不动它）
+    if(isTag&&!wasOn&&!row.querySelector("[data-att-status].on")){
+      patch.status=btn.dataset.attTag==="请假"?"缺席":"到";
+    }
+    if(!saveAttendanceEntry(item,date,row.dataset.attName,patch))return;
+    // 同组互斥：到/缺席 一组，迟到/请假 一组
+    row.querySelectorAll(isTag?"[data-att-tag]":"[data-att-status]").forEach(b=>b.classList.remove("on"));
     if(!wasOn)btn.classList.add("on");
+    if(isTag&&patch.status)row.querySelectorAll("[data-att-status]").forEach(b=>b.classList.toggle("on",b.dataset.attStatus===patch.status));
     refreshCount();
   }));
   section.querySelectorAll("[data-att-remark]").forEach(inp=>inp.addEventListener("change",()=>{
     const name=inp.closest(".att-row").dataset.attName;
     if(saveAttendanceEntry(item,date,name,{remark:inp.value.trim()}))showToast("已记下 "+name+" 的表现");
   }));
-  const toggle=byId("attModeToggle");
-  if(toggle)toggle.addEventListener("click",()=>{
-    localStorage.setItem("attendanceMode",attendanceMode()==="pro"?"simple":"pro");
-    openClassDetailModal(item); // 重新渲染弹窗即可
+}
+
+/* ===== 学生管理 三期（v20260611d）：作业跟踪 =====
+   作业挂在每节课记录里：classRecords[i].homework =
+   { content:"作业内容", entries:{ 学生名:{state:"未交/已交/已批改", score:"选填分数或评语"} } }
+   口径：批改=点状态；分数评语选填（拍板#3）。布置了作业但没点状态 = 未交。 */
+const HOMEWORK_STATES=["未交","已交","已批改"];
+
+function hwStateClass(st){return st==="已批改"?"hw-done":st==="已交"?"hw-in":"hw-none";}
+
+function classHomework(item,date){
+  const records=Array.isArray(item.classRecords)?item.classRecords:[];
+  const rec=records.find(r=>r.date===date);
+  const hw=(rec&&rec.homework)||{};
+  return {content:hw.content||"",entries:hw.entries||{}};
+}
+
+function homeworkAssigned(hw){
+  return !!((hw.content||"").trim()||Object.keys(hw.entries||{}).length);
+}
+
+function homeworkSectionHtml(item,date){
+  const students=item.students||[];
+  if(!students.length)return "";
+  const hw=classHomework(item,date);
+  const done=students.filter(s=>{const st=(hw.entries[s.name]||{}).state;return st==="已交"||st==="已批改";}).length;
+  return `<div class="attendance-section homework-section">
+    <div class="att-head">
+      <h4>📚 ${formatDateShort(date)} 作业</h4>
+      <i class="att-count" id="hwCount">交 ${done}/${students.length}</i>
+    </div>
+    <input class="hw-content" id="hwContent" placeholder="今天布置了什么作业？写一句（不布置可留空）" value="${safeAttr(hw.content)}">
+    <div class="att-rows">${students.map(s=>{
+      const e=hw.entries[s.name]||{};
+      const st=HOMEWORK_STATES.includes(e.state)?e.state:"未交";
+      return `<div class="att-row" data-hw-name="${safeAttr(s.name)}">
+        <b class="att-name">${esc(s.name)}</b>
+        <span class="att-btns">${HOMEWORK_STATES.map(x=>`<button class="att-btn hw-btn ${hwStateClass(x)} ${st===x?'on':''}" data-hw-state="${safeAttr(x)}" type="button">${x}</button>`).join("")}</span>
+        <span></span>
+        <input class="att-remark" data-hw-score placeholder="分数/评语，可不填" value="${safeAttr(e.score||"")}">
+      </div>`;
+    }).join("")}</div>
+    <p class="att-hint">未交 → 已交 → 已批改，点哪个就是哪个；分数评语选填，填了就显示在学生时间线里。</p>
+  </div>`;
+}
+
+function saveHomework(item,date,apply){
+  if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return false;}
+  const existing=scheduleData.find(x=>x.id===item.id);
+  if(!existing){showToast("示例课程不能记作业");return false;}
+  const records=Array.isArray(existing.classRecords)?existing.classRecords.slice():[];
+  let idx=records.findIndex(r=>r.date===date);
+  if(idx<0){records.push({date});idx=records.length-1;}
+  const rec={...records[idx]};
+  const old=rec.homework||{};
+  const hw={content:old.content||"",entries:{...(old.entries||{})}};
+  apply(hw);
+  // 清掉空条目：未交且没分数的不用存
+  Object.keys(hw.entries).forEach(n=>{
+    const e=hw.entries[n];
+    if((!e.state||e.state==="未交")&&!(e.score||"").trim())delete hw.entries[n];
   });
+  if(homeworkAssigned(hw))rec.homework=hw;else delete rec.homework;
+  rec.updatedAt=new Date().toISOString();
+  records[idx]=rec;
+  existing.classRecords=records;
+  item.classRecords=records;
+  saveSchedule();
+  return true;
+}
+
+function bindHomeworkSection(item){
+  const section=document.querySelector(".homework-section");
+  if(!section)return;
+  const date=classRecordDate(item);
+  const refreshCount=()=>{
+    const total=section.querySelectorAll(".att-row").length;
+    const done=[...section.querySelectorAll(".att-row")].filter(r=>{
+      const on=r.querySelector("[data-hw-state].on");
+      return on&&on.dataset.hwState!=="未交";
+    }).length;
+    const el=byId("hwCount");
+    if(el)el.textContent="交 "+done+"/"+total;
+  };
+  const content=byId("hwContent");
+  if(content)content.addEventListener("change",()=>{
+    if(saveHomework(item,date,hw=>{hw.content=content.value.trim();}))showToast("已记下作业内容");
+  });
+  section.querySelectorAll(".hw-btn").forEach(btn=>btn.addEventListener("click",()=>{
+    const row=btn.closest(".att-row");
+    const name=row.dataset.hwName;
+    const st=btn.dataset.hwState;
+    if(!saveHomework(item,date,hw=>{
+      const e={...(hw.entries[name]||{})};
+      e.state=st;
+      hw.entries[name]=e;
+    }))return;
+    row.querySelectorAll(".hw-btn").forEach(b=>b.classList.toggle("on",b===btn));
+    refreshCount();
+  }));
+  section.querySelectorAll("[data-hw-score]").forEach(inp=>inp.addEventListener("change",()=>{
+    const name=inp.closest(".att-row").dataset.hwName;
+    if(saveHomework(item,date,hw=>{
+      const e={...(hw.entries[name]||{})};
+      e.score=inp.value.trim();
+      hw.entries[name]=e;
+    }))showToast("已记下 "+name+" 的分数/评语");
+  }));
+}
+
+/* ===== 课程主页（Shirley 点名要的"专属课程页"）=====
+   从课程详情弹窗点"课程主页"进入：课程信息 + 出勤率/作业率统计 +
+   每个学生的小结 + 全部课堂记录时间线（点名、作业、笔记都在）。 */
+let courseHomeId=null;
+let courseHomeBack="students";
+
+function openCourseHome(id){
+  courseHomeBack=(view==="courseHome")?courseHomeBack:view;
+  courseHomeId=id;
+  view="courseHome";
+  render();
+}
+
+function courseStats(c){
+  const records=Array.isArray(c.classRecords)?c.classRecords:[];
+  const s={att:0,abs:0,late:0,leave:0,hwAssigned:0,hwIn:0,hwGraded:0,lessons:0};
+  records.forEach(rec=>{
+    let counted=false;
+    Object.keys(rec.attendance||{}).forEach(n=>{
+      const a=normalizeAttendanceEntry(rec.attendance[n]);
+      if(a.status==="到")s.att++;
+      if(a.status==="缺席")s.abs++;
+      if(a.tag==="迟到")s.late++;
+      if(a.tag==="请假")s.leave++;
+      if(a.status||a.tag||a.remark)counted=true;
+    });
+    const hw=rec.homework||{};
+    if(homeworkAssigned(hw)){
+      counted=true;
+      (c.students||[]).forEach(st=>{
+        s.hwAssigned++;
+        const e=(hw.entries||{})[st.name]||{};
+        if(e.state==="已交"||e.state==="已批改")s.hwIn++;
+        if(e.state==="已批改")s.hwGraded++;
+      });
+    }
+    if(counted||rec.notes||rec.materials)s.lessons++;
+  });
+  s.attRate=(s.att+s.abs)?Math.round(s.att/(s.att+s.abs)*100):null;
+  s.hwRate=s.hwAssigned?Math.round(s.hwIn/s.hwAssigned*100):null;
+  s.gradeRate=s.hwIn?Math.round(s.hwGraded/s.hwIn*100):null;
+  return s;
+}
+
+function courseStudentLineHtml(c,name){
+  const records=Array.isArray(c.classRecords)?c.classRecords:[];
+  let att=0,abs=0,late=0,leave=0,hwAssigned=0,hwIn=0;
+  records.forEach(rec=>{
+    const raw=(rec.attendance||{})[name];
+    if(raw){
+      const a=normalizeAttendanceEntry(raw);
+      if(a.status==="到")att++;
+      if(a.status==="缺席")abs++;
+      if(a.tag==="迟到")late++;
+      if(a.tag==="请假")leave++;
+    }
+    const hw=rec.homework||{};
+    if(homeworkAssigned(hw)){
+      hwAssigned++;
+      const e=(hw.entries||{})[name]||{};
+      if(e.state==="已交"||e.state==="已批改")hwIn++;
+    }
+  });
+  const bits=[];
+  if(att)bits.push(`<i class="att-chip att-ok">到 ${att}</i>`);
+  if(abs)bits.push(`<i class="att-chip att-absent">缺席 ${abs}</i>`);
+  if(late)bits.push(`<i class="att-chip att-tag-chip att-late">迟到 ${late}</i>`);
+  if(leave)bits.push(`<i class="att-chip att-tag-chip att-leave">请假 ${leave}</i>`);
+  if(hwAssigned)bits.push(`<i class="att-chip hw-chip">作业 ${hwIn}/${hwAssigned}</i>`);
+  return `<div class="course-student-line">
+    <button class="student-link" data-student-name="${safeAttr(name)}" type="button">${esc(name)}</button>
+    <span class="course-student-bits">${bits.join("")||'<small class="muted-bit">还没有记录</small>'}</span>
+  </div>`;
+}
+
+function courseRecordEntryHtml(c,rec){
+  const names=(c.students||[]).map(s=>s.name);
+  const attBits=names.map(n=>{
+    const raw=(rec.attendance||{})[n];
+    if(!raw)return "";
+    const a=normalizeAttendanceEntry(raw);
+    if(!a.status&&!a.tag&&!a.remark)return "";
+    return `<span class="rec-att-item">${esc(n)} <i class="att-chip ${attendanceStatusClass(a.status||a.tag)}">${esc(a.status||a.tag)}</i>${a.tag&&a.status?`<i class="att-chip att-tag-chip ${attendanceStatusClass(a.tag)}">${esc(a.tag)}</i>`:""}${a.remark?` <small>${esc(a.remark)}</small>`:""}</span>`;
+  }).filter(Boolean).join("");
+  const hw=rec.homework||{};
+  const hwBits=homeworkAssigned(hw)?names.map(n=>{
+    const e=(hw.entries||{})[n]||{};
+    const st=HOMEWORK_STATES.includes(e.state)?e.state:"未交";
+    return `<span class="rec-att-item">${esc(n)} <i class="att-chip hw-chip ${hwStateClass(st)}">${st}</i>${e.score?` <small>${esc(e.score)}</small>`:""}</span>`;
+  }).join(""):"";
+  const note=rec.notes||rec.materials||"";
+  if(!attBits&&!hwBits&&!note)return "";
+  return `<div class="course-rec-entry">
+    <div class="course-rec-date">${esc(formatDateShort(rec.date))}</div>
+    <div class="course-rec-body">
+      ${attBits?`<div class="course-rec-line"><span class="rec-label">点名</span>${attBits}</div>`:""}
+      ${hwBits?`<div class="course-rec-line"><span class="rec-label">作业</span>${hw.content?`<small class="rec-hw-content">${esc(hw.content)}</small>`:""}${hwBits}</div>`:""}
+      ${note?`<div class="course-rec-line"><span class="rec-label">笔记</span><small class="rec-note">${esc(note)}</small></div>`:""}
+    </div>
+  </div>`;
+}
+
+function renderCourseHome(){
+  const c=scheduleData.find(x=>x.id===courseHomeId);
+  if(!c){view=courseHomeBack||"students";render();return;}
+  const s=courseStats(c);
+  const records=(Array.isArray(c.classRecords)?c.classRecords:[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const recHtml=records.map(r=>courseRecordEntryHtml(c,r)).filter(Boolean).join("");
+  setHead(c.className,"课程主页 · 出勤、作业、笔记都在这一页","共 "+(c.students||[]).length+" 名学生");
+  byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>`;
+  byId("content").innerHTML=`<div class="course-home">
+    <div class="stu-info-grid course-home-info">
+      <div class="stu-tile t-blue"><span>时间</span><b>${esc(c.weekday)} ${esc(formatTimeCN(c.time))}</b></div>
+      <div class="stu-tile t-green"><span>老师 · 课程</span><b>${esc(c.teacher||"未填")} · ${esc(c.courseType||"未填")}</b></div>
+      <div class="stu-tile t-yellow"><span>Zoom · 学期</span><b>${esc(zoomName(c)||"未填")} · ${esc(classTermLabel(c))}</b></div>
+    </div>
+    <div class="stu-info-grid course-home-stats">
+      <div class="stu-tile t-green"><span>已记录课次</span><b>${s.lessons||0} 次</b></div>
+      <div class="stu-tile ${s.attRate===null?'no-val':'t-blue'}"><span>出勤率</span><b>${s.attRate===null?"还没点过名":s.attRate+"%"}</b></div>
+      <div class="stu-tile ${s.hwRate===null?'no-val':'t-yellow'}"><span>作业提交率</span><b>${s.hwRate===null?"还没布置过":s.hwRate+"%"}</b></div>
+      <div class="stu-tile ${s.gradeRate===null?'no-val':'t-green'}"><span>已交里批改率</span><b>${s.gradeRate===null?"还没人交":s.gradeRate+"%"}</b></div>
+    </div>
+    <div class="student-detail-extra">
+      <h4>学生（点名字看档案）</h4>
+      <div class="course-student-lines">${(c.students||[]).map(st=>courseStudentLineHtml(c,st.name)).join("")||'<p class="empty">课程里还没填学生。</p>'}</div>
+      <h4>全部课堂记录（${records.length} 天）</h4>
+      ${recHtml||'<p class="empty">还没有记录：上课时在课程详情弹窗里点名、记作业、写笔记，都会汇总到这里。</p>'}
+    </div>
+  </div>`;
+  byId("courseHomeBack").addEventListener("click",()=>{view=courseHomeBack||"students";render();});
+}
+
+/* ===== 课程总览页（v20260611e，Shirley 期待清单第2条）=====
+   新导航页"课程"：几个班、共多少学生、每个类别几个班，
+   每个班一行（人数/出席率/提交率/批改率对齐排列，方便对比），点行进课程主页。 */
+let courseOverviewType="all";
+
+function overviewCourses(){
+  return scheduleData.filter(c=>c.status!=="Deleted"&&!c.deletedAt&&!c.archivedAt);
+}
+
+function rateChip(label,rate){
+  if(rate===null)return `<span class="ov-rate ov-rate-none"><span>${esc(label)}</span><b>—</b></span>`;
+  const tone=rate>=80?"ov-rate-good":rate>=60?"ov-rate-mid":"ov-rate-bad";
+  return `<span class="ov-rate ${tone}"><span>${esc(label)}</span><b>${rate}%</b></span>`;
+}
+
+function renderCourses(){
+  const all=overviewCourses();
+  const types=[...new Set(all.map(c=>c.courseType||"未分类"))];
+  const list=courseOverviewType==="all"?all:all.filter(c=>(c.courseType||"未分类")===courseOverviewType);
+  const allNames=new Set();
+  all.forEach(c=>(c.students||[]).forEach(s=>{if((s.name||"").trim())allNames.add(s.name.trim());}));
+  const typeCounts=types.map(t=>`${t} ${all.filter(c=>(c.courseType||"未分类")===t).length} 班`).join(" · ");
+  setHead("课程","总览与对比 · 点一个班进它的主页","共 "+all.length+" 班");
+  byId("tabs").innerHTML=`<div class="filter-line compact-filter">${[["all","全部"],...types.map(t=>[t,t])].map(([v,l])=>`<button class="tab ${courseOverviewType===v?'active':''}" data-course-type-filter="${safeAttr(v)}">${l}</button>`).join("")}</div>`;
+  byId("content").innerHTML=`<div class="course-home course-overview">
+    <div class="stu-info-grid course-home-stats">
+      <div class="stu-tile t-blue"><span>班级数</span><b>${all.length} 个班</b></div>
+      <div class="stu-tile t-green"><span>学生总数（去重）</span><b>${allNames.size} 人</b></div>
+      <div class="stu-tile t-yellow"><span>按类别</span><b>${esc(typeCounts||"还没有班级")}</b></div>
+      <div class="stu-tile no-val"><span>提示</span><b>出席率 / 提交率低于 60% 会标红</b></div>
+    </div>
+    <div class="course-ov-list">${list.map(c=>{
+      const s=courseStats(c);
+      return `<button class="course-ov-row" data-course-home="${safeAttr(c.id)}" type="button">
+        <span class="ov-name"><b>${esc(c.className)}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(c.courseType||"未分类")}</small></span>
+        <span class="ov-count">${(c.students||[]).length} 人</span>
+        ${rateChip("出席",s.attRate)}
+        ${rateChip("交作业",s.hwRate)}
+        ${rateChip("批改",s.gradeRate)}
+        <span class="ov-lessons">${s.lessons} 次记录</span>
+      </button>`;
+    }).join("")||'<p class="empty">这个类别下还没有班级。</p>'}</div>
+    <p class="student-phase-hint">出席率 = 到 ÷（到+缺席）；提交率 = 已交+已批改 ÷ 应交；批改率 = 已批改 ÷ 已交。还没记录的显示"—"。</p>
+  </div>`;
+  document.querySelectorAll("[data-course-type-filter]").forEach(b=>b.addEventListener("click",()=>{courseOverviewType=b.dataset.courseTypeFilter;render();}));
+  document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
 }

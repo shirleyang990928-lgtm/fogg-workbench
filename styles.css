@@ -6680,11 +6680,14 @@ b.tcc-name{
 /* ============================================================
    2026-06-11 学生名册（新导航页）
    ============================================================ */
-.main-nav{grid-template-columns:repeat(4,1fr)!important}
+.main-nav{grid-template-columns:repeat(5,1fr)!important}
 @media(max-width:700px){.main-nav{grid-template-columns:1fr!important}}
 
-/* 学生页：左列表 + 右详情（复用管理页的 manage-layout/list-panel/edit-panel 骨架） */
-.student-manage .edit-panel{overflow-y:auto}
+/* 学生页：左列表 + 右详情（复用管理页的 manage-layout/list-panel/edit-panel 骨架）
+   注意：基础 .edit-panel 是 grid-template-rows:auto auto 1fr auto + overflow:hidden，
+   会把表单压进一个小滚动区（编辑起来很难受）。学生页改成整面板自然滚动。 */
+.student-manage .edit-panel{display:block;overflow-y:auto;padding:18px 20px}
+.student-manage .form-grid{overflow:visible;min-height:auto;max-height:none;padding-right:0}
 .student-detail-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:21px;margin-bottom:10px}
 .stu-status{
   display:inline-block;font-style:normal;font-size:11px;font-weight:950;
@@ -6775,34 +6778,48 @@ b.tcc-name{
 .stu-tl-class{font-size:12.5px;font-weight:900}
 .stu-tl-remark{font-size:12.5px;font-weight:800;color:#6b5537;flex:1;min-width:120px}
 
-/* —— 课程详情弹窗：本节课点名 —— */
-.attendance-section{margin-top:4px}
-.att-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:9px}
-.att-head h4{display:flex;align-items:center;gap:8px;margin:0}
+/* —— 课程详情弹窗：本节课点名（v20260611c 精致化）——
+   整块做成和"课堂笔记"同语言的卡片：墨色描边 + 硬阴影 + 手帐圆角；
+   行与行用虚线分隔（不再一行一个框），到/缺席是主按钮，迟到/请假是
+   虚线小标记按钮（额外信息，不进统计），表现输入框做成下划线手写风。 */
+.attendance-section{
+  margin-top:14px;
+  border:2px solid rgba(23,27,20,.82);
+  border-radius:20px 14px 22px 16px;
+  background:#fbfaf2;
+  box-shadow:3px 3px 0 rgba(23,27,20,.8);
+  padding:13px 16px 10px;
+}
+.att-head{display:flex;align-items:center;gap:9px;margin-bottom:2px}
+.att-head h4{margin:0;font-size:15px;font-weight:950;color:#3c4633}
 .att-count{
   font-style:normal;font-size:11px;font-weight:950;
-  border:1.5px solid rgba(23,27,20,.4);border-radius:999px;
-  background:#eef5f0;padding:1px 9px;
+  border:1.5px solid rgba(23,27,20,.45);border-radius:999px;
+  background:#fff;padding:1px 9px;color:#3c4633;
 }
-.att-mode-toggle{font-size:11.5px;padding:4px 11px}
-.att-rows{display:grid;gap:8px}
+.att-rows{display:block}
 .att-row{
-  display:grid;grid-template-columns:minmax(72px,auto) auto 1fr;
-  align-items:center;gap:10px;
-  border:1.5px solid rgba(23,27,20,.28);border-radius:13px;
-  background:#fffefa;padding:8px 12px;
+  display:grid;grid-template-columns:minmax(76px,auto) auto auto minmax(140px,1fr);
+  align-items:center;gap:12px;
+  padding:10px 2px;
+  border-bottom:1.5px dashed rgba(23,27,20,.16);
 }
-@media(max-width:640px){.att-row{grid-template-columns:1fr;gap:6px}}
+.att-row:last-child{border-bottom:0}
+@media(max-width:640px){.att-row{grid-template-columns:1fr;gap:7px}}
 .att-name{font-size:14.5px;font-weight:950}
 .att-btns{display:flex;gap:7px;flex-wrap:wrap}
 .att-btn{
-  border:1.5px solid rgba(23,27,20,.5);border-radius:999px;
-  background:#fff;padding:3px 13px;
+  border:1.5px solid rgba(23,27,20,.55);border-radius:999px;
+  background:#fff;padding:3px 14px;
   font-size:12.5px;font-weight:900;cursor:pointer;font-family:inherit;
-  opacity:.7;transition:.12s;
+  opacity:.72;transition:.12s;
 }
 .att-btn:hover{opacity:1;transform:translateY(-1px)}
 .att-btn.on{opacity:1;box-shadow:1.5px 1.5px 0 var(--ink);transform:translateY(-1px)}
+/* 迟到/请假：额外标记组，虚线分隔 + 虚线小按钮，视觉上明显"次一级" */
+.att-extra{padding-left:12px;border-left:1.5px dashed rgba(23,27,20,.22)}
+.att-btn.att-tag{font-size:11px;padding:2px 10px;border-style:dashed;opacity:.55;background:#fffdf6}
+.att-btn.att-tag.on{opacity:1;border-style:solid;box-shadow:1px 1px 0 var(--ink)}
 .att-btn.att-ok.on,.att-chip.att-ok{background:#cdebd5;color:#1f5e30}
 .att-btn.att-late.on,.att-chip.att-late{background:#ffe9a8;color:#7a5a12}
 .att-btn.att-absent.on,.att-chip.att-absent{background:#ffd9d2;color:#8c2f23}
@@ -6811,10 +6828,116 @@ b.tcc-name{
   display:inline-block;font-style:normal;font-size:11px;font-weight:950;
   border:1.5px solid rgba(23,27,20,.4);border-radius:999px;padding:1px 9px;
 }
+.att-chip.att-tag-chip{border-style:dashed;font-size:10.5px;padding:0 8px}
 .att-remark{
-  border:1.5px dashed rgba(23,27,20,.35);border-radius:10px;
-  background:#fffdf2;padding:6px 10px;
-  font-family:inherit;font-size:12.5px;font-weight:800;min-width:0;
+  border:0;border-bottom:1.5px dashed rgba(23,27,20,.28);border-radius:0;
+  background:transparent;padding:5px 4px;
+  font-family:inherit;font-size:12.5px;font-weight:800;min-width:0;color:var(--ink);
 }
-.att-remark:focus{outline:none;border-style:solid;border-color:rgba(23,27,20,.6)}
-.att-hint{margin:9px 0 0;font-size:11.5px;color:var(--muted);font-weight:800}
+.att-remark::placeholder{color:rgba(95,102,115,.55)}
+.att-remark:focus{outline:none;border-bottom:1.5px solid rgba(23,27,20,.65)}
+.att-hint{margin:8px 0 0;font-size:11px;color:var(--muted);font-weight:800}
+.stu-tl-extra-stat{font-size:11px;color:var(--muted);font-weight:800}
+
+/* —— 课堂笔记卡修缮：横线只出现在书写区，不再铺满整张卡 —— */
+.detail-note-section{background:#fffdf7!important}
+.detail-note-input{
+  background:repeating-linear-gradient(transparent,transparent 31px,rgba(28,96,120,.16) 31px,rgba(28,96,120,.16) 32px)!important;
+  background-attachment:local!important;
+  border-bottom:0!important;
+}
+
+/* —— 弹窗里学生名字胶囊再精致一点 —— */
+.student-link{padding:5px 15px;background:#fff}
+.student-link:hover{background:#e7f0fa}
+
+/* ============================================================
+   2026-06-11d 三期作业跟踪 + 课程主页
+   ============================================================ */
+/* 作业卡：和点名卡同语言，底色略偏绿区分 */
+.homework-section{background:#f6f8f0}
+.hw-content{
+  display:block;width:100%;box-sizing:border-box;
+  border:1.5px dashed rgba(23,27,20,.3);border-radius:11px;
+  background:#fff;padding:8px 12px;margin:8px 0 2px;
+  font-family:inherit;font-size:13px;font-weight:850;color:var(--ink);
+}
+.hw-content::placeholder{color:rgba(95,102,115,.55)}
+.hw-content:focus{outline:none;border-style:solid;border-color:rgba(23,27,20,.6)}
+.att-btn.hw-btn{font-size:11.5px;padding:2px 11px}
+.att-btn.hw-none.on{background:#eceae2;color:#6c675c}
+.att-btn.hw-in.on,.att-chip.hw-in{background:#d3e8f7;color:#1d4f74}
+.att-btn.hw-done.on,.att-chip.hw-done{background:#cdebd5;color:#1f5e30}
+.att-chip.hw-chip{background:#eef3fa;color:#1d4f74}
+.att-chip.hw-chip.hw-done{background:#cdebd5;color:#1f5e30}
+
+/* 学生页"课程小备注"的解释小字 */
+.student-note-hint{display:block;margin-top:3px;color:var(--muted);font-weight:800;font-size:10.5px}
+
+/* —— 课程主页 —— */
+.course-home{display:grid;gap:12px;align-content:start}
+.course-home-info{grid-template-columns:repeat(3,1fr)}
+.course-home-stats{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.course-home-stats{grid-template-columns:repeat(2,1fr)}}
+.stu-tile.no-val{background:#f4f1e8;border-style:dashed}
+.course-student-lines{display:grid;gap:7px}
+.course-student-line{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  border:1.5px solid rgba(23,27,20,.22);border-radius:12px;background:#fffefa;padding:7px 11px;
+}
+.course-student-bits{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}
+.muted-bit{color:var(--muted);font-weight:800;font-size:11.5px}
+.course-rec-entry{
+  display:grid;grid-template-columns:52px 1fr;gap:10px;
+  border:1.5px solid rgba(23,27,20,.22);border-radius:13px;background:#fffefa;
+  padding:9px 12px;margin-bottom:8px;
+}
+.course-rec-date{font-weight:950;font-size:13px;color:var(--muted);padding-top:2px}
+.course-rec-body{display:grid;gap:6px;min-width:0}
+.course-rec-line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.rec-label{
+  flex:0 0 auto;font-size:10.5px;font-weight:950;color:rgba(36,35,31,.55);
+  border:1px solid rgba(36,35,31,.25);border-radius:6px;padding:0 6px;
+}
+.rec-att-item{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:900}
+.rec-att-item small{color:#6b5537;font-weight:800}
+.rec-hw-content{flex-basis:100%;color:#52503f;font-weight:850;font-size:12.5px}
+.rec-note{color:#4a4f42;font-weight:800;font-size:12.5px;line-height:1.55;white-space:pre-wrap}
+
+/* —— 弹窗右侧留白：滚动条占掉了 10px，右 padding 补回来，
+      不然最右一列信息块看着紧贴滚动条像要出线 —— */
+.detail-panel{padding-right:32px!important}
+
+/* ============================================================
+   2026-06-11e 课程总览页（对比视图）
+   ============================================================ */
+.course-overview .course-home-stats{grid-template-columns:repeat(4,1fr)}
+.course-ov-list{display:grid;gap:9px}
+.course-ov-row{
+  display:grid;
+  grid-template-columns:minmax(180px,1.4fr) 64px repeat(3,minmax(76px,1fr)) 80px;
+  align-items:center;gap:12px;
+  border:2px solid var(--ink);border-radius:14px 18px 12px 16px;
+  background:var(--card);box-shadow:var(--shadow-sm);
+  padding:11px 16px;cursor:pointer;text-align:left;font-family:inherit;
+  transition:.12s;
+}
+.course-ov-row:hover{transform:translateY(-2px);box-shadow:3px 3px 0 rgba(23,27,20,.8)}
+.ov-name b{display:block;font-size:15.5px;font-weight:950}
+.ov-name small{display:block;color:var(--muted);font-weight:850;font-size:11.5px;margin-top:2px}
+.ov-count{font-weight:950;font-size:13px}
+.ov-rate{display:grid;gap:1px;justify-items:start}
+.ov-rate span{font-size:10px;font-weight:900;color:rgba(36,35,31,.55);letter-spacing:.3px}
+.ov-rate b{
+  font-size:13px;font-weight:950;border-radius:999px;padding:1px 10px;
+  border:1.5px solid rgba(23,27,20,.4);
+}
+.ov-rate-good b{background:#cdebd5;color:#1f5e30}
+.ov-rate-mid b{background:#ffe9a8;color:#7a5a12}
+.ov-rate-bad b{background:#ffd9d2;color:#8c2f23}
+.ov-rate-none b{background:#f1ece2;color:#8a7a5c;border-style:dashed}
+.ov-lessons{font-size:11.5px;font-weight:850;color:var(--muted);text-align:right}
+@media(max-width:860px){
+  .course-ov-row{grid-template-columns:1fr 1fr;row-gap:8px}
+  .ov-name{grid-column:1/-1}
+}
