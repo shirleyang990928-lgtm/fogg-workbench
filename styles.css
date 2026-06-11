@@ -6727,3 +6727,94 @@ b.tcc-name{
   font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;
 }
 .student-link:hover{background:#d2e5f6}
+
+/* ============================================================
+   2026-06-11b 学生详情改版（查看优先）+ 二期课堂点名
+   ============================================================ */
+/* 弹窗里学生名字胶囊：间距拉开，别挤在一起 */
+.student-links{gap:10px!important;padding:2px 0}
+.student-link{padding:4px 14px}
+
+/* —— 学生详情：查看模式 —— */
+.stu-view-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.stu-view-head .student-detail-title{margin-bottom:0}
+.stu-view-sub{margin:5px 0 0;font-size:12.5px;color:var(--muted);font-weight:850}
+.stu-info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:980px){.stu-info-grid{grid-template-columns:repeat(2,1fr)}}
+.stu-tile{
+  border:2px solid var(--ink);border-radius:12px 16px 10px 14px;
+  padding:10px 13px;display:grid;gap:3px;box-shadow:var(--shadow-sm);
+}
+.stu-tile span{font-size:11px;font-weight:900;color:rgba(36,35,31,.62);letter-spacing:.4px}
+.stu-tile b{font-size:15.5px;font-weight:950;word-break:break-word;line-height:1.35}
+.stu-tile.no-val b{color:var(--muted);font-weight:800;font-size:13.5px}
+.stu-tile.t-blue{background:#dcebf6}
+.stu-tile.t-green{background:#ddefd6}
+.stu-tile.t-yellow{background:#fdf2c7}
+.stu-note-card{
+  margin-top:10px;border:2px dashed rgba(23,27,20,.3);border-radius:14px;
+  background:#fffbe8;padding:10px 13px;display:grid;gap:4px;
+}
+.stu-note-card span{font-size:11px;font-weight:900;color:rgba(36,35,31,.62);letter-spacing:.4px}
+.stu-note-card p{margin:0;font-size:13.5px;font-weight:800;line-height:1.65;white-space:pre-wrap}
+
+/* 编辑模式：输入框收紧一点，别那么占地方 */
+.student-form .field input,.student-form .field select{padding:8px 11px;font-size:14px}
+.student-form textarea{min-height:64px}
+
+/* —— 课堂时间线（学生页） —— */
+.stu-tl-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stu-tl-stats{display:inline-flex;gap:6px;flex-wrap:wrap}
+.stu-timeline{display:grid;gap:6px}
+.stu-tl-entry{
+  display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
+  border:1.5px solid rgba(23,27,20,.22);border-radius:11px;
+  background:#fffefa;padding:6px 11px;
+}
+.stu-tl-date{font-size:12px;font-weight:950;color:var(--muted);min-width:34px}
+.stu-tl-class{font-size:12.5px;font-weight:900}
+.stu-tl-remark{font-size:12.5px;font-weight:800;color:#6b5537;flex:1;min-width:120px}
+
+/* —— 课程详情弹窗：本节课点名 —— */
+.attendance-section{margin-top:4px}
+.att-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.att-head h4{display:flex;align-items:center;gap:8px;margin:0}
+.att-count{
+  font-style:normal;font-size:11px;font-weight:950;
+  border:1.5px solid rgba(23,27,20,.4);border-radius:999px;
+  background:#eef5f0;padding:1px 9px;
+}
+.att-mode-toggle{font-size:11.5px;padding:4px 11px}
+.att-rows{display:grid;gap:8px}
+.att-row{
+  display:grid;grid-template-columns:minmax(72px,auto) auto 1fr;
+  align-items:center;gap:10px;
+  border:1.5px solid rgba(23,27,20,.28);border-radius:13px;
+  background:#fffefa;padding:8px 12px;
+}
+@media(max-width:640px){.att-row{grid-template-columns:1fr;gap:6px}}
+.att-name{font-size:14.5px;font-weight:950}
+.att-btns{display:flex;gap:7px;flex-wrap:wrap}
+.att-btn{
+  border:1.5px solid rgba(23,27,20,.5);border-radius:999px;
+  background:#fff;padding:3px 13px;
+  font-size:12.5px;font-weight:900;cursor:pointer;font-family:inherit;
+  opacity:.7;transition:.12s;
+}
+.att-btn:hover{opacity:1;transform:translateY(-1px)}
+.att-btn.on{opacity:1;box-shadow:1.5px 1.5px 0 var(--ink);transform:translateY(-1px)}
+.att-btn.att-ok.on,.att-chip.att-ok{background:#cdebd5;color:#1f5e30}
+.att-btn.att-late.on,.att-chip.att-late{background:#ffe9a8;color:#7a5a12}
+.att-btn.att-absent.on,.att-chip.att-absent{background:#ffd9d2;color:#8c2f23}
+.att-btn.att-leave.on,.att-chip.att-leave{background:#e6e0f8;color:#4a4480}
+.att-chip{
+  display:inline-block;font-style:normal;font-size:11px;font-weight:950;
+  border:1.5px solid rgba(23,27,20,.4);border-radius:999px;padding:1px 9px;
+}
+.att-remark{
+  border:1.5px dashed rgba(23,27,20,.35);border-radius:10px;
+  background:#fffdf2;padding:6px 10px;
+  font-family:inherit;font-size:12.5px;font-weight:800;min-width:0;
+}
+.att-remark:focus{outline:none;border-style:solid;border-color:rgba(23,27,20,.6)}
+.att-hint{margin:9px 0 0;font-size:11.5px;color:var(--muted);font-weight:800}

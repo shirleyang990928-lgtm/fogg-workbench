@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260611a';
+const APP_VERSION='20260611b';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -1256,6 +1256,8 @@ function openClassDetailModal(item){
   document.querySelectorAll("[data-quick-text]").forEach(btn=>{
     btn.addEventListener("click",()=>copyText(btn.dataset.quickText));
   });
+  // 本节课点名（二期）
+  bindAttendanceSection(item);
   // Note save
   const saveBtn=byId("detailNoteSave");
   if(saveBtn) saveBtn.addEventListener("click",()=>{
@@ -1380,7 +1382,7 @@ function classDetailHtml(item){
   const todayTodos=(todoByDate[date]||[]);
   const todayTodosHtml=todayTodos.length?`<div class="today-todo-in-detail"><b>今日关联待办</b><div class="history-todos">${todayTodos.map(t=>`<span class="history-todo-item ${t.done?"done":""}">${t.done?"✓ ":"○ "}${esc(t.text)}</span>`).join("")}</div></div>`:"";
   const studentsHtml=item.students.length?item.students.map(s=>`<button class="student-link" data-student-name="${safeAttr(s.name)}" type="button">${esc(s.name)}</button>`).join(""):"暂无";
-  return `<div class="detail-section"><h4>上课信息</h4><div class="detail-grid final-detail-grid">${fieldCard("老师",item.teacher)}${fieldCard("课程",item.courseType)}${fieldCard("进度",lessonLabel(item))}${fieldCard("主题",item.topic)}${fieldCard("学期",classTermLabel(item))}${fieldCard("Zoom",zoomName(item))}<div class="detail-line wide"><span>学生（点名字看名册）</span><b class="student-links">${studentsHtml}</b></div></div></div><div class="detail-section detail-note-section"><div class="note-section-head"><h4>${formatDateShort(date)} 课堂笔记</h4>${merged.length?`<button class="btn ghost detail-history-toggle" id="detailHistoryToggle" type="button">历史 (${merged.length})</button>`:""}</div>${todayTodosHtml}<textarea id="detailNoteInput" class="detail-note-input" placeholder="今天发生了什么？只属于这一天。">${esc(todayNote)}</textarea><button class="btn note-save-btn" id="detailNoteSave" type="button">保存笔记</button></div>${merged.length?`<div class="detail-history-section" id="detailHistory" style="display:none">${historyHtml}</div>`:""}`;
+  return `<div class="detail-section"><h4>上课信息</h4><div class="detail-grid final-detail-grid">${fieldCard("老师",item.teacher)}${fieldCard("课程",item.courseType)}${fieldCard("进度",lessonLabel(item))}${fieldCard("主题",item.topic)}${fieldCard("学期",classTermLabel(item))}${fieldCard("Zoom",zoomName(item))}<div class="detail-line wide"><span>学生（点名字看名册）</span><b class="student-links">${studentsHtml}</b></div></div></div>${attendanceSectionHtml(item,date)}<div class="detail-section detail-note-section"><div class="note-section-head"><h4>${formatDateShort(date)} 课堂笔记</h4>${merged.length?`<button class="btn ghost detail-history-toggle" id="detailHistoryToggle" type="button">历史 (${merged.length})</button>`:""}</div>${todayTodosHtml}<textarea id="detailNoteInput" class="detail-note-input" placeholder="今天发生了什么？只属于这一天。">${esc(todayNote)}</textarea><button class="btn note-save-btn" id="detailNoteSave" type="button">保存笔记</button></div>${merged.length?`<div class="detail-history-section" id="detailHistory" style="display:none">${historyHtml}</div>`:""}`;
 }
 
 /* 2. renderMonthLesson — add draggable="true" */
@@ -1688,6 +1690,7 @@ document.addEventListener("keydown",function(e){
 let studentSearch="";
 let studentStatusFilter="all";   // all | 在读 | 停课 | 结课 | 未建档
 let editingStudentName=null;
+let studentDetailEditing=false;  // 详情默认"查看"，点"编辑档案"才展开表单
 
 const STUDENT_STATUSES=["在读","停课","结课"];
 
@@ -1754,15 +1757,21 @@ function studentListHtml(){
   }).join("")||'<p class="empty">没找到学生。课程里填过的学生名会自动出现在这里。</p>';
 }
 
-function studentDetailHtml(){
-  if(!editingStudentName)return `<div class="student-empty-hint"><h3>👈 选一个学生</h3><p>左边名册来自两处：你建过的档案 + 课程"学生"栏里填过的名字。<br>点一个名字查看或填写 TA 的档案；标"未建档"的，填完保存一次就建档了。</p></div>`;
-  const r=studentRoster().find(x=>x.name===editingStudentName);
-  const p=r&&r.profile?r.profile:normalizeStudentProfile({name:editingStudentName});
-  const isNew=!(r&&r.profile);
-  const classes=r?r.classes:[];
-  const classNotes=r?r.classNotes:[];
-  return `<h3 class="student-detail-title">${esc(editingStudentName)} 的档案 ${isNew?'<i class="stu-status stu-none">未建档 · 保存一次即建档</i>':''}</h3>
-  <div class="form-grid student-form">
+function studentViewHtml(p){
+  const tile=(label,value,tone)=>`<div class="stu-tile ${tone}${value?"":" no-val"}"><span>${esc(label)}</span><b>${esc(value||"未填")}</b></div>`;
+  return `<div class="stu-info-grid">
+    ${tile("年级/级别",p.grade,"t-blue")}
+    ${tile("学校",p.school,"t-green")}
+    ${tile("城市",p.city,"t-yellow")}
+    ${tile("家长称呼",p.parentName,"t-yellow")}
+    ${tile("家长联系",p.parentContact,"t-blue")}
+    ${tile("入学日期",p.enrollDate,"t-green")}
+  </div>
+  ${p.note?`<div class="stu-note-card"><span>备注</span><p>${esc(p.note)}</p></div>`:""}`;
+}
+
+function studentFormHtml(p,isNew){
+  return `<div class="form-grid student-form">
     <label class="field">姓名<input id="stuName" value="${safeAttr(p.name)}" placeholder="要和课程里填的名字一致"></label>
     <label class="field">年级/级别<input id="stuGrade" value="${safeAttr(p.grade)}" placeholder="如 五年级 / LR-3"></label>
     <label class="field">学校<input id="stuSchool" value="${safeAttr(p.school)}"></label>
@@ -1775,13 +1784,53 @@ function studentDetailHtml(){
   </div>
   <div class="form-actions">
     <button class="btn primary" data-save-student="${safeAttr(isNew?"":p.id)}">保存档案</button>
+    ${isNew?"":`<button class="btn" data-cancel-student-edit type="button">取消</button>`}
     ${isNew?"":`<button class="btn danger" data-delete-student="${safeAttr(p.id)}">删除档案</button>`}
+  </div>`;
+}
+
+function studentTimelineHtml(name,classes){
+  const entries=[];
+  classes.forEach(c=>{(Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
+    const a=rec.attendance&&rec.attendance[name];
+    if(a&&(a.status||(a.remark||"").trim()))entries.push({date:rec.date||"",cls:c,status:a.status||"",remark:(a.remark||"").trim()});
+  });});
+  if(!entries.length)return `<h4>课堂时间线</h4><p class="empty">还没有点名记录：上课时打开课程详情点名，记录会自动出现在这里。</p>`;
+  entries.sort((a,b)=>b.date.localeCompare(a.date));
+  const stat={};entries.forEach(e=>{if(e.status)stat[e.status]=(stat[e.status]||0)+1;});
+  const statLine=ATTENDANCE_ALL.filter(s=>stat[s]).map(s=>`<i class="att-chip ${attendanceStatusClass(s)}">${s} ${stat[s]}</i>`).join("");
+  return `<h4 class="stu-tl-head">课堂时间线${statLine?`<span class="stu-tl-stats">${statLine}</span>`:""}</h4>
+  <div class="stu-timeline">${entries.slice(0,20).map(e=>`<div class="stu-tl-entry">
+    <span class="stu-tl-date">${esc(formatDateShort(e.date))}</span>
+    ${e.status?`<i class="att-chip ${attendanceStatusClass(e.status)}">${esc(e.status)}</i>`:""}
+    <span class="stu-tl-class">${esc(e.cls.className)}</span>
+    ${e.remark?`<span class="stu-tl-remark">${esc(e.remark)}</span>`:""}
+  </div>`).join("")}</div>
+  ${entries.length>20?`<p class="student-phase-hint">只显示最近 20 条。</p>`:""}`;
+}
+
+function studentDetailHtml(){
+  if(!editingStudentName)return `<div class="student-empty-hint"><h3>👈 选一个学生</h3><p>左边名册来自两处：你建过的档案 + 课程"学生"栏里填过的名字。<br>点一个名字查看或填写 TA 的档案；标"未建档"的，填完保存一次就建档了。</p></div>`;
+  const r=studentRoster().find(x=>x.name===editingStudentName);
+  const p=r&&r.profile?r.profile:normalizeStudentProfile({name:editingStudentName});
+  const isNew=!(r&&r.profile);
+  const classes=r?r.classes:[];
+  const classNotes=r?r.classNotes:[];
+  const showForm=isNew||studentDetailEditing;
+  return `<div class="stu-view-head">
+    <div>
+      <h3 class="student-detail-title">${esc(editingStudentName)} ${isNew?'<i class="stu-status stu-none">未建档 · 保存一次即建档</i>':`<i class="stu-status ${studentStatusClass(p.status)}">${esc(p.status)}</i>`}</h3>
+      <p class="stu-view-sub">${classes.length} 门课${p.enrollDate&&!isNew?` · ${esc(formatDateShort(p.enrollDate))} 入学`:""}${p.grade&&!isNew?` · ${esc(p.grade)}`:""}</p>
+    </div>
+    ${showForm?"":'<button class="btn" data-edit-student type="button">✏️ 编辑档案</button>'}
   </div>
+  ${showForm?studentFormHtml(p,isNew):studentViewHtml(p)}
   <div class="student-detail-extra">
     <h4>TA 的课程（${classes.length}）</h4>
     <div class="student-classes">${classes.map(c=>`<button class="student-class-chip${c.archivedAt?' archived':''}" data-schedule-id="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${c.archivedAt?'（已归档）':''}</button>`).join("")||'<p class="empty">还没关联课程：去课程编辑页把 TA 的名字填进"学生"栏即可。</p>'}</div>
     ${classNotes.length?`<h4>课程里的随笔备注</h4><p class="student-note">📝 ${esc(classNotes.join("；"))}</p>`:""}
-    <p class="student-phase-hint">⏳ 出勤记录（二期）、作业跟踪（三期）以后会出现在这里。</p>
+    ${studentTimelineHtml(editingStudentName,classes)}
+    <p class="student-phase-hint">⏳ 作业跟踪（三期）以后会出现在这里。</p>
   </div>`;
 }
 
@@ -1810,12 +1859,16 @@ function refreshStudentList(){
 }
 
 function bindStudentPicks(){
-  document.querySelectorAll("[data-pick-student]").forEach(b=>b.addEventListener("click",()=>{editingStudentName=b.dataset.pickStudent;render();}));
+  document.querySelectorAll("[data-pick-student]").forEach(b=>b.addEventListener("click",()=>{editingStudentName=b.dataset.pickStudent;studentDetailEditing=false;render();}));
 }
 
 function bindStudentEvents(){
   bindStudentPicks();
   document.querySelectorAll("[data-student-status]").forEach(b=>b.addEventListener("click",()=>{studentStatusFilter=b.dataset.studentStatus;render();}));
+  const editBtn=document.querySelector("[data-edit-student]");
+  if(editBtn)editBtn.addEventListener("click",()=>{studentDetailEditing=true;render();});
+  const cancelBtn=document.querySelector("[data-cancel-student-edit]");
+  if(cancelBtn)cancelBtn.addEventListener("click",()=>{studentDetailEditing=false;render();});
   const save=document.querySelector("[data-save-student]");
   if(save)save.addEventListener("click",()=>{
     if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
@@ -1846,6 +1899,7 @@ function bindStudentEvents(){
     }
     saveStudents();
     editingStudentName=profile.name;
+    studentDetailEditing=false;
     showToast("已保存 "+profile.name+" 的档案");
     render();
   });
@@ -1881,5 +1935,95 @@ document.addEventListener("click",function(e){
   studentSearch="";
   studentStatusFilter="all";
   editingStudentName=link.dataset.studentName||null;
+  studentDetailEditing=false;
   render();
 },true);
+
+/* ===== 学生管理 二期（v20260611b）：课堂点名 =====
+   出勤+表现存在课程 classRecords 里（按日期），随 saveSchedule 同步云端：
+   classRecords[i].attendance = { 学生名: {status:"到/迟到/缺席/请假", remark:"表现一句话"} }
+   出勤两版可切换：简单版=到/缺席，专业版=到/迟到/缺席/请假（记在 localStorage，按老师习惯） */
+const ATTENDANCE_ALL=["到","迟到","缺席","请假"];
+const ATTENDANCE_SIMPLE=["到","缺席"];
+
+function attendanceMode(){return localStorage.getItem("attendanceMode")==="pro"?"pro":"simple";}
+function attendanceStatusClass(st){return st==="到"?"att-ok":st==="迟到"?"att-late":st==="缺席"?"att-absent":"att-leave";}
+
+function classAttendance(item,date){
+  const records=Array.isArray(item.classRecords)?item.classRecords:[];
+  const rec=records.find(r=>r.date===date);
+  return (rec&&rec.attendance)||{};
+}
+
+function attendanceSectionHtml(item,date){
+  const students=item.students||[];
+  if(!students.length)return "";
+  const att=classAttendance(item,date);
+  const statuses=attendanceMode()==="pro"?ATTENDANCE_ALL:ATTENDANCE_SIMPLE;
+  const marked=students.filter(s=>att[s.name]&&att[s.name].status).length;
+  return `<div class="detail-section attendance-section">
+    <div class="att-head">
+      <h4>${formatDateShort(date)} 点名 <i class="att-count" id="attCount">${marked}/${students.length}</i></h4>
+      <button class="btn ghost att-mode-toggle" id="attModeToggle" type="button">${attendanceMode()==="pro"?"专业版 · 切回简单版":"简单版 · 切到专业版"}</button>
+    </div>
+    <div class="att-rows">${students.map(s=>{
+      const a=att[s.name]||{};
+      const list=!a.status||statuses.includes(a.status)?statuses:[...statuses,a.status];
+      return `<div class="att-row" data-att-name="${safeAttr(s.name)}">
+        <b class="att-name">${esc(s.name)}</b>
+        <span class="att-btns">${list.map(st=>`<button class="att-btn ${attendanceStatusClass(st)} ${a.status===st?'on':''}" data-att-status="${safeAttr(st)}" type="button">${st}</button>`).join("")}</span>
+        <input class="att-remark" data-att-remark placeholder="表现一句话，可不填" value="${safeAttr(a.remark||"")}">
+      </div>`;
+    }).join("")}</div>
+    <p class="att-hint">点一下记出勤（再点取消），表现写完点别处自动保存；记录会出现在学生页的课堂时间线里。</p>
+  </div>`;
+}
+
+function saveAttendanceEntry(item,date,name,patch){
+  if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return false;}
+  const existing=scheduleData.find(x=>x.id===item.id);
+  if(!existing){showToast("示例课程不能点名");return false;}
+  const records=Array.isArray(existing.classRecords)?existing.classRecords.slice():[];
+  let idx=records.findIndex(r=>r.date===date);
+  if(idx<0){records.push({date});idx=records.length-1;}
+  const rec={...records[idx]};
+  const att={...(rec.attendance||{})};
+  const cur={...(att[name]||{}),...patch};
+  if(!cur.status&&!(cur.remark||"").trim())delete att[name];else att[name]=cur;
+  rec.attendance=att;
+  rec.updatedAt=new Date().toISOString();
+  records[idx]=rec;
+  existing.classRecords=records;
+  item.classRecords=records; // 弹窗里拿的可能是 occurrence 副本，保持同步
+  saveSchedule();
+  return true;
+}
+
+function bindAttendanceSection(item){
+  const section=document.querySelector(".attendance-section");
+  if(!section)return;
+  const date=classRecordDate(item);
+  const refreshCount=()=>{
+    const total=section.querySelectorAll(".att-row").length;
+    const marked=section.querySelectorAll(".att-row .att-btn.on").length;
+    const el=byId("attCount");
+    if(el)el.textContent=marked+"/"+total;
+  };
+  section.querySelectorAll(".att-btn").forEach(btn=>btn.addEventListener("click",()=>{
+    const row=btn.closest(".att-row");
+    const wasOn=btn.classList.contains("on");
+    if(!saveAttendanceEntry(item,date,row.dataset.attName,{status:wasOn?"":btn.dataset.attStatus}))return;
+    row.querySelectorAll(".att-btn").forEach(b=>b.classList.remove("on"));
+    if(!wasOn)btn.classList.add("on");
+    refreshCount();
+  }));
+  section.querySelectorAll("[data-att-remark]").forEach(inp=>inp.addEventListener("change",()=>{
+    const name=inp.closest(".att-row").dataset.attName;
+    if(saveAttendanceEntry(item,date,name,{remark:inp.value.trim()}))showToast("已记下 "+name+" 的表现");
+  }));
+  const toggle=byId("attModeToggle");
+  if(toggle)toggle.addEventListener("click",()=>{
+    localStorage.setItem("attendanceMode",attendanceMode()==="pro"?"simple":"pro");
+    openClassDetailModal(item); // 重新渲染弹窗即可
+  });
+}
