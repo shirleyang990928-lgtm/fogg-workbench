@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260611e';
+const APP_VERSION='20260611f';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -75,6 +75,7 @@ async function adminSwitchTo(email){
     stickersData=loadCollection(STORAGE_KEYS.stickers,DEFAULT_STICKERS,normalizeSticker);
     scheduleData=loadCollection(STORAGE_KEYS.schedule,DEFAULT_SCHEDULE,normalizeClassItem);
     studentsData=loadCollection(STORAGE_KEYS.students,[],normalizeStudentProfile);
+    sopData=loadCollection(STORAGE_KEYS.sop,[],normalizeSopRole);
     document.getElementById('adminBar').textContent='🔍 管理员视角：自己';
     showToast('已切回自己的数据');render();return;
   }
@@ -140,11 +141,14 @@ async function loadUserDataFromCloud(){
   stickersData=[];
   scheduleData=[];
   studentsData=[];
+  sopData=[];
   if(data){
     localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(data.stickers||[]));
     localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(data.schedule||[]));
     localStorage.setItem(STORAGE_KEYS.students,JSON.stringify(data.students||[]));
+    localStorage.setItem(STORAGE_KEYS.sop,JSON.stringify(data.sop||[]));
     studentsData=(data.students||[]).map(normalizeStudentProfile);
+    sopData=(data.sop||[]).map(normalizeSopRole);
     // 云端 todos 可能是历史坏格式（字符串/数组），先归一成对象再落地
     let cloudTodos=data.todos;
     if(typeof cloudTodos==="string"){try{cloudTodos=JSON.parse(cloudTodos);}catch(e){cloudTodos={};}}
@@ -176,6 +180,7 @@ async function syncToCloud(){
       stickers:stickersData,
       schedule:scheduleData,
       students:studentsData,
+      sop:sopData,
       todos:todos,
       updated_at:new Date().toISOString()
     },{onConflict:'user_email'});
@@ -259,7 +264,7 @@ const DEFAULT_COURSE_CATEGORIES = [
   }
 ];
 const PRESET_COLORS = ["#fff0bd","#ffd9cb","#e6ddff","#d8f0df","#d9eff6","#ffe1ef","#f6eddf","#d9f1ee","#f3e0c7","#e8f2c9"];
-const STORAGE_KEYS = {stickers:"stickersData", schedule:"scheduleData", students:"studentsData", stickerCategories:"stickerCategories", courseCategories:"courseCategories"};
+const STORAGE_KEYS = {stickers:"stickersData", schedule:"scheduleData", students:"studentsData", sop:"sopData", stickerCategories:"stickerCategories", courseCategories:"courseCategories"};
 const SCENES = ["before","during","after","ai"];
 const SCENE_LABELS = {before:"\u8bfe\u524d", during:"\u8bfe\u4e2d", after:"\u8bfe\u540e", ai:"AI"};
 const AUDIENCES = ["group","parent","teacher","student","doc","ai"];
@@ -275,6 +280,7 @@ let courseCategories = loadCollection(STORAGE_KEYS.courseCategories, DEFAULT_COU
 let stickersData = loadCollection(STORAGE_KEYS.stickers, DEFAULT_STICKERS, normalizeSticker);
 let scheduleData = loadCollection(STORAGE_KEYS.schedule, DEFAULT_SCHEDULE, normalizeClassItem);
 let studentsData = loadCollection(STORAGE_KEYS.students, [], normalizeStudentProfile);
+let sopData = loadCollection(STORAGE_KEYS.sop, [], normalizeSopRole);
 function uid(prefix){return prefix+"-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);}
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
 function safeAttr(s){return esc(s).replace(/`/g,"&#096;");}
@@ -337,7 +343,7 @@ function filterStickers(list,scene,audience){return list.filter(x=>(scene==="all
 function updateNav(){document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));}
 function setHead(title,sub,count){byId("viewTitle").textContent=title;byId("viewSubtitle").textContent=sub;byId("viewSubtitle").hidden=!sub;byId("counter").textContent=count||"";}
 function tabs(items,current,key){return items.map(x=>`<button class="tab ${x.value===current?'active':''}" data-${key}="${safeAttr(x.value)}">${esc(x.label)}</button>`).join("");}
-function render(){updateNav();if(view==="today")renderToday();if(view==="stickers")renderStickers();if(view==="courses")renderCourses();if(view==="students")renderStudents();if(view==="manage")renderManage();if(view==="courseHome")renderCourseHome();}
+function render(){updateNav();if(view==="today")renderToday();if(view==="stickers")renderStickers();if(view==="courses")renderCourses();if(view==="students")renderStudents();if(view==="manage")renderManage();if(view==="courseHome")renderCourseHome();if(view==="sop")renderSop();}
 function renderFocus(current,suggested){if(!current)return `<div class="panel-head"><h3>\u5f53\u524d\u4efb\u52a1</h3><span>\u6682\u65e0\u8bfe\u7a0b</span></div><p class="empty">\u4eca\u5929\u6ca1\u6709\u8bfe\u65f6\uff0c\u5de5\u4f5c\u53f0\u4f1a\u81ea\u52a8\u663e\u793a\u6700\u8fd1\u7684\u8fdb\u884c\u4e2d\u8bfe\u7a0b\u3002</p>`;return `<div class="panel-head"><h3>\u5f53\u524d\u4efb\u52a1</h3><span>\u5efa\u8bae\uff1a${SCENE_LABELS[suggested]}</span></div><div class="focus-card"><div class="focus-top"><div><div class="course-time">${esc(current.time||"\u672a\u5b9a")}</div><div class="course-name">${esc(current.className)}</div></div><span class="chip ok">${STATUS_LABELS[current.status]}</span></div><div class="meta-row"><span class="chip">${esc(current.weekday)}</span><span class="chip">${esc(current.courseType)}</span><span class="chip">${esc(current.teacher||"\u672a\u586b\u8001\u5e08")}</span></div><div class="student-row">${current.students.map(s=>`<span class="chip">${esc(s.name)}</span>`).join("")||'<span class="chip">\u6682\u65e0\u5b66\u751f</span>'}</div><div class="course-note">${esc((current.notes[0]&&current.notes[0].text)||"\u6682\u65e0\u5907\u6ce8\u3002")}</div></div>`;}
 function renderCourseCards(classes,current){return `<div class="course-card-grid">${classes.map(x=>renderScheduleCard(x,current&&x.id===current.id)).join("")||'<p class="empty">\u6682\u65e0\u53ef\u663e\u793a\u8bfe\u7a0b\u3002</p>'}</div>`;}
 function renderDayColumn(day,items){return `<section class="week-day-card"><div class="day-card-head"><b>${esc(day)}</b><span>${items.length} \u8282</span></div><div class="day-card-list">${items.map(x=>renderScheduleCard(x,false)).join("")||'<p class="empty mini">\u6ca1\u8bfe</p>'}</div></section>`;}
@@ -998,7 +1004,22 @@ document.addEventListener("change",e=>{
   if(chip) chip.classList.toggle("checked",e.target.checked);
 });
 
-document.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",()=>{view=btn.dataset.view;render();}));
+/* 导航按钮由 JS 生成（v20260611f）：以后加页面只改这份列表，
+   不依赖 index.html 更新——避免 Shirley 那边 HTML 被浏览器缓存导致看不到新导航 */
+const NAV_ITEMS=[
+  {view:"today",label:"日程",sub:"本周课表"},
+  {view:"stickers",label:"话术",sub:"快速复制"},
+  {view:"courses",label:"课程",sub:"总览与对比"},
+  {view:"students",label:"学生",sub:"名册与关联"},
+  {view:"sop",label:"SOP",sub:"做事流程"},
+  {view:"manage",label:"管理",sub:"整理与备份"}
+];
+(function renderMainNav(){
+  const nav=document.querySelector(".main-nav");
+  if(!nav)return;
+  nav.innerHTML=NAV_ITEMS.map(n=>`<button class="nav-btn ${view===n.view?'active':''}" data-view="${n.view}" type="button"><span>${n.label}</span><small>${n.sub}</small></button>`).join("");
+  nav.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",()=>{view=btn.dataset.view;render();}));
+})();
 byId("detailClose").addEventListener("click",closeStickerDetail);
 byId("detailModal").addEventListener("click",e=>{if(e.target.id==="detailModal")closeStickerDetail();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&byId("detailModal").classList.contains("show"))closeStickerDetail();});
@@ -1697,6 +1718,7 @@ let studentSearch="";
 let studentStatusFilter="all";   // all | 在读 | 停课 | 结课 | 未建档
 let editingStudentName=null;
 let studentDetailEditing=false;  // 详情默认"查看"，点"编辑档案"才展开表单
+let studentLinkPickerOpen=false; // "＋ 关联课程"选课列表是否展开
 
 const STUDENT_STATUSES=["在读","停课","结课"];
 
@@ -1814,6 +1836,11 @@ function studentFormHtml(p,isNew){
   </div>`;
 }
 
+/* 课堂时间线 v2（v20260611f）：可按课程筛、只看缺席/只看作业；
+   长表现默认折叠两行，点一下展开；日期/出勤/作业/课程名分组清晰 */
+let stuTimelineCourse="all"; // all | 课程id
+let stuTimelineKind="all";   // all | absent | homework
+
 function studentTimelineHtml(name,classes){
   const entries=[];
   classes.forEach(c=>{(Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
@@ -1827,24 +1854,66 @@ function studentTimelineHtml(name,classes){
   });});
   if(!entries.length)return `<h4>课堂时间线</h4><p class="empty">还没有记录：上课时在课程详情里点名、记作业，会自动出现在这里。</p>`;
   entries.sort((a,b)=>b.date.localeCompare(a.date));
-  // 出勤统计只看 到/缺席（请假算缺席）；迟到/请假标记单独小字展示
-  const stat={};entries.forEach(e=>{if(e.status)stat[e.status]=(stat[e.status]||0)+1;});
-  const extraStat={};entries.forEach(e=>{if(e.tag)extraStat[e.tag]=(extraStat[e.tag]||0)+1;});
-  const hwAssigned=entries.filter(e=>e.hwState).length;
-  const hwDone=entries.filter(e=>e.hwState==="已交"||e.hwState==="已批改").length;
+  // 课程筛选（上多门课时才出现）
+  const courseIds=[...new Set(entries.map(e=>e.cls.id))];
+  if(stuTimelineCourse!=="all"&&!courseIds.includes(stuTimelineCourse))stuTimelineCourse="all";
+  const byCourse=stuTimelineCourse==="all"?entries:entries.filter(e=>e.cls.id===stuTimelineCourse);
+  // 统计行跟着课程筛选走（想看单门课的表现）
+  const stat={};byCourse.forEach(e=>{if(e.status)stat[e.status]=(stat[e.status]||0)+1;});
+  const extraStat={};byCourse.forEach(e=>{if(e.tag)extraStat[e.tag]=(extraStat[e.tag]||0)+1;});
+  const hwAssigned=byCourse.filter(e=>e.hwState).length;
+  const hwDone=byCourse.filter(e=>e.hwState==="已交"||e.hwState==="已批改").length;
   const statLine=ATTENDANCE_MAIN.filter(s=>stat[s]).map(s=>`<i class="att-chip ${attendanceStatusClass(s)}">${s} ${stat[s]}</i>`).join("")
     +(hwAssigned?`<i class="att-chip hw-chip">作业 ${hwDone}/${hwAssigned}</i>`:"");
   const extraLine=ATTENDANCE_EXTRA.filter(t=>extraStat[t]).map(t=>`${t} ${extraStat[t]}`).join(" · ");
+  // 只看缺席 / 只看作业
+  const shown=stuTimelineKind==="absent"?byCourse.filter(e=>e.status==="缺席"||e.tag==="请假")
+    :stuTimelineKind==="homework"?byCourse.filter(e=>e.hwState)
+    :byCourse;
+  const courseChips=courseIds.length>1?`<div class="stu-tl-filter-row"><span class="ov-filter-label">课程</span><div class="ov-filter-chips">${[["all","全部"],...courseIds.map(id=>{const c=classes.find(x=>x.id===id);return [id,c?c.className:id];})].map(([v,l])=>`<button class="tab ${stuTimelineCourse===v?'active':''}" data-stu-tl-course="${safeAttr(v)}" type="button">${esc(l)}</button>`).join("")}</div></div>`:"";
+  const kindChips=`<div class="stu-tl-filter-row"><span class="ov-filter-label">只看</span><div class="ov-filter-chips">${[["all","全部"],["absent","缺席/请假"],["homework","作业"]].map(([v,l])=>`<button class="tab ${stuTimelineKind===v?'active':''}" data-stu-tl-kind="${v}" type="button">${l}</button>`).join("")}</div></div>`;
+  const entryHtml=e=>{
+    const long=(e.remark||"").length>64;
+    return `<div class="stu-tl-card">
+      <div class="stu-tl-meta">
+        <span class="stu-tl-date">${esc(formatDateShort(e.date))}</span>
+        <span class="stu-tl-class">${esc(e.cls.className)}</span>
+        ${e.status?`<i class="att-chip ${attendanceStatusClass(e.status)}">${esc(e.status)}</i>`:""}
+        ${e.tag?`<i class="att-chip att-tag-chip ${attendanceStatusClass(e.tag)}">${esc(e.tag)}</i>`:""}
+        ${e.hwState?`<i class="att-chip hw-chip ${hwStateClass(e.hwState)}">📚${esc(e.hwState)}${e.hwScore?` ${esc(e.hwScore)}`:""}</i>`:""}
+      </div>
+      ${e.remark?`<div class="stu-tl-remark-wrap${long?' clampable':''}"><div class="stu-tl-remark2${long?' clamped':''}">${esc(e.remark)}</div>${long?'<span class="tl-expand-hint">▾ 点开看全部</span>':""}</div>`:""}
+    </div>`;
+  };
   return `<h4 class="stu-tl-head">课堂时间线${statLine?`<span class="stu-tl-stats">${statLine}</span>`:""}${extraLine?`<small class="stu-tl-extra-stat">（${extraLine}）</small>`:""}</h4>
-  <div class="stu-timeline">${entries.slice(0,20).map(e=>`<div class="stu-tl-entry">
-    <span class="stu-tl-date">${esc(formatDateShort(e.date))}</span>
-    ${e.status?`<i class="att-chip ${attendanceStatusClass(e.status)}">${esc(e.status)}</i>`:""}
-    ${e.tag?`<i class="att-chip att-tag-chip ${attendanceStatusClass(e.tag)}">${esc(e.tag)}</i>`:""}
-    ${e.hwState?`<i class="att-chip hw-chip ${hwStateClass(e.hwState)}">📚${esc(e.hwState)}${e.hwScore?` ${esc(e.hwScore)}`:""}</i>`:""}
-    <span class="stu-tl-class">${esc(e.cls.className)}</span>
-    ${e.remark?`<span class="stu-tl-remark">${esc(e.remark)}</span>`:""}
-  </div>`).join("")}</div>
-  ${entries.length>20?`<p class="student-phase-hint">只显示最近 20 条。</p>`:""}`;
+  <div class="stu-tl-filterbar">${courseChips}${kindChips}</div>
+  <div class="stu-timeline stu-timeline2">${shown.slice(0,30).map(entryHtml).join("")||'<p class="empty">这个筛选下没有记录。</p>'}</div>
+  ${shown.length>30?`<p class="student-phase-hint">只显示最近 30 条。</p>`:""}`;
+}
+
+/* 时间线筛选 + 长文本展开（事件委托，整页重渲染也不丢） */
+document.addEventListener("click",function(e){
+  const courseBtn=e.target.closest&&e.target.closest("[data-stu-tl-course]");
+  if(courseBtn){stuTimelineCourse=courseBtn.dataset.stuTlCourse;render();return;}
+  const kindBtn=e.target.closest&&e.target.closest("[data-stu-tl-kind]");
+  if(kindBtn){stuTimelineKind=kindBtn.dataset.stuTlKind;render();return;}
+  const wrap=e.target.closest&&e.target.closest(".stu-tl-remark-wrap.clampable");
+  if(wrap){
+    const body=wrap.querySelector(".stu-tl-remark2");
+    const hint=wrap.querySelector(".tl-expand-hint");
+    const nowClamped=body.classList.toggle("clamped");
+    if(hint)hint.textContent=nowClamped?"▾ 点开看全部":"▴ 收起";
+  }
+});
+
+/* "＋ 关联课程"：列出 TA 还没在的课程，点一下就把名字写进那门课的学生栏（v20260611f） */
+function studentLinkPickerHtml(){
+  const linkable=overviewCourses().filter(c=>!(c.students||[]).some(s=>(s.name||"").trim()===editingStudentName));
+  if(!linkable.length)return `<div class="link-course-picker"><p class="empty">所有课程都已关联 TA 了。</p></div>`;
+  return `<div class="link-course-picker">
+    <p class="link-picker-hint">点一门课，就会把「${esc(editingStudentName)}」写进它的学生栏（和课程编辑页填名字是同一回事）：</p>
+    <div class="link-course-list">${linkable.map(c=>`<button class="link-course-option" data-link-course="${safeAttr(c.id)}" type="button"><b>${esc(c.className)}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(classTermLabel(c))}</small></button>`).join("")}</div>
+  </div>`;
 }
 
 function studentDetailHtml(){
@@ -1864,8 +1933,9 @@ function studentDetailHtml(){
   </div>
   ${showForm?studentFormHtml(p,isNew):studentViewHtml(p)}
   <div class="student-detail-extra">
-    <h4>TA 的课程（${classes.length}）</h4>
-    <div class="student-classes">${classes.map(c=>`<button class="student-class-chip${c.archivedAt?' archived':''}" data-schedule-id="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${c.archivedAt?'（已归档）':''}</button>`).join("")||'<p class="empty">还没关联课程：去课程编辑页把 TA 的名字填进"学生"栏即可。</p>'}</div>
+    <div class="stu-classes-head"><h4>TA 的课程（${classes.length}）</h4><button class="btn ghost stu-link-toggle" data-link-course-toggle type="button">${studentLinkPickerOpen?"收起":"＋ 关联课程"}</button></div>
+    <div class="student-classes">${classes.map(c=>`<span class="student-class-item"><button class="student-class-chip${c.archivedAt?' archived':''}" data-schedule-id="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${c.archivedAt?'（已归档）':''}</button><button class="stu-unlink-btn" data-unlink-course="${safeAttr(c.id)}" type="button" title="把 TA 从这门课的学生栏移除">✕</button></span>`).join("")||'<p class="empty">还没关联课程：点右上"＋ 关联课程"，或去课程编辑页把 TA 的名字填进"学生"栏。</p>'}</div>
+    ${studentLinkPickerOpen?studentLinkPickerHtml():""}
     ${classNotes.length?`<h4>课程"学生"栏里的小备注</h4><p class="student-note">📝 ${esc(classNotes.join("；"))}<small class="student-note-hint">（在课程编辑页"学生"栏用"姓名 | 备注"的写法写的，会显示在这里）</small></p>`:""}
     ${studentTimelineHtml(editingStudentName,classes)}
     <p class="student-phase-hint">⏳ 周看板与预警（四期）以后会出现在这里。</p>
@@ -1897,12 +1967,37 @@ function refreshStudentList(){
 }
 
 function bindStudentPicks(){
-  document.querySelectorAll("[data-pick-student]").forEach(b=>b.addEventListener("click",()=>{editingStudentName=b.dataset.pickStudent;studentDetailEditing=false;render();}));
+  document.querySelectorAll("[data-pick-student]").forEach(b=>b.addEventListener("click",()=>{editingStudentName=b.dataset.pickStudent;studentDetailEditing=false;stuTimelineCourse="all";stuTimelineKind="all";studentLinkPickerOpen=false;render();}));
 }
 
 function bindStudentEvents(){
   bindStudentPicks();
   document.querySelectorAll("[data-student-status]").forEach(b=>b.addEventListener("click",()=>{studentStatusFilter=b.dataset.studentStatus;render();}));
+  // ＋ 关联课程 / 移除关联（v20260611f）
+  const linkToggle=document.querySelector("[data-link-course-toggle]");
+  if(linkToggle)linkToggle.addEventListener("click",()=>{studentLinkPickerOpen=!studentLinkPickerOpen;render();});
+  document.querySelectorAll("[data-link-course]").forEach(b=>b.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    const c=scheduleData.find(x=>x.id===b.dataset.linkCourse);
+    if(!c||!editingStudentName)return;
+    if((c.students||[]).some(s=>(s.name||"").trim()===editingStudentName)){showToast("TA 已经在这门课里了");return;}
+    c.students=[...(c.students||[]),{id:uid("student"),name:editingStudentName,note:""}];
+    saveSchedule();
+    studentLinkPickerOpen=false;
+    showToast("已把 "+editingStudentName+" 加进「"+c.className+"」");
+    render();
+  }));
+  document.querySelectorAll("[data-unlink-course]").forEach(b=>b.addEventListener("click",e=>{
+    e.stopPropagation();
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    const c=scheduleData.find(x=>x.id===b.dataset.unlinkCourse);
+    if(!c||!editingStudentName)return;
+    if(!confirm("把 "+editingStudentName+" 从「"+c.className+"」的学生栏移除？\n已有的点名、作业记录不会被删。"))return;
+    c.students=(c.students||[]).filter(s=>(s.name||"").trim()!==editingStudentName);
+    saveSchedule();
+    showToast("已移除关联");
+    render();
+  }));
   const editBtn=document.querySelector("[data-edit-student]");
   if(editBtn)editBtn.addEventListener("click",()=>{studentDetailEditing=true;render();});
   const cancelBtn=document.querySelector("[data-cancel-student-edit]");
@@ -1976,6 +2071,7 @@ document.addEventListener("click",function(e){
   studentStatusFilter="all";
   editingStudentName=link.dataset.studentName||null;
   studentDetailEditing=false;
+  stuTimelineCourse="all";stuTimelineKind="all";studentLinkPickerOpen=false;
   render();
 },true);
 
@@ -2202,8 +2298,8 @@ function openCourseHome(id){
   render();
 }
 
-function courseStats(c){
-  const records=Array.isArray(c.classRecords)?c.classRecords:[];
+function courseStats(c,since){
+  const records=(Array.isArray(c.classRecords)?c.classRecords:[]).filter(r=>!since||String(r.date||"")>=since);
   const s={att:0,abs:0,late:0,leave:0,hwAssigned:0,hwIn:0,hwGraded:0,lessons:0};
   records.forEach(rec=>{
     let counted=false;
@@ -2233,8 +2329,8 @@ function courseStats(c){
   return s;
 }
 
-function courseStudentLineHtml(c,name){
-  const records=Array.isArray(c.classRecords)?c.classRecords:[];
+function courseStudentLineHtml(c,name,since){
+  const records=(Array.isArray(c.classRecords)?c.classRecords:[]).filter(r=>!since||String(r.date||"")>=since);
   let att=0,abs=0,late=0,leave=0,hwAssigned=0,hwIn=0;
   records.forEach(rec=>{
     const raw=(rec.attendance||{})[name];
@@ -2291,14 +2387,21 @@ function courseRecordEntryHtml(c,rec){
   </div>`;
 }
 
+let courseHomeRange="all"; // 单班页时间范围：all | week | 3w | 4w
+
 function renderCourseHome(){
   const c=scheduleData.find(x=>x.id===courseHomeId);
   if(!c){view=courseHomeBack||"students";render();return;}
-  const s=courseStats(c);
-  const records=(Array.isArray(c.classRecords)?c.classRecords:[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const since=rangeSince(courseHomeRange);
+  const rangeText=rangeLabelOf(courseHomeRange);
+  const s=courseStats(c,since);
+  const records=(Array.isArray(c.classRecords)?c.classRecords:[])
+    .filter(r=>!since||String(r.date||"")>=since)
+    .slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const recHtml=records.map(r=>courseRecordEntryHtml(c,r)).filter(Boolean).join("");
   setHead(c.className,"课程主页 · 出勤、作业、笔记都在这一页","共 "+(c.students||[]).length+" 名学生");
-  byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>`;
+  byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>
+    <div class="filter-line compact-filter course-home-range">${COURSE_RANGES.map(r=>`<button class="tab ${courseHomeRange===r.value?'active':''}" data-course-home-range="${r.value}" type="button">${r.label}</button>`).join("")}</div>`;
   byId("content").innerHTML=`<div class="course-home">
     <div class="stu-info-grid course-home-info">
       <div class="stu-tile t-blue"><span>时间</span><b>${esc(c.weekday)} ${esc(formatTimeCN(c.time))}</b></div>
@@ -2306,25 +2409,47 @@ function renderCourseHome(){
       <div class="stu-tile t-yellow"><span>Zoom · 学期</span><b>${esc(zoomName(c)||"未填")} · ${esc(classTermLabel(c))}</b></div>
     </div>
     <div class="stu-info-grid course-home-stats">
-      <div class="stu-tile t-green"><span>已记录课次</span><b>${s.lessons||0} 次</b></div>
-      <div class="stu-tile ${s.attRate===null?'no-val':'t-blue'}"><span>出勤率</span><b>${s.attRate===null?"还没点过名":s.attRate+"%"}</b></div>
-      <div class="stu-tile ${s.hwRate===null?'no-val':'t-yellow'}"><span>作业提交率</span><b>${s.hwRate===null?"还没布置过":s.hwRate+"%"}</b></div>
-      <div class="stu-tile ${s.gradeRate===null?'no-val':'t-green'}"><span>已交里批改率</span><b>${s.gradeRate===null?"还没人交":s.gradeRate+"%"}</b></div>
+      <div class="stu-tile t-green"><span>已记录课次 · ${esc(rangeText)}</span><b>${s.lessons||0} 次</b></div>
+      <div class="stu-tile ${s.attRate===null?'no-val':'t-blue'}"><span>出勤率 · ${esc(rangeText)}</span><b>${s.attRate===null?"还没点过名":s.attRate+"%"}</b></div>
+      <div class="stu-tile ${s.hwRate===null?'no-val':'t-yellow'}"><span>作业提交率 · ${esc(rangeText)}</span><b>${s.hwRate===null?"还没布置过":s.hwRate+"%"}</b></div>
+      <div class="stu-tile ${s.gradeRate===null?'no-val':'t-green'}"><span>已交里批改率 · ${esc(rangeText)}</span><b>${s.gradeRate===null?"还没人交":s.gradeRate+"%"}</b></div>
     </div>
     <div class="student-detail-extra">
-      <h4>学生（点名字看档案）</h4>
-      <div class="course-student-lines">${(c.students||[]).map(st=>courseStudentLineHtml(c,st.name)).join("")||'<p class="empty">课程里还没填学生。</p>'}</div>
-      <h4>全部课堂记录（${records.length} 天）</h4>
-      ${recHtml||'<p class="empty">还没有记录：上课时在课程详情弹窗里点名、记作业、写笔记，都会汇总到这里。</p>'}
+      <h4>学生（点名字看档案 · 数字按${esc(rangeText)}算）</h4>
+      <div class="course-student-lines">${(c.students||[]).map(st=>courseStudentLineHtml(c,st.name,since)).join("")||'<p class="empty">课程里还没填学生。</p>'}</div>
+      <h4>${esc(rangeText)}课堂记录（${records.length} 天）</h4>
+      ${recHtml||'<p class="empty">这段时间没有记录。上课时在课程详情弹窗里点名、记作业、写笔记，都会汇总到这里。</p>'}
     </div>
   </div>`;
   byId("courseHomeBack").addEventListener("click",()=>{view=courseHomeBack||"students";render();});
+  document.querySelectorAll("[data-course-home-range]").forEach(b=>b.addEventListener("click",()=>{courseHomeRange=b.dataset.courseHomeRange;render();}));
 }
 
-/* ===== 课程总览页（v20260611e，Shirley 期待清单第2条）=====
-   新导航页"课程"：几个班、共多少学生、每个类别几个班，
-   每个班一行（人数/出席率/提交率/批改率对齐排列，方便对比），点行进课程主页。 */
-let courseOverviewType="all";
+/* ===== 课程总览页 v2（v20260611f，Shirley 2026-06-11 深夜反馈）=====
+   三组筛选：类别（LR/CW/CR/EW）× 学期（上半年/下半年/假期营/1对1）× 时间（本周/近3周/近4周/全部）。
+   顶部所有数字（班级数/学生数/出席率/提交率/批改率）都按当前筛选实时算，不再固定显示总数。
+   有记录的班排前面；这段时间没记录的班收进折叠区，一眼只看重点。 */
+let courseOverviewType="all";   // all | LR | CW | CR | EW | 其他
+let courseOverviewTerm="all";   // all | 上半年 | 下半年 | 假期营 | 1对1
+let courseOverviewRange="all";  // all | week | 3w | 4w
+
+const COURSE_RANGES=[
+  {value:"week",label:"本周"},
+  {value:"3w",label:"近3周"},
+  {value:"4w",label:"近4周"},
+  {value:"all",label:"全部时间"}
+];
+
+function rangeSince(r){
+  if(r==="week")return dateKey(weekStart());
+  if(r==="3w")return dateKey(addDays(weekStart(),-14));
+  if(r==="4w")return dateKey(addDays(weekStart(),-21));
+  return "";
+}
+function rangeLabelOf(r){
+  const f=COURSE_RANGES.find(x=>x.value===r);
+  return f?f.label:"全部时间";
+}
 
 function overviewCourses(){
   return scheduleData.filter(c=>c.status!=="Deleted"&&!c.deletedAt&&!c.archivedAt);
@@ -2336,35 +2461,187 @@ function rateChip(label,rate){
   return `<span class="ov-rate ${tone}"><span>${esc(label)}</span><b>${rate}%</b></span>`;
 }
 
+function rateTile(label,rate,detail){
+  if(rate===null)return `<div class="stu-tile no-val"><span>${esc(label)}</span><b>—</b><small class="ov-tile-detail">${esc(detail||"这段时间没记录")}</small></div>`;
+  const tone=rate>=80?"ov-tile-good":rate>=60?"ov-tile-mid":"ov-tile-bad";
+  return `<div class="stu-tile ${tone}"><span>${esc(label)}</span><b>${rate}%</b>${detail?`<small class="ov-tile-detail">${esc(detail)}</small>`:""}</div>`;
+}
+
+function courseOvRowHtml(c,s){
+  return `<button class="course-ov-row${s.lessons?"":" ov-row-quiet"}" data-course-home="${safeAttr(c.id)}" type="button">
+    <span class="ov-name"><b>${esc(c.className)}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(courseTypeLabel(c))} · ${esc(classTermLabel(c))}</small></span>
+    <span class="ov-count">${(c.students||[]).length} 人</span>
+    ${rateChip("出席",s.attRate)}
+    ${rateChip("交作业",s.hwRate)}
+    ${rateChip("批改",s.gradeRate)}
+    <span class="ov-lessons">${s.lessons} 次记录</span>
+  </button>`;
+}
+
 function renderCourses(){
   const all=overviewCourses();
-  const types=[...new Set(all.map(c=>c.courseType||"未分类"))];
-  const list=courseOverviewType==="all"?all:all.filter(c=>(c.courseType||"未分类")===courseOverviewType);
-  const allNames=new Set();
-  all.forEach(c=>(c.students||[]).forEach(s=>{if((s.name||"").trim())allNames.add(s.name.trim());}));
-  const typeCounts=types.map(t=>`${t} ${all.filter(c=>(c.courseType||"未分类")===t).length} 班`).join(" · ");
+  const codeOf=c=>courseCode(c)||"其他";
+  const cats=["LR","CW","CR","EW"].filter(t=>all.some(c=>codeOf(c)===t));
+  if(all.some(c=>codeOf(c)==="其他"))cats.push("其他");
+  const terms=TERM_OPTIONS.filter(t=>all.some(c=>classTermLabel(c)===t));
+  // 当前筛选下的班级
+  const list=all.filter(c=>
+    (courseOverviewType==="all"||codeOf(c)===courseOverviewType)&&
+    (courseOverviewTerm==="all"||classTermLabel(c)===courseOverviewTerm)
+  );
+  const since=rangeSince(courseOverviewRange);
+  // 每班统计（按时间窗口）+ 全选区汇总
+  const agg={att:0,abs:0,hwAssigned:0,hwIn:0,hwGraded:0,lessons:0};
+  const rows=list.map(c=>{
+    const s=courseStats(c,since);
+    agg.att+=s.att;agg.abs+=s.abs;agg.hwAssigned+=s.hwAssigned;agg.hwIn+=s.hwIn;agg.hwGraded+=s.hwGraded;agg.lessons+=s.lessons;
+    return {c,s};
+  });
+  const aggAtt=(agg.att+agg.abs)?Math.round(agg.att/(agg.att+agg.abs)*100):null;
+  const aggHw=agg.hwAssigned?Math.round(agg.hwIn/agg.hwAssigned*100):null;
+  const aggGrade=agg.hwIn?Math.round(agg.hwGraded/agg.hwIn*100):null;
+  // 学生数：只数当前筛选下的班，跨班重名只算一次
+  const names=new Set();
+  list.forEach(c=>(c.students||[]).forEach(s=>{if((s.name||"").trim())names.add(s.name.trim());}));
+  // 有记录的排前面（按记录次数多→少），没记录的收进折叠区
+  const active=rows.filter(r=>r.s.lessons>0).sort((a,b)=>b.s.lessons-a.s.lessons);
+  const quiet=rows.filter(r=>!r.s.lessons);
+  const rangeText=rangeLabelOf(courseOverviewRange);
+  const selParts=[
+    courseOverviewType==="all"?"全部类别":courseOverviewType,
+    courseOverviewTerm==="all"?"全部学期":courseOverviewTerm,
+    rangeText
+  ];
+  const filterRow=(label,items,cur,key)=>`<div class="ov-filter-row"><span class="ov-filter-label">${label}</span><div class="ov-filter-chips">${items.map(it=>`<button class="tab ${cur===it.value?'active':''}" data-${key}="${safeAttr(it.value)}" type="button">${esc(it.label)}</button>`).join("")}</div></div>`;
   setHead("课程","总览与对比 · 点一个班进它的主页","共 "+all.length+" 班");
-  byId("tabs").innerHTML=`<div class="filter-line compact-filter">${[["all","全部"],...types.map(t=>[t,t])].map(([v,l])=>`<button class="tab ${courseOverviewType===v?'active':''}" data-course-type-filter="${safeAttr(v)}">${l}</button>`).join("")}</div>`;
+  byId("tabs").innerHTML="";
   byId("content").innerHTML=`<div class="course-home course-overview">
-    <div class="stu-info-grid course-home-stats">
-      <div class="stu-tile t-blue"><span>班级数</span><b>${all.length} 个班</b></div>
-      <div class="stu-tile t-green"><span>学生总数（去重）</span><b>${allNames.size} 人</b></div>
-      <div class="stu-tile t-yellow"><span>按类别</span><b>${esc(typeCounts||"还没有班级")}</b></div>
-      <div class="stu-tile no-val"><span>提示</span><b>出席率 / 提交率低于 60% 会标红</b></div>
+    <div class="ov-filterbar">
+      ${filterRow("类别",[{value:"all",label:"全部"},...cats.map(t=>({value:t,label:t==="CR"?"CR 中文阅读":t}))],courseOverviewType,"ov-type")}
+      ${filterRow("学期",[{value:"all",label:"全部"},...terms.map(t=>({value:t,label:t}))],courseOverviewTerm,"ov-term")}
+      ${filterRow("时间",COURSE_RANGES,courseOverviewRange,"ov-range")}
     </div>
-    <div class="course-ov-list">${list.map(c=>{
-      const s=courseStats(c);
-      return `<button class="course-ov-row" data-course-home="${safeAttr(c.id)}" type="button">
-        <span class="ov-name"><b>${esc(c.className)}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(c.courseType||"未分类")}</small></span>
-        <span class="ov-count">${(c.students||[]).length} 人</span>
-        ${rateChip("出席",s.attRate)}
-        ${rateChip("交作业",s.hwRate)}
-        ${rateChip("批改",s.gradeRate)}
-        <span class="ov-lessons">${s.lessons} 次记录</span>
-      </button>`;
-    }).join("")||'<p class="empty">这个类别下还没有班级。</p>'}</div>
-    <p class="student-phase-hint">出席率 = 到 ÷（到+缺席）；提交率 = 已交+已批改 ÷ 应交；批改率 = 已批改 ÷ 已交。还没记录的显示"—"。</p>
+    <p class="ov-sel-line">正在看：<b>${selParts.map(esc).join(" · ")}</b>，下面所有数字都只算这个范围。</p>
+    <div class="stu-info-grid course-home-stats ov-stats">
+      <div class="stu-tile t-blue"><span>班级数</span><b>${list.length} 个班</b><small class="ov-tile-detail">${rows.length?agg.lessons+" 次课堂记录":"还没有班级"}</small></div>
+      <div class="stu-tile t-green"><span>学生数（去重）</span><b>${names.size} 人</b><small class="ov-tile-detail">同名只算一次</small></div>
+      ${rateTile("出席率 · "+rangeText,aggAtt,aggAtt===null?"":`到 ${agg.att} / 缺 ${agg.abs}`)}
+      ${rateTile("交作业率 · "+rangeText,aggHw,aggHw===null?"这段时间没布置过":`交 ${agg.hwIn} / 应交 ${agg.hwAssigned}`)}
+      ${rateTile("批改率 · "+rangeText,aggGrade,aggGrade===null?"还没人交":`已改 ${agg.hwGraded} / 已交 ${agg.hwIn}`)}
+    </div>
+    <div class="course-ov-list">${active.map(r=>courseOvRowHtml(r.c,r.s)).join("")||(quiet.length?`<p class="empty">这个范围内还没有课堂记录——下面折叠区里是这些班。</p>`:'<p class="empty">这个筛选下还没有班级。</p>')}</div>
+    ${quiet.length?`<details class="ov-quiet-group"${active.length?"":" open"}><summary>${rangeText}内还没记录的班 · ${quiet.length} 个</summary><div class="course-ov-list ov-quiet-list">${quiet.map(r=>courseOvRowHtml(r.c,r.s)).join("")}</div></details>`:""}
+    <p class="student-phase-hint">出席率 = 到 ÷（到+缺席）；提交率 = 已交+已批改 ÷ 应交；批改率 = 已批改 ÷ 已交。低于 60% 标红。</p>
   </div>`;
-  document.querySelectorAll("[data-course-type-filter]").forEach(b=>b.addEventListener("click",()=>{courseOverviewType=b.dataset.courseTypeFilter;render();}));
+  document.querySelectorAll("[data-ov-type]").forEach(b=>b.addEventListener("click",()=>{courseOverviewType=b.dataset.ovType;render();}));
+  document.querySelectorAll("[data-ov-term]").forEach(b=>b.addEventListener("click",()=>{courseOverviewTerm=b.dataset.ovTerm;render();}));
+  document.querySelectorAll("[data-ov-range]").forEach(b=>b.addEventListener("click",()=>{courseOverviewRange=b.dataset.ovRange;render();}));
   document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
+}
+
+/* ===== SOP 流程页（五期，v20260611f）=====
+   按工种建卡片（TA / 老师 / 课程顾问…），每个工种一份做事流程（步骤清单），
+   步骤可标注涉及哪个页面。数据存 user_data.sop 列（Shirley 已跑过 alter table SQL）。
+   编辑用"一行一步，步骤 | 页面"的写法——和课程学生栏"姓名 | 备注"同一套习惯。 */
+let sopEditingId=null;   // 正在编辑的工种卡 id；"new" = 新建
+
+function normalizeSopRole(x){
+  x=x||{};
+  return {
+    id:x.id||uid("sop"),
+    role:(x.role||"").trim()||"未命名工种",
+    steps:Array.isArray(x.steps)?x.steps.map(s=>({id:s.id||uid("step"),text:(s.text||"").trim(),page:(s.page||"").trim()})).filter(s=>s.text):[],
+    note:x.note||"",
+    updatedAt:x.updatedAt||new Date().toISOString()
+  };
+}
+
+function saveSop(){
+  if(adminViewEmail)return;
+  localStorage.setItem(STORAGE_KEYS.sop,JSON.stringify(sopData));
+  syncToCloud();
+}
+
+function sopStepsToText(steps){
+  return steps.map(s=>s.page?`${s.text} | ${s.page}`:s.text).join("\n");
+}
+function sopTextToSteps(text){
+  return String(text||"").split(/\n+/).map(line=>line.trim()).filter(Boolean).map(line=>{
+    const [t,...rest]=line.split("|");
+    return {id:uid("step"),text:t.trim(),page:rest.join("|").trim()};
+  }).filter(s=>s.text);
+}
+
+function sopCardHtml(r){
+  if(sopEditingId===r.id)return sopEditCardHtml(r);
+  return `<section class="sop-card">
+    <div class="sop-card-head">
+      <h3>${esc(r.role)}</h3>
+      <button class="btn ghost sop-edit-btn" data-sop-edit="${safeAttr(r.id)}" type="button">✏️ 编辑</button>
+    </div>
+    ${r.steps.length?`<ol class="sop-steps">${r.steps.map(s=>`<li><span class="sop-step-text">${esc(s.text)}</span>${s.page?`<i class="sop-page-tag">${esc(s.page)}</i>`:""}</li>`).join("")}</ol>`:'<p class="empty">还没写步骤，点"编辑"开始。</p>'}
+    ${r.note?`<p class="sop-note">📌 ${esc(r.note)}</p>`:""}
+  </section>`;
+}
+
+function sopEditCardHtml(r){
+  const isNew=!sopData.some(x=>x.id===r.id);
+  return `<section class="sop-card sop-card-editing">
+    <label class="field">工种名<input id="sopRole" value="${safeAttr(isNew?"":r.role)}" placeholder="如：TA / 老师 / 课程顾问"></label>
+    <label class="field">步骤（一行一步；想标注页面就在后面加「 | 页面名」）
+      <textarea id="sopSteps" rows="8" placeholder="开课前检查 Zoom 链接 | 日程页\n上课点名 + 写表现 | 课程详情\n下课登记作业 | 课程详情\n周五汇总出勤率 | 课程页">${esc(sopStepsToText(r.steps))}</textarea>
+    </label>
+    <label class="field">备注（选填）<input id="sopNote" value="${safeAttr(r.note)}" placeholder="如：遇到问题先找谁"></label>
+    <div class="form-actions">
+      <button class="btn primary" data-sop-save="${safeAttr(r.id)}" type="button">保存</button>
+      <button class="btn" data-sop-cancel type="button">取消</button>
+      ${isNew?"":`<button class="btn danger" data-sop-delete="${safeAttr(r.id)}" type="button">删除这个工种</button>`}
+    </div>
+  </section>`;
+}
+
+function renderSop(){
+  setHead("SOP 流程","按工种整理做事流程 · 每张卡一个工种",sopData.length?("共 "+sopData.length+" 个工种"):"");
+  byId("tabs").innerHTML=`<button class="btn primary" id="sopAddRole" type="button">＋ 新增工种</button>`;
+  const cards=sopData.map(sopCardHtml).join("");
+  const newCard=sopEditingId==="new"?sopEditCardHtml(normalizeSopRole({id:"new",role:"",steps:[]})):"";
+  byId("content").innerHTML=`<div class="sop-page">
+    ${newCard}
+    ${cards||(sopEditingId==="new"?"":`<div class="student-empty-hint sop-empty"><h3>把团队的做事流程写下来</h3><p>点左上"＋ 新增工种"，比如先建一张「TA」卡：<br>开课前要查什么、上课要记什么、下课要交什么，一行一步写清楚。<br>新同事来了照着做，不用再口头交接。</p></div>`)}
+  </div>`;
+  byId("sopAddRole").addEventListener("click",()=>{sopEditingId="new";render();});
+  document.querySelectorAll("[data-sop-edit]").forEach(b=>b.addEventListener("click",()=>{sopEditingId=b.dataset.sopEdit;render();}));
+  const cancel=document.querySelector("[data-sop-cancel]");
+  if(cancel)cancel.addEventListener("click",()=>{sopEditingId=null;render();});
+  const save=document.querySelector("[data-sop-save]");
+  if(save)save.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    const role=byId("sopRole").value.trim();
+    if(!role){showToast("先给工种起个名字");return;}
+    const steps=sopTextToSteps(byId("sopSteps").value);
+    const note=byId("sopNote").value.trim();
+    const id=save.dataset.sopSave;
+    const old=sopData.find(x=>x.id===id);
+    if(old){
+      old.role=role;old.steps=steps;old.note=note;old.updatedAt=new Date().toISOString();
+    }else{
+      sopData.push(normalizeSopRole({role,steps,note}));
+    }
+    saveSop();
+    sopEditingId=null;
+    showToast("已保存「"+role+"」的流程");
+    render();
+  });
+  const del=document.querySelector("[data-sop-delete]");
+  if(del)del.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    const r=sopData.find(x=>x.id===del.dataset.sopDelete);
+    if(!r)return;
+    if(!confirm("确认删除「"+r.role+"」整张流程卡？"))return;
+    sopData=sopData.filter(x=>x.id!==r.id);
+    saveSop();
+    sopEditingId=null;
+    showToast("已删除");
+    render();
+  });
 }

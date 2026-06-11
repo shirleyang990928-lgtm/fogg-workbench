@@ -6941,3 +6941,188 @@ b.tcc-name{
   .course-ov-row{grid-template-columns:1fr 1fr;row-gap:8px}
   .ov-name{grid-column:1/-1}
 }
+
+/* ============================================================
+   2026-06-11f ① 课堂笔记卡整卡重设计
+   之前三轮补丁的横线本背景全部作废：干净卡片 + 简单输入区。
+   写在文件最末尾，同优先级规则后者生效，盖掉上面所有旧补丁。
+   ============================================================ */
+.detail-note-section{
+  background:#fffdf7!important;
+  background-image:none!important;
+  border:2px solid rgba(23,27,20,.8)!important;
+  border-radius:20px 14px 22px 16px!important;
+  padding:14px 16px 16px!important;
+  box-shadow:3px 3px 0 rgba(23,27,20,.72)!important;
+  margin-top:14px!important;
+}
+.detail-note-input{
+  background:#fff!important;
+  background-image:none!important;
+  border:1.5px dashed rgba(23,27,20,.32)!important;
+  border-radius:12px!important;
+  padding:10px 13px!important;
+  font-size:14.5px!important;
+  font-weight:850!important;
+  line-height:1.75!important;
+  color:#22313c!important;
+  min-height:84px!important;
+  max-height:180px!important;
+  box-shadow:none!important;
+  resize:vertical!important;
+}
+.detail-note-input:focus{
+  border-style:solid!important;
+  border-color:var(--ocean)!important;
+  outline:none!important;
+}
+
+/* ============================================================
+   2026-06-11f ② 课程总览页 v2：筛选条 + 联动统计
+   ============================================================ */
+.ov-filterbar{
+  display:grid;gap:8px;
+  border:2px solid rgba(23,27,20,.75);border-radius:18px 14px 20px 14px;
+  background:#fdfaef;box-shadow:var(--shadow-sm);
+  padding:12px 14px;margin-bottom:12px;
+}
+.ov-filter-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ov-filter-label{
+  flex:0 0 44px;font-size:12px;font-weight:950;color:rgba(36,35,31,.6);
+  letter-spacing:1px;
+}
+.ov-filter-chips{display:flex;gap:6px;flex-wrap:wrap}
+.ov-filter-chips .tab{min-height:30px;padding:3px 14px;font-size:12.5px}
+.ov-sel-line{
+  margin:0 2px 10px;font-size:12.5px;font-weight:850;color:var(--muted);
+}
+.ov-sel-line b{color:var(--ink);font-weight:950}
+.course-overview .ov-stats{grid-template-columns:repeat(5,1fr)}
+.ov-tile-detail{display:block;font-size:10.5px;font-weight:850;color:rgba(36,35,31,.55);margin-top:2px}
+.stu-tile.ov-tile-good{background:#cdebd5}
+.stu-tile.ov-tile-mid{background:#ffe9a8}
+.stu-tile.ov-tile-bad{background:#ffd9d2;border-color:#a13a2c}
+.stu-tile.ov-tile-bad b{color:#8c2f23}
+.ov-row-quiet{opacity:.72}
+.ov-quiet-group{margin-top:12px}
+.ov-quiet-group summary{
+  cursor:pointer;font-size:13px;font-weight:950;color:var(--muted);
+  border:2px dashed rgba(23,27,20,.35);border-radius:14px;
+  background:#f6f3e9;padding:10px 16px;list-style:none;
+}
+.ov-quiet-group summary::-webkit-details-marker{display:none}
+.ov-quiet-group summary::before{content:"▸ ";font-weight:950}
+.ov-quiet-group[open] summary{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.ov-quiet-group[open] summary::before{content:"▾ "}
+.ov-quiet-list{
+  border:2px dashed rgba(23,27,20,.25);border-top:0;
+  border-radius:0 0 14px 14px;background:rgba(246,243,233,.6);
+  padding:10px;margin-top:0;
+}
+@media(max-width:1100px){.course-overview .ov-stats{grid-template-columns:repeat(2,1fr)}}
+/* 单班主页：时间范围胶囊跟返回按钮一行 */
+.course-home-range{display:inline-flex;margin-left:10px;vertical-align:middle}
+
+/* ============================================================
+   2026-06-11f ③ 学生课堂时间线 v2：筛选 + 折叠长文本
+   ============================================================ */
+.stu-tl-filterbar{
+  display:grid;gap:6px;margin:8px 0 10px;
+  border:1.5px dashed rgba(23,27,20,.3);border-radius:14px;
+  background:#fbf8ee;padding:9px 12px;
+}
+.stu-tl-filter-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stu-tl-filter-row .tab{min-height:27px;padding:2px 12px;font-size:12px}
+.stu-timeline2{display:grid;gap:9px}
+.stu-tl-card{
+  border:1.5px solid rgba(23,27,20,.5);border-radius:13px 16px 12px 15px;
+  background:#fffdf6;box-shadow:1.5px 1.5px 0 rgba(23,27,20,.35);
+  padding:9px 13px;
+}
+.stu-tl-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.stu-tl-meta .stu-tl-date{font-weight:950;font-size:12.5px;color:#0f4f64}
+.stu-tl-meta .stu-tl-class{
+  font-size:11.5px;font-weight:900;color:#5a5440;
+  background:#f1ecdd;border:1px solid rgba(23,27,20,.25);
+  border-radius:999px;padding:1px 10px;
+}
+.stu-tl-remark-wrap{
+  margin-top:7px;padding-top:7px;border-top:1px dashed rgba(23,27,20,.18);
+}
+.stu-tl-remark-wrap.clampable{cursor:pointer}
+.stu-tl-remark2{
+  font-size:12.8px;font-weight:800;line-height:1.7;color:#4a4f42;
+  white-space:pre-wrap;
+}
+.stu-tl-remark2.clamped{
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;white-space:normal;
+}
+.tl-expand-hint{
+  display:inline-block;margin-top:4px;font-size:11px;font-weight:950;
+  color:var(--ocean);
+}
+
+/* ============================================================
+   2026-06-11f ④ 学生页：＋关联课程 / 移除关联
+   ============================================================ */
+.stu-classes-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stu-classes-head h4{margin:0}
+.stu-link-toggle{min-height:30px;padding:3px 14px;font-size:12.5px;border-radius:999px}
+.student-class-item{display:inline-flex;align-items:center;gap:0}
+.student-class-item .student-class-chip{border-top-right-radius:0;border-bottom-right-radius:0}
+.stu-unlink-btn{
+  border:1.5px solid rgba(23,27,20,.55);border-left:0;
+  border-radius:0 999px 999px 0;background:#f6f0e4;color:#8c2f23;
+  font-size:11px;font-weight:950;padding:0 9px;cursor:pointer;
+  align-self:stretch;
+}
+.stu-unlink-btn:hover{background:#ffd9d2}
+.link-course-picker{
+  margin:10px 0 4px;border:2px dashed rgba(28,96,120,.4);border-radius:16px;
+  background:#f3f8fa;padding:12px 14px;
+}
+.link-picker-hint{margin:0 0 9px;font-size:12.5px;font-weight:850;color:#23566b}
+.link-course-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.link-course-option{
+  text-align:left;border:1.5px solid rgba(23,27,20,.55);border-radius:12px;
+  background:#fff;padding:8px 12px;cursor:pointer;font-family:inherit;
+  transition:.12s;
+}
+.link-course-option:hover{transform:translateY(-1px);box-shadow:2px 2px 0 rgba(23,27,20,.5);background:#eaf3f8}
+.link-course-option b{display:block;font-size:13.5px;font-weight:950}
+.link-course-option small{display:block;font-size:11px;font-weight:850;color:var(--muted);margin-top:2px}
+
+/* ============================================================
+   2026-06-11f ⑤ SOP 流程页
+   ============================================================ */
+.sop-page{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;align-items:start}
+.sop-empty{grid-column:1/-1}
+.sop-card{
+  border:2px solid rgba(23,27,20,.8);border-radius:20px 14px 22px 16px;
+  background:#fffdf7;box-shadow:3px 3px 0 rgba(23,27,20,.72);
+  padding:15px 17px;
+}
+.sop-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.sop-card-head h3{margin:0;font-size:17px;font-weight:950;color:#0f4f64}
+.sop-edit-btn{min-height:28px;padding:3px 12px;font-size:12px;border-radius:999px}
+.sop-steps{margin:4px 0 0;padding-left:22px;display:grid;gap:7px}
+.sop-steps li{font-size:13.5px;font-weight:850;line-height:1.6;color:#33392f}
+.sop-steps li::marker{font-weight:950;color:#0f4f64}
+.sop-step-text{margin-right:6px}
+.sop-page-tag{
+  display:inline-block;font-style:normal;font-size:10.5px;font-weight:950;
+  color:#23566b;background:#dcebf6;border:1px solid rgba(28,96,120,.4);
+  border-radius:999px;padding:1px 9px;vertical-align:1px;white-space:nowrap;
+}
+.sop-note{
+  margin:10px 0 0;font-size:12px;font-weight:850;color:#6b5537;
+  background:#fdf2c7;border-radius:10px;padding:7px 11px;
+}
+.sop-card-editing{display:grid;gap:10px;background:#fbf8ee}
+.sop-card-editing textarea{
+  font-family:inherit;font-size:13px;font-weight:850;line-height:1.8;
+  border:1.5px dashed rgba(23,27,20,.35);border-radius:12px;
+  background:#fff;padding:9px 12px;resize:vertical;
+}
+.sop-card-editing textarea:focus{outline:none;border-style:solid;border-color:var(--ocean)}

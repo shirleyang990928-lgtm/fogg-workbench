@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>课堂工作台</title>
-<link rel="stylesheet" href="styles.css?v=20260611e"/>
+<link rel="stylesheet" href="styles.css?v=20260611f"/>
 </head>
 <body>
 
@@ -44,13 +44,8 @@
       <div class="clock"><div class="time" id="time">--:--</div><div class="date" id="date">----</div></div>
     </div>
   </header>
-  <nav class="main-nav" aria-label="main navigation">
-    <button class="nav-btn active" data-view="today"><span>日程</span><small>本周课表</small></button>
-    <button class="nav-btn" data-view="stickers"><span>话术</span><small>快速复制</small></button>
-    <button class="nav-btn" data-view="courses"><span>课程</span><small>总览与对比</small></button>
-    <button class="nav-btn" data-view="students"><span>学生</span><small>名册与关联</small></button>
-    <button class="nav-btn" data-view="manage"><span>管理</span><small>整理与备份</small></button>
-  </nav>
+  <!-- 导航按钮由 app.js 生成（NAV_ITEMS），以后加页面不用改这份 HTML -->
+  <nav class="main-nav" aria-label="main navigation"></nav>
   <section class="workspace">
     <div class="workspace-head">
       <div><h2 id="viewTitle">今日</h2><p id="viewSubtitle"></p></div>
@@ -78,6 +73,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js?v=20260611e"></script>
+<script src="app.js?v=20260611f"></script>
 </body>
 </html>
