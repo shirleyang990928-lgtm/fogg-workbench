@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260612b';
+const APP_VERSION='20260612c';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -24,6 +24,7 @@ async function enterApp(user){
   document.getElementById('userBadge').textContent=user.email+' · v'+APP_VERSION;
   updateClock();setInterval(updateClock,1000);
   setInterval(()=>{if(view==='today')render();},60000);
+  autoCloseFinishedClasses();
   render();
   injectAdminUI();
   return true;
@@ -474,6 +475,7 @@ function bindTestDataButtons(){
     if(scheduleData.some(c=>String(c.id).startsWith("test-"))){showToast("已经导入过了，先清除再重新导入");return;}
     if(!confirm("导入 10 个测试班 + 15 个测试学生？\n它们都叫\"测试·xx\"，会和真实数据一起显示，随时可以一键清除。"))return;
     importTestData();
+    autoCloseFinishedClasses(); // 日期全上完的测试假期营立刻演示自动结课
     showToast("测试数据已导入，去课程页玩玩筛选吧");
     view="courses";render();
   });
@@ -1945,12 +1947,23 @@ function studentTimelineHtml(name,classes){
   const statLine=ATTENDANCE_MAIN.filter(s=>stat[s]).map(s=>`<i class="att-chip ${attendanceStatusClass(s)}">${s} ${stat[s]}</i>`).join("")
     +(hwAssigned?`<i class="att-chip hw-chip">作业 ${hwDone}/${hwAssigned}</i>`:"");
   const extraLine=ATTENDANCE_EXTRA.filter(t=>extraStat[t]).map(t=>`${t} ${extraStat[t]}`).join(" · ");
-  // 只看缺席 / 只看作业
-  const shown=stuTimelineKind==="absent"?byCourse.filter(e=>e.status==="缺席"||e.tag==="请假")
-    :stuTimelineKind==="homework"?byCourse.filter(e=>e.hwState)
-    :byCourse;
+  // 只看：到/缺席/迟到/请假/作业已交/作业未交/有评语 都能单独筛（Shirley：只有缺席和作业太局限）
+  const shown=byCourse.filter(e=>{
+    switch(stuTimelineKind){
+      case "到":return e.status==="到";
+      case "缺席":return e.status==="缺席";
+      case "迟到":return e.tag==="迟到";
+      case "请假":return e.tag==="请假";
+      case "hw-in":return e.hwState==="已交"||e.hwState==="已批改";
+      case "hw-none":return e.hwState==="未交";
+      case "remark":return !!e.remark;
+      case "absent":return e.status==="缺席"||e.tag==="请假"; // 旧值兼容
+      case "homework":return !!e.hwState;
+      default:return true;
+    }
+  });
   const courseChips=courseIds.length>1?`<div class="stu-tl-filter-row"><span class="ov-filter-label">课程</span><div class="ov-filter-chips">${[["all","全部"],...courseIds.map(id=>{const c=classes.find(x=>x.id===id);return [id,c?c.className:id];})].map(([v,l])=>`<button class="tab ${stuTimelineCourse===v?'active':''}" data-stu-tl-course="${safeAttr(v)}" type="button">${esc(l)}</button>`).join("")}</div></div>`:"";
-  const kindChips=`<div class="stu-tl-filter-row"><span class="ov-filter-label">只看</span><div class="ov-filter-chips">${[["all","全部"],["absent","缺席/请假"],["homework","作业"]].map(([v,l])=>`<button class="tab ${stuTimelineKind===v?'active':''}" data-stu-tl-kind="${v}" type="button">${l}</button>`).join("")}</div></div>`;
+  const kindChips=`<div class="stu-tl-filter-row"><span class="ov-filter-label">只看</span><div class="ov-filter-chips">${[["all","全部"],["到","到"],["缺席","缺席"],["迟到","迟到"],["请假","请假"],["hw-in","作业已交"],["hw-none","作业未交"],["remark","有评语"]].map(([v,l])=>`<button class="tab ${stuTimelineKind===v?'active':''}" data-stu-tl-kind="${safeAttr(v)}" type="button">${l}</button>`).join("")}</div></div>`;
   const entryHtml=e=>{
     const long=(e.remark||"").length>64;
     return `<div class="stu-tl-card">
@@ -1970,12 +1983,21 @@ function studentTimelineHtml(name,classes){
   ${shown.length>30?`<p class="student-phase-hint">只显示最近 30 条。</p>`:""}`;
 }
 
+/* 点筛选只重画时间线这一块，页面其他部分一动不动——滚动位置自然不会跳
+   （v20260612c，Shirley：点缺席/作业筛选还是会回跳，rerenderKeepScroll 治标不治本） */
+function refreshStudentTimeline(){
+  const block=byId("stuTlBlock");
+  if(!block||view!=="students"||!editingStudentName){rerenderKeepScroll();return;}
+  const r=studentRoster().find(x=>x.name===editingStudentName);
+  block.innerHTML=studentTimelineHtml(editingStudentName,r?r.classes:[]);
+}
+
 /* 时间线筛选 + 长文本展开（事件委托，整页重渲染也不丢） */
 document.addEventListener("click",function(e){
   const courseBtn=e.target.closest&&e.target.closest("[data-stu-tl-course]");
-  if(courseBtn){stuTimelineCourse=courseBtn.dataset.stuTlCourse;rerenderKeepScroll();return;}
+  if(courseBtn){stuTimelineCourse=courseBtn.dataset.stuTlCourse;refreshStudentTimeline();return;}
   const kindBtn=e.target.closest&&e.target.closest("[data-stu-tl-kind]");
-  if(kindBtn){stuTimelineKind=kindBtn.dataset.stuTlKind;rerenderKeepScroll();return;}
+  if(kindBtn){stuTimelineKind=kindBtn.dataset.stuTlKind;refreshStudentTimeline();return;}
   const wrap=e.target.closest&&e.target.closest(".stu-tl-remark-wrap.clampable");
   if(wrap){
     const body=wrap.querySelector(".stu-tl-remark2");
@@ -2013,10 +2035,10 @@ function studentDetailHtml(){
   ${showForm?studentFormHtml(p,isNew):studentViewHtml(p)}
   <div class="student-detail-extra">
     <div class="stu-classes-head"><h4>TA 的课程（${classes.length}）</h4><button class="btn ghost stu-link-toggle" data-link-course-toggle type="button">${studentLinkPickerOpen?"收起":"＋ 关联课程"}</button></div>
-    <div class="student-classes">${classes.map(c=>`<span class="student-class-item"><button class="student-class-chip${c.archivedAt?' archived':''}" data-schedule-id="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${c.archivedAt?'（已结课）':''}</button><button class="stu-unlink-btn" data-unlink-course="${safeAttr(c.id)}" type="button" title="把 TA 从这门课的学生栏移除">✕</button></span>`).join("")||'<p class="empty">还没关联课程：点右上"＋ 关联课程"，或去课程编辑页把 TA 的名字填进"学生"栏。</p>'}</div>
+    <div class="student-classes">${classes.map(c=>`<span class="student-class-item"><button class="student-class-chip${c.archivedAt?' archived':''}" data-stu-open-course="${safeAttr(c.id)}" type="button" title="进这门课的课程主页">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${c.archivedAt?'（已结课）':''}</button><button class="stu-unlink-btn" data-unlink-course="${safeAttr(c.id)}" type="button" title="把 TA 从这门课的学生栏移除">✕</button></span>`).join("")||'<p class="empty">还没关联课程：点右上"＋ 关联课程"，或去课程编辑页把 TA 的名字填进"学生"栏。</p>'}</div>
     ${studentLinkPickerOpen?studentLinkPickerHtml():""}
     ${classNotes.length?`<h4>课程"学生"栏里的小备注</h4><p class="student-note">📝 ${esc(classNotes.join("；"))}<small class="student-note-hint">（在课程编辑页"学生"栏用"姓名 | 备注"的写法写的，会显示在这里）</small></p>`:""}
-    ${studentTimelineHtml(editingStudentName,classes)}
+    <div id="stuTlBlock">${studentTimelineHtml(editingStudentName,classes)}</div>
     <p class="student-phase-hint">⏳ 周看板与预警（四期）以后会出现在这里。</p>
   </div>`;
 }
@@ -2035,7 +2057,8 @@ function renderStudents(){
     <section class="edit-panel student-detail">${studentDetailHtml()}</section>
   </div>`;
   bindStudentEvents();
-  bindScheduleCards();
+  // 学生页点课程 chip → 进那门课的课程主页（Shirley：之前弹"当天"的详情弹窗，看不懂为什么是 6/12）
+  document.querySelectorAll("[data-stu-open-course]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.stuOpenCourse)));
 }
 
 function refreshStudentList(){
@@ -2051,7 +2074,7 @@ function bindStudentPicks(){
 
 function bindStudentEvents(){
   bindStudentPicks();
-  document.querySelectorAll("[data-student-status]").forEach(b=>b.addEventListener("click",()=>{studentStatusFilter=b.dataset.studentStatus;render();}));
+  document.querySelectorAll("[data-student-status]").forEach(b=>b.addEventListener("click",()=>{studentStatusFilter=b.dataset.studentStatus;rerenderKeepScroll();}));
   // ＋ 关联课程 / 移除关联（v20260611f）
   const linkToggle=document.querySelector("[data-link-course-toggle]");
   if(linkToggle)linkToggle.addEventListener("click",()=>{studentLinkPickerOpen=!studentLinkPickerOpen;render();});
@@ -2502,15 +2525,21 @@ function renderCourseHome(){
     .filter(r=>{const d=String(r.date||"");return (!since||d>=since)&&(!until||d<=until);})
     .slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const recHtml=records.map(r=>courseRecordEntryHtml(c,r)).filter(Boolean).join("");
+  // 排期瓦片：开课→结课 + 已上到第几堂 + 休息日（v20260612c）
+  const sched=courseScheduleInfo(c);
+  const skipsAll=skippedDates(c).slice().sort();
+  const skipNote=skipsAll.length?`休息 ${skipsAll.slice(0,4).map(formatDateShort).join("、")}${skipsAll.length>4?` 等 ${skipsAll.length} 天`:""}`:"";
+  const schedSmall=sched?[courseProgressText(sched),skipNote].filter(Boolean).join(" · "):"在编辑页填开课日期或指定上课日期";
   setHead(c.className+(done?"（已结课）":""),"课程主页 · 出勤、作业、笔记都在这一页","共 "+(c.students||[]).length+" 名学生");
   byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>
     <span class="course-home-range">${dateRangeCtlHtml("ch",since,until)}</span>
-    <button class="btn ghost course-edit-btn" id="courseHomeEdit" type="button">✎ 编辑课程资料</button>`;
+    <button class="btn ghost course-edit-btn" id="courseHomeEdit" type="button" title="改时间、学生、排期、停课日期都在编辑页">✎ 编辑资料</button>`;
   byId("content").innerHTML=`<div class="course-home">
     <div class="stu-info-grid course-home-info">
       <div class="stu-tile t-blue"><span>时间</span><b>${esc(c.weekday)} ${esc(formatTimeCN(c.time))}</b></div>
       <div class="stu-tile t-green"><span>老师 · 课程</span><b>${esc(c.teacher||"未填")} · ${esc(c.courseType||"未填")}</b></div>
       <div class="stu-tile t-yellow"><span>Zoom · 学期</span><b>${esc(zoomName(c)||"未填")} · ${esc(c.term||classTermLabel(c))}${done?" · 已结课":""}</b></div>
+      <div class="stu-tile ${sched?'t-pink':'no-val'}"><span>开课 → 结课</span><b>${sched?`${esc(formatDateShort(sched.first))} → ${esc(formatDateShort(sched.last))}`:"未填排期"}</b><small class="ov-tile-detail">${esc(schedSmall)}</small></div>
     </div>
     <div class="stu-info-grid course-home-stats">
       <div class="stu-tile t-green"><span>已记录课次 · ${esc(rt)}</span><b>${s.lessons||0} 次</b><small class="ov-tile-detail">班里 ${(c.students||[]).length} 名学生</small></div>
@@ -2556,13 +2585,82 @@ let courseOverviewShowDone=false; // 是否把已结课的班算进来
    课程总览页和单班主页共用，prefix 区分两套输入框 */
 function isClassDone(c){return c.status==="Archived"||!!c.archivedAt;}
 
+/* ===== 课程排期信息（v20260612c，Shirley："1 次记录"应写成已上到第几堂，
+   还要一眼看到开课和结课日期）=====
+   指定日期排课：开课=第一个日期，结课=最后一个日期，进度=已过的日期数；
+   每周/一周多次：要填了开课日期才算，按总课数往后推，跳过停课日。
+   返回 null = 没填排期，没法算。 */
+function courseScheduleInfo(c){
+  const todayKey=dateKey(new Date());
+  const mode=repeatModeValue(c.repeatMode);
+  const skips=skippedDates(c);
+  if(mode==="dates"){
+    const dates=repeatDatesFor(c).filter(d=>!skips.includes(d)).sort();
+    if(!dates.length)return null;
+    return {first:dates[0],last:dates[dates.length-1],done:dates.filter(d=>d<=todayKey).length,total:dates.length,mode};
+  }
+  const start=parseLocalDate(c.startDate);
+  if(!start)return null;
+  const total=Number(c.totalLessons)||20;
+  // 从开课日起逐天找出 total 个有效上课日（停课日自动跳过）
+  let day=new Date(start),done=0,count=0,last="",guard=0;
+  while(count<total&&guard<total*7+120){
+    if(occursByRule(c,day)){
+      count++;last=dateKey(day);
+      if(last<=todayKey)done++;
+    }
+    day=addDays(day,1);guard++;
+  }
+  if(!count)return null;
+  return {first:dateKey(start),last,done,total:count,mode};
+}
+
+function courseProgressText(info){
+  if(!info)return "";
+  if(info.done>=info.total)return `全部 ${info.total} 堂已上完`;
+  if(info.done<1)return `共 ${info.total} 堂 · 还没开课`;
+  return `已上到第 ${info.done}/${info.total} 堂`;
+}
+
+/* 自动结课（v20260612c，Shirley：日期列表全部上完的班要自动出现"已结课"）：
+   只对"指定日期"排课的班生效——日期全给了的班，最后一堂过了第二天就自动标已结课。
+   每周排课的班不自动动它（总课数 20 是默认值，不一定是真实排期），还是手动结课。 */
+function autoCloseFinishedClasses(){
+  if(adminViewEmail)return;
+  const todayKey=dateKey(new Date());
+  let changed=false;
+  scheduleData.forEach(c=>{
+    if(c.status!=="Active")return;
+    if(repeatModeValue(c.repeatMode)!=="dates")return;
+    const info=courseScheduleInfo(c);
+    if(info&&info.last&&info.last<todayKey){
+      c.status="Archived";
+      c.archivedAt=new Date().toISOString();
+      changed=true;
+    }
+  });
+  if(changed)saveSchedule();
+}
+
+/* 当前起止日期正好等于某个快捷键的范围时，把那个快捷键点亮
+   （v20260612c，Shirley：按了本周/上周/本月/全部没有颜色，分不清按没按） */
+function quickKeyFor(from,to){
+  if(!from&&!to)return "clear";
+  for(const v of ["week","lastweek","month"]){
+    const [f,t]=quickRange(v);
+    if(f===from&&t===to)return v;
+  }
+  return "";
+}
+
 function dateRangeCtlHtml(prefix,from,to){
   const quick=[["week","本周"],["lastweek","上周"],["month","本月"],["clear","全部"]];
+  const cur=quickKeyFor(from,to);
   return `<span class="date-range-ctl">
     <input type="date" class="range-date" id="${prefix}From" value="${safeAttr(from)}" title="从哪天开始算">
     <i class="range-arrow">→</i>
     <input type="date" class="range-date" id="${prefix}To" value="${safeAttr(to)}" title="算到哪天">
-    ${quick.map(([v,l])=>`<button class="tab range-quick" data-${prefix}-quick="${v}" type="button">${l}</button>`).join("")}
+    ${quick.map(([v,l])=>`<button class="tab range-quick ${cur===v?'active':''}" data-${prefix}-quick="${v}" type="button">${l}</button>`).join("")}
   </span>`;
 }
 function quickRange(v){
@@ -2590,6 +2688,8 @@ function rangeText(from,to){
   if(!from&&!to)return "全部时间";
   const ws=dateKey(weekStart()),we=dateKey(addDays(weekStart(),6));
   if(from===ws&&to===we)return "本周";
+  const [lf,lt]=quickRange("lastweek");
+  if(from===lf&&to===lt)return "上周";
   const [mf,mt]=quickRange("month");
   if(from===mf&&to===mt)return "本月";
   const fmt=s=>s?Number(s.slice(5,7))+"/"+Number(s.slice(8,10)):"";
@@ -2614,13 +2714,18 @@ function rateTile(label,rate,detail){
 }
 
 function courseOvRowHtml(c,s){
+  const info=courseScheduleInfo(c);
+  // 最后一列：能算出排期就显示"已上到第几堂 + 开课→结课"，没填排期就退回显示记录次数
+  const progress=info
+    ?`<span class="ov-lessons ov-progress"><b>${esc(isClassDone(c)?`共 ${info.total} 堂`:courseProgressText(info))}</b><small>${esc(formatDateShort(info.first))} 开课 · ${esc(formatDateShort(info.last))} 结课</small></span>`
+    :`<span class="ov-lessons ov-progress"><b>${s.lessons} 次记录</b><small>未填排期</small></span>`;
   return `<button class="course-ov-row${s.lessons?"":" ov-row-quiet"}" data-course-home="${safeAttr(c.id)}" type="button">
     <span class="ov-name"><b>${esc(c.className)}${isClassDone(c)?'<i class="ov-done-tag">已结课</i>':""}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(courseTypeLabel(c))} · ${esc(c.term||classTermLabel(c))}</small></span>
     <span class="ov-count">${(c.students||[]).length} 人</span>
     ${rateChip("出席",s.attRate,s.attRate===null?"":`到${s.att} 缺${s.abs}`)}
     ${rateChip("交作业",s.hwRate,s.hwRate===null?"":`${s.hwIn}/${s.hwAssigned}`)}
     ${rateChip("批改",s.gradeRate,s.gradeRate===null?"":`${s.hwGraded}/${s.hwIn}`)}
-    <span class="ov-lessons">${s.lessons} 次记录</span>
+    ${progress}
   </button>`;
 }
 
@@ -2918,6 +3023,29 @@ function importTestData(){
       zoomLabel:"zoom"+(ci%3+1),totalLessons:"20",
       students:members,classRecords:records
     });
+  });
+  // 排期信息（v20260612c）：让测试班能展示"已上到第几堂 / 开课→结课 / 休息日 / 自动结课"
+  classes.forEach((c,ci)=>{
+    if(ci===9){
+      // 假期营：指定日期排课，10 堂全在过去 → 进系统后自动标已结课（演示自动结课）
+      c.repeatMode="dates";
+      c.repeatDates=datesFor(c.weekday,10).sort();
+      c.status="Active";c.archivedAt="";
+    }else if(ci===8){
+      // 1对1：指定日期排课，上到一半，往后排 4 堂，其中一堂标休息
+      const past=datesFor(c.weekday,4).sort();
+      const lastPast=parseLocalDate(past[past.length-1]);
+      const future=[7,14,21,28].map(n=>dateKey(addDays(lastPast,n)));
+      c.repeatMode="dates";
+      c.repeatDates=past.concat(future);
+      c.skippedDates=[future[1]];
+    }else if(ci===7){
+      // 还没开课的班：开课日期在下周 → 显示"还没开课"
+      c.startDate=dateKey(addDays(parseLocalDate(datesFor(c.weekday,1)[0]),7));
+    }else{
+      // 每周班：8 周前开课，共 20 堂 → 已上到第 8/20 堂左右
+      c.startDate=datesFor(c.weekday,8).sort()[0];
+    }
   });
   const sopCards=[
     {id:"test-sop-0",role:"测试·TA",steps:[

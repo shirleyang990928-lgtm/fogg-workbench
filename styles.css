@@ -7438,3 +7438,62 @@ b.tcc-name{
 }
 .sop-note-input:focus{outline:none;border-top-color:var(--ocean)}
 .sop-note-input::placeholder{color:rgba(95,102,115,.5)}
+
+/* ============================================================
+   2026-06-12c ① 作业颜色分清楚（Shirley：已交和未交一个颜色没法认）
+   未交=浅红、已交=浅蓝、已批改=浅绿，时间线和课堂记录里都生效
+   ============================================================ */
+.att-chip.hw-chip.hw-none{background:#ffd9d2;color:#8c2f23}
+.att-chip.hw-chip.hw-in{background:#d3e8f7;color:#1d4f74}
+.att-chip.hw-chip.hw-done{background:#cdebd5;color:#1f5e30}
+.att-btn.hw-none.on{background:#ffd9d2;color:#8c2f23}
+
+/* ============================================================
+   2026-06-12c ② 本周/上周/本月/全部 快捷键按下要有颜色
+   （之前只有课程总览工具条里有这条规则，课程主页顶栏没有）
+   ============================================================ */
+.range-quick.active{
+  background:var(--ink)!important;color:#fffdf7!important;
+  border-color:var(--ink)!important;
+}
+
+/* ============================================================
+   2026-06-12c ③ 课程主页：学生改成小卡片网格，不再一人一长行；
+   "编辑资料"按钮收小，顶栏对齐
+   ============================================================ */
+.course-student-lines{
+  grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
+  gap:7px;
+}
+.course-student-line{
+  flex-direction:column;align-items:flex-start;gap:5px;
+  padding:8px 11px;border-radius:11px;
+  border-width:1.5px;
+}
+.course-student-line .student-link{padding:3px 12px;font-size:12.5px}
+.course-student-bits{gap:4px}
+.btn.ghost.course-edit-btn{
+  margin-left:auto;
+  min-height:30px!important;padding:3px 14px!important;
+  font-size:12px!important;border-radius:999px!important;
+  border:1.5px solid rgba(23,27,20,.45)!important;
+  background:#fff!important;box-shadow:none!important;
+}
+.btn.ghost.course-edit-btn:hover{background:#f1ece2!important}
+#tabs{gap:8px 10px}
+#courseHomeBack{min-height:30px!important;padding:3px 13px!important;font-size:12px!important;border-radius:999px!important;box-shadow:none!important;border-width:1.5px!important}
+
+/* 课程主页信息瓦片改 4 列（多了"开课→结课"一格） */
+.course-home-info{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1000px){.course-home-info{grid-template-columns:repeat(2,1fr)}}
+.stu-tile.t-pink{background:#fbe3df}
+
+/* ============================================================
+   2026-06-12c ④ 课程总览行最后一列：已上到第几堂 + 开课/结课日期
+   ============================================================ */
+.course-ov-row{
+  grid-template-columns:minmax(180px,1.4fr) 52px repeat(3,minmax(76px,1fr)) minmax(108px,auto);
+}
+.ov-progress{display:grid;gap:1px;justify-items:end}
+.ov-progress b{font-size:12px;font-weight:950;color:var(--ink)}
+.ov-progress small{font-size:9.5px;font-weight:900;color:rgba(36,35,31,.55);letter-spacing:.2px}
