@@ -7126,3 +7126,126 @@ b.tcc-name{
   background:#fff;padding:9px 12px;resize:vertical;
 }
 .sop-card-editing textarea:focus{outline:none;border-style:solid;border-color:var(--ocean)}
+
+/* ============================================================
+   2026-06-11g ① 全局瘦身：Shirley 反馈 100% 缩放下太拥挤，
+   顶部（头部+导航）占太多空间。导航 6 个一行、改单行字，
+   头部和时钟收紧。写在最末尾盖掉前面所有旧规则。
+   ============================================================ */
+.app-shell{padding:10px 16px 14px!important;gap:8px!important}
+.topbar{min-height:36px!important}
+.brand h1{font-size:20px!important}
+.clock{padding:4px 10px!important}
+.time{font-size:17px!important}
+.date{font-size:10px!important;margin-top:2px!important}
+.main-nav{grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:8px!important}
+.nav-btn,.nav-btn:nth-child(n){
+  min-height:38px!important;
+  padding:5px 12px!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:7px!important;
+  transform:none!important;
+}
+.nav-btn span{font-size:15px!important}
+.nav-btn small{font-size:10.5px!important;white-space:nowrap}
+@media(max-width:1080px){
+  .nav-btn small{display:none!important}
+}
+@media(max-width:760px){
+  .main-nav{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+.workspace h2{font-size:22px!important}
+.workspace-head{margin-bottom:4px!important}
+
+/* ============================================================
+   2026-06-11g ② 课程页筛选条重做：一条紧凑工具条，
+   不再是占半屏的大盒子；时间改日历自选起止 + 快捷键
+   ============================================================ */
+.ov-toolbar{
+  display:flex;flex-wrap:wrap;align-items:center;
+  gap:6px 18px;margin-bottom:10px;
+}
+.ov-group{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ov-group>i{
+  font-style:normal;font-size:11px;font-weight:950;
+  color:rgba(36,35,31,.5);letter-spacing:1px;
+}
+.ov-group .tab{min-height:26px;padding:2px 12px;font-size:12px}
+.date-range-ctl{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+.range-date{
+  border:1.5px solid rgba(23,27,20,.5);border-radius:9px;
+  background:#fff;padding:3px 7px;
+  font-family:inherit;font-size:12px;font-weight:850;color:var(--ink);
+}
+.range-date:focus{outline:none;border-color:var(--ocean)}
+.range-arrow{font-style:normal;font-size:11px;color:var(--muted);font-weight:900}
+.range-quick{min-height:26px!important;padding:2px 10px!important;font-size:11.5px!important}
+.ov-done-toggle{border-style:dashed!important}
+.ov-done-tag{
+  display:inline-block;font-style:normal;font-size:10px;font-weight:950;
+  color:#8a7a5c;background:#f1ece2;border:1px dashed rgba(23,27,20,.4);
+  border-radius:999px;padding:0 8px;margin-left:7px;vertical-align:2px;
+}
+/* 统计卡和班级行收紧一圈 */
+.course-overview .ov-stats{gap:8px;margin-bottom:10px}
+.course-overview .ov-stats .stu-tile{padding:8px 12px;border-radius:14px}
+.course-overview .ov-stats .stu-tile b{font-size:17px}
+.course-overview .ov-stats .stu-tile span{font-size:10px}
+.course-ov-list{gap:7px}
+.course-ov-row{padding:8px 14px;gap:10px}
+.ov-name b{font-size:14px}
+.course-home-range{display:inline-flex;margin-left:8px;vertical-align:middle}
+.course-done-btn{margin-left:auto}
+#tabs{display:flex;flex-wrap:wrap;align-items:center}
+
+/* ============================================================
+   2026-06-11g ③ SOP v2：没有编辑模式，卡片上直接加步骤/删/排序
+   ============================================================ */
+.sop-head-ops{display:inline-flex;gap:4px}
+.sop-op-btn{
+  border:1.5px solid rgba(23,27,20,.3);border-radius:8px;
+  background:#fff;cursor:pointer;font-size:11px;font-weight:900;
+  padding:1px 7px;color:#666;font-family:inherit;line-height:1.6;
+}
+.sop-op-btn:hover{background:#f1ece2;border-color:rgba(23,27,20,.6)}
+.sop-op-del:hover{background:#ffd9d2;color:#8c2f23}
+.sop-step-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.sop-step-row .sop-step-text{flex:1}
+.sop-step-ops{display:inline-flex;gap:3px;opacity:.3;transition:.12s;flex-shrink:0}
+.sop-step-row:hover .sop-step-ops{opacity:1}
+.sop-add-row{
+  display:flex;gap:6px;margin-top:12px;padding-top:10px;
+  border-top:1.5px dashed rgba(23,27,20,.2);align-items:center;
+}
+.sop-step-input{
+  flex:1;min-width:0;border:1.5px dashed rgba(23,27,20,.35);border-radius:10px;
+  padding:6px 10px;font-family:inherit;font-size:13px;font-weight:850;background:#fff;
+}
+.sop-step-input:focus{outline:none;border-style:solid;border-color:var(--ocean)}
+.sop-page-select{
+  border:1.5px solid rgba(23,27,20,.35);border-radius:10px;
+  font-family:inherit;font-size:11.5px;font-weight:850;
+  background:#fff;padding:5px 2px;max-width:104px;
+}
+.sop-mini-btn{min-height:32px!important;padding:3px 13px!important}
+.sop-name-input{
+  flex:1;border:1.5px dashed rgba(23,27,20,.4);border-radius:10px;
+  padding:6px 10px;font-family:inherit;font-size:15px;font-weight:950;
+}
+.sop-name-input:focus{outline:none;border-style:solid;border-color:var(--ocean)}
+.sop-steps-empty{margin:6px 0}
+
+/* ============================================================
+   2026-06-11g ④ 管理→备份：测试数据面板
+   ============================================================ */
+.backup-grid{align-items:start}
+.test-data-box .test-data-hint{
+  font-size:12.5px;font-weight:800;color:#52503f;line-height:1.8;margin:4px 0 10px;
+}
+.test-data-now{
+  font-size:12px;font-weight:900;color:#7a5a12;
+  background:#ffe9a8;border-radius:9px;padding:6px 10px;margin:0 0 10px;
+}

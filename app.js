@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260611f';
+const APP_VERSION='20260611g';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -353,7 +353,41 @@ function bindDetail(list){document.querySelectorAll("[data-detail-id]").forEach(
 function closeStickerDetail(){byId("detailModal").classList.remove("show");byId("detailModal").setAttribute("aria-hidden","true");document.body.focus();}
 function renderManage(){setHead("\u7ba1\u7406","\u5206\u6b65\u6574\u7406\u8bdd\u672f\u3001\u8bfe\u7a0b\u3001\u56de\u6536\u7ad9\u548c\u5907\u4efd","");byId("tabs").innerHTML=tabs([{value:"home",label:"\u5165\u53e3"},{value:"stickers",label:"\u7ba1\u7406\u8bdd\u672f"},{value:"classes",label:"\u7ba1\u7406\u8bfe\u7a0b"},{value:"trash",label:"\u56de\u6536\u7ad9"},{value:"backup",label:"\u5907\u4efd"}],manageMode,"manage");if(manageMode==="home")renderManageHome();if(manageMode==="stickers")renderStickerManage();if(manageMode==="classes")renderClassManage();if(manageMode==="trash")renderTrash();if(manageMode==="backup")renderBackup();bindManageEvents();}
 function renderTrash(){const ss=stickersData.filter(x=>x.deletedAt), cs=scheduleData.filter(x=>x.status==="Deleted");byId("content").innerHTML=`<div class="grid-2"><section class="panel"><div class="panel-head"><h3>\u5df2\u5220\u9664\u8bdd\u672f</h3><span>${ss.length}</span></div><div class="trash-grid">${ss.map(x=>`<div class="list-item"><b>${esc(x.title)}</b><span>${SCENE_LABELS[x.scene]} · ${AUDIENCE_LABELS[x.audience]}</span><div class="form-actions"><button class="btn" data-restore-sticker="${safeAttr(x.id)}">\u6062\u590d</button><button class="btn danger" data-purge-sticker="${safeAttr(x.id)}">\u5f7b\u5e95\u5220\u9664</button></div></div>`).join("")||'<p class="empty">\u6ca1\u6709\u5df2\u5220\u9664\u8bdd\u672f\u3002</p>'}</div></section><section class="panel"><div class="panel-head"><h3>\u5df2\u5220\u9664\u8bfe\u7a0b</h3><span>${cs.length}</span></div><div class="trash-grid">${cs.map(x=>`<div class="list-item"><b>${esc(x.className)}</b><span>${esc(x.weekday)} ${esc(x.time)}</span><div class="form-actions"><button class="btn" data-restore-class="${safeAttr(x.id)}">\u6062\u590d</button><button class="btn danger" data-purge-class="${safeAttr(x.id)}">\u5f7b\u5e95\u5220\u9664</button></div></div>`).join("")||'<p class="empty">\u6ca1\u6709\u5df2\u5220\u9664\u8bfe\u7a0b\u3002</p>'}</div></section></div>`;}
-function renderBackup(){byId("content").innerHTML=`<section class="panel backup-box"><div class="panel-head"><h3>\u5907\u4efd</h3><span>\u5bfc\u51fa\u540e\u53ef\u4fdd\u5b58\u5230\u672c\u5730</span></div><textarea id="backupText" placeholder="\u70b9\u51fb\u5bfc\u51fa\u540e\u4f1a\u51fa\u73b0 JSON"></textarea><div class="form-actions"><button class="btn primary" data-export-all>\u5bfc\u51fa\u5168\u90e8</button><button class="btn" data-import-all>\u5bfc\u5165</button></div></section>`;}
+function renderBackup(){
+  const testClsCount=scheduleData.filter(c=>String(c.id).startsWith("test-")).length;
+  const testStuCount=studentsData.filter(p=>String(p.id).startsWith("test-")).length;
+  byId("content").innerHTML=`<div class="grid-2 backup-grid">
+  <section class="panel backup-box"><div class="panel-head"><h3>\u5907\u4efd</h3><span>\u5bfc\u51fa\u540e\u53ef\u4fdd\u5b58\u5230\u672c\u5730</span></div><textarea id="backupText" placeholder="\u70b9\u51fb\u5bfc\u51fa\u540e\u4f1a\u51fa\u73b0 JSON"></textarea><div class="form-actions"><button class="btn primary" data-export-all>\u5bfc\u51fa\u5168\u90e8</button><button class="btn" data-import-all>\u5bfc\u5165</button></div></section>
+  <section class="panel test-data-box">
+    <div class="panel-head"><h3>\u6d4b\u8bd5\u6570\u636e</h3><span>\u968f\u4fbf\u73a9\uff0c\u4e00\u952e\u6e05\u6389</span></div>
+    <p class="test-data-hint">\u5bfc\u5165 <b>10 \u4e2a\u6d4b\u8bd5\u73ed + 15 \u4e2a\u6d4b\u8bd5\u5b66\u751f</b>\uff08\u8986\u76d6 LR/CW/CR/EW\u3001\u4e0a\u4e0b\u534a\u5e74/\u5047\u671f\u8425/1\u5bf91\u3001\u4e00\u4e2a\u5df2\u7ed3\u8bfe\u7684\u73ed\uff0c\u5e26 6 \u5468\u7684\u70b9\u540d\u548c\u4f5c\u4e1a\u8bb0\u5f55\uff09+ 2 \u5f20\u6d4b\u8bd5 SOP \u5361\u3002\u6240\u6709\u6d4b\u8bd5\u6570\u636e\u90fd\u5e26 <b>"\u6d4b\u8bd5\u00b7"</b> \u524d\u7f00\uff0c\u770b\u5b8c\u4e00\u952e\u6e05\u9664\uff0c\u4e0d\u78b0\u4f60\u7684\u771f\u5b9e\u8bfe\u7a0b\u3002</p>
+    ${testClsCount?`<p class="test-data-now">\u5f53\u524d\u6709\u6d4b\u8bd5\u6570\u636e\uff1a${testClsCount} \u4e2a\u73ed\u3001${testStuCount} \u4e2a\u5b66\u751f\u3002</p>`:""}
+    <div class="form-actions">
+      <button class="btn primary" id="importTestData" type="button">\u5bfc\u5165\u6d4b\u8bd5\u6570\u636e</button>
+      <button class="btn danger" id="clearTestData" type="button" ${testClsCount?"":"disabled"}>\u6e05\u9664\u5168\u90e8\u6d4b\u8bd5\u6570\u636e</button>
+    </div>
+  </section></div>`;
+  const imp=byId("importTestData");
+  if(imp)imp.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("\u6b63\u5728\u67e5\u770b\u4ed6\u4eba\u6570\u636e\uff0c\u53ea\u80fd\u6d4f\u89c8\u4e0d\u80fd\u4fee\u6539");return;}
+    if(scheduleData.some(c=>String(c.id).startsWith("test-"))){showToast("\u5df2\u7ecf\u5bfc\u5165\u8fc7\u4e86\uff0c\u5148\u6e05\u9664\u518d\u91cd\u65b0\u5bfc\u5165");return;}
+    if(!confirm("\u5bfc\u5165 10 \u4e2a\u6d4b\u8bd5\u73ed + 15 \u4e2a\u6d4b\u8bd5\u5b66\u751f\uff1f\n\u5b83\u4eec\u90fd\u53eb\"\u6d4b\u8bd5\u00b7xx\"\uff0c\u4f1a\u548c\u771f\u5b9e\u6570\u636e\u4e00\u8d77\u663e\u793a\uff0c\u968f\u65f6\u53ef\u4ee5\u4e00\u952e\u6e05\u9664\u3002"))return;
+    importTestData();
+    showToast("\u6d4b\u8bd5\u6570\u636e\u5df2\u5bfc\u5165\uff0c\u53bb\u8bfe\u7a0b\u9875\u73a9\u73a9\u7b5b\u9009\u5427");
+    view="courses";render();
+  });
+  const clr=byId("clearTestData");
+  if(clr)clr.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("\u6b63\u5728\u67e5\u770b\u4ed6\u4eba\u6570\u636e\uff0c\u53ea\u80fd\u6d4f\u89c8\u4e0d\u80fd\u4fee\u6539");return;}
+    if(!confirm("\u6e05\u9664\u6240\u6709\"\u6d4b\u8bd5\u00b7\"\u5f00\u5934\u7684\u73ed\u7ea7\u3001\u5b66\u751f\u548c SOP \u5361\uff1f\u771f\u5b9e\u6570\u636e\u4e0d\u53d7\u5f71\u54cd\u3002"))return;
+    scheduleData=scheduleData.filter(c=>!String(c.id).startsWith("test-"));
+    studentsData=studentsData.filter(p=>!String(p.id).startsWith("test-"));
+    sopData=sopData.filter(r=>!String(r.id).startsWith("test-"));
+    saveSchedule();saveStudents();saveSop();
+    showToast("\u6d4b\u8bd5\u6570\u636e\u5df2\u5168\u90e8\u6e05\u9664");
+    render();
+  });
+}
 function saveStickerFromForm(){const item=normalizeSticker({id:editingStickerId||uid("sticker"),scene:byId("stickerScene").value,audience:byId("stickerAudience").value,title:byId("stickerTitle").value||"\u672a\u547d\u540d\u8bdd\u672f",content:byId("stickerContent").value,note:byId("stickerNote").value});const idx=stickersData.findIndex(x=>x.id===editingStickerId);if(idx>=0)stickersData[idx]={...stickersData[idx],...item};else stickersData.push(item);editingStickerId=item.id;saveStickers();showToast("\u5df2\u4fdd\u5b58\u8bdd\u672f");render();}
 function parseStudents(text){return text.split(/\n+/).map(x=>x.trim()).filter(Boolean).map(line=>{const [name,...note]=line.split("|");return {id:uid("student"),name:name.trim(),note:note.join("|").trim()};});}
 function importAll(){try{const data=JSON.parse(byId("backupText").value);if(Array.isArray(data.stickers))stickersData=data.stickers.map(normalizeSticker);if(Array.isArray(data.classes))scheduleData=data.classes.map(normalizeClassItem);if(Array.isArray(data.stickerCategories)&&data.stickerCategories.length){stickerCategories=data.stickerCategories.map(normalizeCategory);localStorage.setItem(STORAGE_KEYS.stickerCategories,JSON.stringify(stickerCategories));}if(Array.isArray(data.courseCategories)&&data.courseCategories.length){courseCategories=data.courseCategories.map(normalizeCategory);localStorage.setItem(STORAGE_KEYS.courseCategories,JSON.stringify(courseCategories));}saveStickers();saveSchedule();showToast("\u5bfc\u5165\u6210\u529f");render();}catch(e){showToast("\u5bfc\u5165\u5931\u8d25\uff0c\u8bf7\u786e\u8ba4\u683c\u5f0f\uff1aJSON \u5305\u542b stickers \u548c classes \u6570\u7ec4");}}
@@ -1934,7 +1968,7 @@ function studentDetailHtml(){
   ${showForm?studentFormHtml(p,isNew):studentViewHtml(p)}
   <div class="student-detail-extra">
     <div class="stu-classes-head"><h4>TA 的课程（${classes.length}）</h4><button class="btn ghost stu-link-toggle" data-link-course-toggle type="button">${studentLinkPickerOpen?"收起":"＋ 关联课程"}</button></div>
-    <div class="student-classes">${classes.map(c=>`<span class="student-class-item"><button class="student-class-chip${c.archivedAt?' archived':''}" data-schedule-id="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${c.archivedAt?'（已归档）':''}</button><button class="stu-unlink-btn" data-unlink-course="${safeAttr(c.id)}" type="button" title="把 TA 从这门课的学生栏移除">✕</button></span>`).join("")||'<p class="empty">还没关联课程：点右上"＋ 关联课程"，或去课程编辑页把 TA 的名字填进"学生"栏。</p>'}</div>
+    <div class="student-classes">${classes.map(c=>`<span class="student-class-item"><button class="student-class-chip${c.archivedAt?' archived':''}" data-schedule-id="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${c.archivedAt?'（已结课）':''}</button><button class="stu-unlink-btn" data-unlink-course="${safeAttr(c.id)}" type="button" title="把 TA 从这门课的学生栏移除">✕</button></span>`).join("")||'<p class="empty">还没关联课程：点右上"＋ 关联课程"，或去课程编辑页把 TA 的名字填进"学生"栏。</p>'}</div>
     ${studentLinkPickerOpen?studentLinkPickerHtml():""}
     ${classNotes.length?`<h4>课程"学生"栏里的小备注</h4><p class="student-note">📝 ${esc(classNotes.join("；"))}<small class="student-note-hint">（在课程编辑页"学生"栏用"姓名 | 备注"的写法写的，会显示在这里）</small></p>`:""}
     ${studentTimelineHtml(editingStudentName,classes)}
@@ -2293,13 +2327,17 @@ let courseHomeBack="students";
 
 function openCourseHome(id){
   courseHomeBack=(view==="courseHome")?courseHomeBack:view;
+  if(courseHomeId!==id){courseHomeFrom="";courseHomeTo="";} // 换班时重置日期范围
   courseHomeId=id;
   view="courseHome";
   render();
 }
 
-function courseStats(c,since){
-  const records=(Array.isArray(c.classRecords)?c.classRecords:[]).filter(r=>!since||String(r.date||"")>=since);
+function courseStats(c,since,until){
+  const records=(Array.isArray(c.classRecords)?c.classRecords:[]).filter(r=>{
+    const d=String(r.date||"");
+    return (!since||d>=since)&&(!until||d<=until);
+  });
   const s={att:0,abs:0,late:0,leave:0,hwAssigned:0,hwIn:0,hwGraded:0,lessons:0};
   records.forEach(rec=>{
     let counted=false;
@@ -2329,8 +2367,11 @@ function courseStats(c,since){
   return s;
 }
 
-function courseStudentLineHtml(c,name,since){
-  const records=(Array.isArray(c.classRecords)?c.classRecords:[]).filter(r=>!since||String(r.date||"")>=since);
+function courseStudentLineHtml(c,name,since,until){
+  const records=(Array.isArray(c.classRecords)?c.classRecords:[]).filter(r=>{
+    const d=String(r.date||"");
+    return (!since||d>=since)&&(!until||d<=until);
+  });
   let att=0,abs=0,late=0,leave=0,hwAssigned=0,hwIn=0;
   records.forEach(rec=>{
     const raw=(rec.attendance||{})[name];
@@ -2387,72 +2428,111 @@ function courseRecordEntryHtml(c,rec){
   </div>`;
 }
 
-let courseHomeRange="all"; // 单班页时间范围：all | week | 3w | 4w
+let courseHomeFrom=""; // 单班页日期范围（日历自选）
+let courseHomeTo="";
 
 function renderCourseHome(){
   const c=scheduleData.find(x=>x.id===courseHomeId);
   if(!c){view=courseHomeBack||"students";render();return;}
-  const since=rangeSince(courseHomeRange);
-  const rangeText=rangeLabelOf(courseHomeRange);
-  const s=courseStats(c,since);
+  const since=courseHomeFrom,until=courseHomeTo;
+  const rt=rangeText(since,until);
+  const done=isClassDone(c);
+  const s=courseStats(c,since,until);
   const records=(Array.isArray(c.classRecords)?c.classRecords:[])
-    .filter(r=>!since||String(r.date||"")>=since)
+    .filter(r=>{const d=String(r.date||"");return (!since||d>=since)&&(!until||d<=until);})
     .slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const recHtml=records.map(r=>courseRecordEntryHtml(c,r)).filter(Boolean).join("");
-  setHead(c.className,"课程主页 · 出勤、作业、笔记都在这一页","共 "+(c.students||[]).length+" 名学生");
+  setHead(c.className+(done?"（已结课）":""),"课程主页 · 出勤、作业、笔记都在这一页","共 "+(c.students||[]).length+" 名学生");
   byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>
-    <div class="filter-line compact-filter course-home-range">${COURSE_RANGES.map(r=>`<button class="tab ${courseHomeRange===r.value?'active':''}" data-course-home-range="${r.value}" type="button">${r.label}</button>`).join("")}</div>`;
+    <span class="course-home-range">${dateRangeCtlHtml("ch",since,until)}</span>
+    <button class="btn ${done?'':'ghost'} course-done-btn" id="courseDoneToggle" type="button">${done?"恢复开课":"结课"}</button>`;
   byId("content").innerHTML=`<div class="course-home">
     <div class="stu-info-grid course-home-info">
       <div class="stu-tile t-blue"><span>时间</span><b>${esc(c.weekday)} ${esc(formatTimeCN(c.time))}</b></div>
       <div class="stu-tile t-green"><span>老师 · 课程</span><b>${esc(c.teacher||"未填")} · ${esc(c.courseType||"未填")}</b></div>
-      <div class="stu-tile t-yellow"><span>Zoom · 学期</span><b>${esc(zoomName(c)||"未填")} · ${esc(classTermLabel(c))}</b></div>
+      <div class="stu-tile t-yellow"><span>Zoom · 学期</span><b>${esc(zoomName(c)||"未填")} · ${esc(c.term||classTermLabel(c))}${done?" · 已结课":""}</b></div>
     </div>
     <div class="stu-info-grid course-home-stats">
-      <div class="stu-tile t-green"><span>已记录课次 · ${esc(rangeText)}</span><b>${s.lessons||0} 次</b></div>
-      <div class="stu-tile ${s.attRate===null?'no-val':'t-blue'}"><span>出勤率 · ${esc(rangeText)}</span><b>${s.attRate===null?"还没点过名":s.attRate+"%"}</b></div>
-      <div class="stu-tile ${s.hwRate===null?'no-val':'t-yellow'}"><span>作业提交率 · ${esc(rangeText)}</span><b>${s.hwRate===null?"还没布置过":s.hwRate+"%"}</b></div>
-      <div class="stu-tile ${s.gradeRate===null?'no-val':'t-green'}"><span>已交里批改率 · ${esc(rangeText)}</span><b>${s.gradeRate===null?"还没人交":s.gradeRate+"%"}</b></div>
+      <div class="stu-tile t-green"><span>已记录课次 · ${esc(rt)}</span><b>${s.lessons||0} 次</b></div>
+      <div class="stu-tile ${s.attRate===null?'no-val':'t-blue'}"><span>出勤率 · ${esc(rt)}</span><b>${s.attRate===null?"还没点过名":s.attRate+"%"}</b></div>
+      <div class="stu-tile ${s.hwRate===null?'no-val':'t-yellow'}"><span>作业提交率 · ${esc(rt)}</span><b>${s.hwRate===null?"还没布置过":s.hwRate+"%"}</b></div>
+      <div class="stu-tile ${s.gradeRate===null?'no-val':'t-green'}"><span>已交里批改率 · ${esc(rt)}</span><b>${s.gradeRate===null?"还没人交":s.gradeRate+"%"}</b></div>
     </div>
     <div class="student-detail-extra">
-      <h4>学生（点名字看档案 · 数字按${esc(rangeText)}算）</h4>
-      <div class="course-student-lines">${(c.students||[]).map(st=>courseStudentLineHtml(c,st.name,since)).join("")||'<p class="empty">课程里还没填学生。</p>'}</div>
-      <h4>${esc(rangeText)}课堂记录（${records.length} 天）</h4>
+      <h4>学生（点名字看档案 · 数字按${esc(rt)}算）</h4>
+      <div class="course-student-lines">${(c.students||[]).map(st=>courseStudentLineHtml(c,st.name,since,until)).join("")||'<p class="empty">课程里还没填学生。</p>'}</div>
+      <h4>${esc(rt)}课堂记录（${records.length} 天）</h4>
       ${recHtml||'<p class="empty">这段时间没有记录。上课时在课程详情弹窗里点名、记作业、写笔记，都会汇总到这里。</p>'}
     </div>
   </div>`;
   byId("courseHomeBack").addEventListener("click",()=>{view=courseHomeBack||"students";render();});
-  document.querySelectorAll("[data-course-home-range]").forEach(b=>b.addEventListener("click",()=>{courseHomeRange=b.dataset.courseHomeRange;render();}));
+  bindDateRangeCtl("ch",(f,t)=>{courseHomeFrom=f;courseHomeTo=t;render();});
+  byId("courseDoneToggle").addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    const live=scheduleData.find(x=>x.id===c.id);
+    if(!live){showToast("示例课程不能结课");return;}
+    if(isClassDone(live)){
+      live.status="Active";live.archivedAt="";
+      saveSchedule();showToast("已恢复开课，课表上会重新出现");
+    }else{
+      if(!confirm("把「"+live.className+"」结课？\n结课后：课表上不再显示；课程页默认也不算它，点\"含已结课\"还能看到全部数据；随时可以恢复。"))return;
+      live.status="Archived";live.archivedAt=new Date().toISOString();
+      saveSchedule();showToast("已结课，数据都还在");
+    }
+    render();
+  });
 }
 
 /* ===== 课程总览页 v2（v20260611f，Shirley 2026-06-11 深夜反馈）=====
    三组筛选：类别（LR/CW/CR/EW）× 学期（上半年/下半年/假期营/1对1）× 时间（本周/近3周/近4周/全部）。
    顶部所有数字（班级数/学生数/出席率/提交率/批改率）都按当前筛选实时算，不再固定显示总数。
    有记录的班排前面；这段时间没记录的班收进折叠区，一眼只看重点。 */
-let courseOverviewType="all";   // all | LR | CW | CR | EW | 其他
+let courseOverviewType="all";   // all | LR | CW | CR | EW
 let courseOverviewTerm="all";   // all | 上半年 | 下半年 | 假期营 | 1对1
-let courseOverviewRange="all";  // all | week | 3w | 4w
+let courseOverviewFrom="";      // 起始日期 yyyy-mm-dd，空 = 不限
+let courseOverviewTo="";        // 结束日期，空 = 不限
+let courseOverviewShowDone=false; // 是否把已结课的班算进来
 
-const COURSE_RANGES=[
-  {value:"week",label:"本周"},
-  {value:"3w",label:"近3周"},
-  {value:"4w",label:"近4周"},
-  {value:"all",label:"全部时间"}
-];
+/* 日期范围小工具：日历自选起止 + 快捷键（本周/上周/近4周/全部）
+   课程总览页和单班主页共用，prefix 区分两套输入框 */
+function isClassDone(c){return c.status==="Archived"||!!c.archivedAt;}
 
-function rangeSince(r){
-  if(r==="week")return dateKey(weekStart());
-  if(r==="3w")return dateKey(addDays(weekStart(),-14));
-  if(r==="4w")return dateKey(addDays(weekStart(),-21));
-  return "";
+function dateRangeCtlHtml(prefix,from,to){
+  const quick=[["week","本周"],["lastweek","上周"],["4w","近4周"],["clear","全部"]];
+  return `<span class="date-range-ctl">
+    <input type="date" class="range-date" id="${prefix}From" value="${safeAttr(from)}" title="从哪天开始算">
+    <i class="range-arrow">→</i>
+    <input type="date" class="range-date" id="${prefix}To" value="${safeAttr(to)}" title="算到哪天">
+    ${quick.map(([v,l])=>`<button class="tab range-quick" data-${prefix}-quick="${v}" type="button">${l}</button>`).join("")}
+  </span>`;
 }
-function rangeLabelOf(r){
-  const f=COURSE_RANGES.find(x=>x.value===r);
-  return f?f.label:"全部时间";
+function quickRange(v){
+  const ws=weekStart();
+  if(v==="week")return [dateKey(ws),dateKey(addDays(ws,6))];
+  if(v==="lastweek")return [dateKey(addDays(ws,-7)),dateKey(addDays(ws,-1))];
+  if(v==="4w")return [dateKey(addDays(ws,-21)),dateKey(new Date())];
+  return ["",""];
+}
+function bindDateRangeCtl(prefix,apply){
+  const fromEl=byId(prefix+"From"),toEl=byId(prefix+"To");
+  if(fromEl)fromEl.addEventListener("change",()=>apply(fromEl.value,toEl?toEl.value:""));
+  if(toEl)toEl.addEventListener("change",()=>apply(fromEl?fromEl.value:"",toEl.value));
+  document.querySelectorAll(`[data-${prefix}-quick]`).forEach(b=>b.addEventListener("click",()=>{
+    const [f,t]=quickRange(b.dataset[prefix+"Quick"]);
+    apply(f,t);
+  }));
+}
+function rangeText(from,to){
+  if(!from&&!to)return "全部时间";
+  const ws=dateKey(weekStart()),we=dateKey(addDays(weekStart(),6));
+  if(from===ws&&to===we)return "本周";
+  const fmt=s=>s?Number(s.slice(5,7))+"/"+Number(s.slice(8,10)):"";
+  if(from&&to)return fmt(from)+"–"+fmt(to);
+  return from?fmt(from)+" 起":"到 "+fmt(to);
 }
 
 function overviewCourses(){
-  return scheduleData.filter(c=>c.status!=="Deleted"&&!c.deletedAt&&!c.archivedAt);
+  return scheduleData.filter(c=>c.status!=="Deleted"&&!c.deletedAt);
 }
 
 function rateChip(label,rate){
@@ -2469,7 +2549,7 @@ function rateTile(label,rate,detail){
 
 function courseOvRowHtml(c,s){
   return `<button class="course-ov-row${s.lessons?"":" ov-row-quiet"}" data-course-home="${safeAttr(c.id)}" type="button">
-    <span class="ov-name"><b>${esc(c.className)}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(courseTypeLabel(c))} · ${esc(classTermLabel(c))}</small></span>
+    <span class="ov-name"><b>${esc(c.className)}${isClassDone(c)?'<i class="ov-done-tag">已结课</i>':""}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(courseTypeLabel(c))} · ${esc(c.term||classTermLabel(c))}</small></span>
     <span class="ov-count">${(c.students||[]).length} 人</span>
     ${rateChip("出席",s.attRate)}
     ${rateChip("交作业",s.hwRate)}
@@ -2479,21 +2559,22 @@ function courseOvRowHtml(c,s){
 }
 
 function renderCourses(){
-  const all=overviewCourses();
+  const allPool=overviewCourses();
+  const doneCount=allPool.filter(isClassDone).length;
+  const all=courseOverviewShowDone?allPool:allPool.filter(c=>!isClassDone(c));
   const codeOf=c=>courseCode(c)||"其他";
-  const cats=["LR","CW","CR","EW"].filter(t=>all.some(c=>codeOf(c)===t));
+  const cats=["LR","CW","CR","EW"];
   if(all.some(c=>codeOf(c)==="其他"))cats.push("其他");
-  const terms=TERM_OPTIONS.filter(t=>all.some(c=>classTermLabel(c)===t));
   // 当前筛选下的班级
   const list=all.filter(c=>
     (courseOverviewType==="all"||codeOf(c)===courseOverviewType)&&
     (courseOverviewTerm==="all"||classTermLabel(c)===courseOverviewTerm)
   );
-  const since=rangeSince(courseOverviewRange);
-  // 每班统计（按时间窗口）+ 全选区汇总
+  const since=courseOverviewFrom,until=courseOverviewTo;
+  // 每班统计（按所选日期范围）+ 全选区汇总
   const agg={att:0,abs:0,hwAssigned:0,hwIn:0,hwGraded:0,lessons:0};
   const rows=list.map(c=>{
-    const s=courseStats(c,since);
+    const s=courseStats(c,since,until);
     agg.att+=s.att;agg.abs+=s.abs;agg.hwAssigned+=s.hwAssigned;agg.hwIn+=s.hwIn;agg.hwGraded+=s.hwGraded;agg.lessons+=s.lessons;
     return {c,s};
   });
@@ -2506,44 +2587,43 @@ function renderCourses(){
   // 有记录的排前面（按记录次数多→少），没记录的收进折叠区
   const active=rows.filter(r=>r.s.lessons>0).sort((a,b)=>b.s.lessons-a.s.lessons);
   const quiet=rows.filter(r=>!r.s.lessons);
-  const rangeText=rangeLabelOf(courseOverviewRange);
-  const selParts=[
-    courseOverviewType==="all"?"全部类别":courseOverviewType,
-    courseOverviewTerm==="all"?"全部学期":courseOverviewTerm,
-    rangeText
-  ];
-  const filterRow=(label,items,cur,key)=>`<div class="ov-filter-row"><span class="ov-filter-label">${label}</span><div class="ov-filter-chips">${items.map(it=>`<button class="tab ${cur===it.value?'active':''}" data-${key}="${safeAttr(it.value)}" type="button">${esc(it.label)}</button>`).join("")}</div></div>`;
+  const rt=rangeText(since,until);
+  const chip=(cur,val,label,key)=>`<button class="tab ${cur===val?'active':''}" data-${key}="${safeAttr(val)}" type="button">${esc(label)}</button>`;
   setHead("课程","总览与对比 · 点一个班进它的主页","共 "+all.length+" 班");
   byId("tabs").innerHTML="";
   byId("content").innerHTML=`<div class="course-home course-overview">
-    <div class="ov-filterbar">
-      ${filterRow("类别",[{value:"all",label:"全部"},...cats.map(t=>({value:t,label:t==="CR"?"CR 中文阅读":t}))],courseOverviewType,"ov-type")}
-      ${filterRow("学期",[{value:"all",label:"全部"},...terms.map(t=>({value:t,label:t}))],courseOverviewTerm,"ov-term")}
-      ${filterRow("时间",COURSE_RANGES,courseOverviewRange,"ov-range")}
+    <div class="ov-toolbar">
+      <span class="ov-group"><i>类别</i>${chip(courseOverviewType,"all","全部","ov-type")}${cats.map(t=>chip(courseOverviewType,t,t,"ov-type")).join("")}</span>
+      <span class="ov-group"><i>学期</i>${chip(courseOverviewTerm,"all","全部","ov-term")}${TERM_OPTIONS.map(t=>chip(courseOverviewTerm,t,t,"ov-term")).join("")}</span>
+      <span class="ov-group"><button class="tab ov-done-toggle ${courseOverviewShowDone?'active':''}" data-ov-done type="button">含已结课${doneCount?" "+doneCount:""}</button></span>
+      <span class="ov-group ov-group-time"><i>时间</i>${dateRangeCtlHtml("ov",since,until)}</span>
     </div>
-    <p class="ov-sel-line">正在看：<b>${selParts.map(esc).join(" · ")}</b>，下面所有数字都只算这个范围。</p>
     <div class="stu-info-grid course-home-stats ov-stats">
       <div class="stu-tile t-blue"><span>班级数</span><b>${list.length} 个班</b><small class="ov-tile-detail">${rows.length?agg.lessons+" 次课堂记录":"还没有班级"}</small></div>
       <div class="stu-tile t-green"><span>学生数（去重）</span><b>${names.size} 人</b><small class="ov-tile-detail">同名只算一次</small></div>
-      ${rateTile("出席率 · "+rangeText,aggAtt,aggAtt===null?"":`到 ${agg.att} / 缺 ${agg.abs}`)}
-      ${rateTile("交作业率 · "+rangeText,aggHw,aggHw===null?"这段时间没布置过":`交 ${agg.hwIn} / 应交 ${agg.hwAssigned}`)}
-      ${rateTile("批改率 · "+rangeText,aggGrade,aggGrade===null?"还没人交":`已改 ${agg.hwGraded} / 已交 ${agg.hwIn}`)}
+      ${rateTile("出席率 · "+rt,aggAtt,aggAtt===null?"":`到 ${agg.att} / 缺 ${agg.abs}`)}
+      ${rateTile("交作业率 · "+rt,aggHw,aggHw===null?"这段时间没布置过":`交 ${agg.hwIn} / 应交 ${agg.hwAssigned}`)}
+      ${rateTile("批改率 · "+rt,aggGrade,aggGrade===null?"还没人交":`已改 ${agg.hwGraded} / 已交 ${agg.hwIn}`)}
     </div>
-    <div class="course-ov-list">${active.map(r=>courseOvRowHtml(r.c,r.s)).join("")||(quiet.length?`<p class="empty">这个范围内还没有课堂记录——下面折叠区里是这些班。</p>`:'<p class="empty">这个筛选下还没有班级。</p>')}</div>
-    ${quiet.length?`<details class="ov-quiet-group"${active.length?"":" open"}><summary>${rangeText}内还没记录的班 · ${quiet.length} 个</summary><div class="course-ov-list ov-quiet-list">${quiet.map(r=>courseOvRowHtml(r.c,r.s)).join("")}</div></details>`:""}
-    <p class="student-phase-hint">出席率 = 到 ÷（到+缺席）；提交率 = 已交+已批改 ÷ 应交；批改率 = 已批改 ÷ 已交。低于 60% 标红。</p>
+    <div class="course-ov-list">${active.map(r=>courseOvRowHtml(r.c,r.s)).join("")||(quiet.length?`<p class="empty">${esc(rt)}内还没有课堂记录——这些班收在下面的折叠条里。</p>`:'<p class="empty">这个筛选下还没有班级。</p>')}</div>
+    ${quiet.length?`<details class="ov-quiet-group"${active.length?"":" open"}><summary>${esc(rt)}内还没记录的班 · ${quiet.length} 个</summary><div class="course-ov-list ov-quiet-list">${quiet.map(r=>courseOvRowHtml(r.c,r.s)).join("")}</div></details>`:""}
+    <p class="student-phase-hint">出席率 = 到 ÷（到+缺席）；提交率 = 已交+已批改 ÷ 应交；批改率 = 已批改 ÷ 已交。低于 60% 标红。已结课的班默认不算，点"含已结课"才算进来。</p>
   </div>`;
   document.querySelectorAll("[data-ov-type]").forEach(b=>b.addEventListener("click",()=>{courseOverviewType=b.dataset.ovType;render();}));
   document.querySelectorAll("[data-ov-term]").forEach(b=>b.addEventListener("click",()=>{courseOverviewTerm=b.dataset.ovTerm;render();}));
-  document.querySelectorAll("[data-ov-range]").forEach(b=>b.addEventListener("click",()=>{courseOverviewRange=b.dataset.ovRange;render();}));
+  const doneBtn=document.querySelector("[data-ov-done]");
+  if(doneBtn)doneBtn.addEventListener("click",()=>{courseOverviewShowDone=!courseOverviewShowDone;render();});
+  bindDateRangeCtl("ov",(f,t)=>{courseOverviewFrom=f;courseOverviewTo=t;render();});
   document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
 }
 
-/* ===== SOP 流程页（五期，v20260611f）=====
-   按工种建卡片（TA / 老师 / 课程顾问…），每个工种一份做事流程（步骤清单），
-   步骤可标注涉及哪个页面。数据存 user_data.sop 列（Shirley 已跑过 alter table SQL）。
-   编辑用"一行一步，步骤 | 页面"的写法——和课程学生栏"姓名 | 备注"同一套习惯。 */
-let sopEditingId=null;   // 正在编辑的工种卡 id；"new" = 新建
+/* ===== SOP 流程页 v2（v20260611g，Shirley 反馈"难看难用"后重做）=====
+   不再有编辑模式：每张卡底部常驻"写下一步 + 选页面 + 添加"，
+   每个步骤行右侧有 ↑ ↓ ✕，点了立刻保存。好用优先。
+   数据存 user_data.sop 列。 */
+let sopNameEditId=null;  // 正在改名的工种卡 id
+
+const SOP_PAGE_TAGS=["日程","话术","课程","学生","SOP","管理","课程详情","学生档案"];
 
 function normalizeSopRole(x){
   x=x||{};
@@ -2562,86 +2642,222 @@ function saveSop(){
   syncToCloud();
 }
 
-function sopStepsToText(steps){
-  return steps.map(s=>s.page?`${s.text} | ${s.page}`:s.text).join("\n");
-}
-function sopTextToSteps(text){
-  return String(text||"").split(/\n+/).map(line=>line.trim()).filter(Boolean).map(line=>{
-    const [t,...rest]=line.split("|");
-    return {id:uid("step"),text:t.trim(),page:rest.join("|").trim()};
-  }).filter(s=>s.text);
+function sopGuard(){
+  if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return false;}
+  return true;
 }
 
 function sopCardHtml(r){
-  if(sopEditingId===r.id)return sopEditCardHtml(r);
+  const naming=sopNameEditId===r.id;
+  const head=naming
+    ?`<div class="sop-card-head"><input class="sop-name-input" id="sopName-${safeAttr(r.id)}" value="${safeAttr(r.role==="未命名工种"?"":r.role)}" placeholder="工种名，如 TA / 老师"><button class="btn primary sop-mini-btn" data-sop-save-name="${safeAttr(r.id)}" type="button">好</button></div>`
+    :`<div class="sop-card-head"><h3>${esc(r.role)}</h3><span class="sop-head-ops"><button class="sop-op-btn" data-sop-rename="${safeAttr(r.id)}" type="button" title="改名">✏️</button><button class="sop-op-btn" data-sop-del-role="${safeAttr(r.id)}" type="button" title="删除整张卡">🗑</button></span></div>`;
+  const steps=r.steps.length
+    ?`<ol class="sop-steps">${r.steps.map((s,i)=>`<li class="sop-step-row">
+        <span class="sop-step-text">${esc(s.text)}${s.page?`<i class="sop-page-tag">${esc(s.page)}</i>`:""}</span>
+        <span class="sop-step-ops">
+          ${i>0?`<button class="sop-op-btn" data-sop-move="${safeAttr(r.id)}|${i}|-1" type="button" title="上移">↑</button>`:""}
+          ${i<r.steps.length-1?`<button class="sop-op-btn" data-sop-move="${safeAttr(r.id)}|${i}|1" type="button" title="下移">↓</button>`:""}
+          <button class="sop-op-btn sop-op-del" data-sop-del-step="${safeAttr(r.id)}|${i}" type="button" title="删掉这一步">✕</button>
+        </span>
+      </li>`).join("")}</ol>`
+    :'<p class="empty sop-steps-empty">还没有步骤，在下面写第一步 ↓</p>';
   return `<section class="sop-card">
-    <div class="sop-card-head">
-      <h3>${esc(r.role)}</h3>
-      <button class="btn ghost sop-edit-btn" data-sop-edit="${safeAttr(r.id)}" type="button">✏️ 编辑</button>
+    ${head}
+    ${steps}
+    <div class="sop-add-row">
+      <input class="sop-step-input" data-sop-step-input="${safeAttr(r.id)}" placeholder="写下一步要做什么，回车或点＋">
+      <select class="sop-page-select" data-sop-page-input="${safeAttr(r.id)}"><option value="">页面(选填)</option>${SOP_PAGE_TAGS.map(p=>`<option value="${p}">${p}</option>`).join("")}</select>
+      <button class="btn primary sop-mini-btn" data-sop-add-step="${safeAttr(r.id)}" type="button">＋</button>
     </div>
-    ${r.steps.length?`<ol class="sop-steps">${r.steps.map(s=>`<li><span class="sop-step-text">${esc(s.text)}</span>${s.page?`<i class="sop-page-tag">${esc(s.page)}</i>`:""}</li>`).join("")}</ol>`:'<p class="empty">还没写步骤，点"编辑"开始。</p>'}
-    ${r.note?`<p class="sop-note">📌 ${esc(r.note)}</p>`:""}
   </section>`;
 }
 
-function sopEditCardHtml(r){
-  const isNew=!sopData.some(x=>x.id===r.id);
-  return `<section class="sop-card sop-card-editing">
-    <label class="field">工种名<input id="sopRole" value="${safeAttr(isNew?"":r.role)}" placeholder="如：TA / 老师 / 课程顾问"></label>
-    <label class="field">步骤（一行一步；想标注页面就在后面加「 | 页面名」）
-      <textarea id="sopSteps" rows="8" placeholder="开课前检查 Zoom 链接 | 日程页\n上课点名 + 写表现 | 课程详情\n下课登记作业 | 课程详情\n周五汇总出勤率 | 课程页">${esc(sopStepsToText(r.steps))}</textarea>
-    </label>
-    <label class="field">备注（选填）<input id="sopNote" value="${safeAttr(r.note)}" placeholder="如：遇到问题先找谁"></label>
-    <div class="form-actions">
-      <button class="btn primary" data-sop-save="${safeAttr(r.id)}" type="button">保存</button>
-      <button class="btn" data-sop-cancel type="button">取消</button>
-      ${isNew?"":`<button class="btn danger" data-sop-delete="${safeAttr(r.id)}" type="button">删除这个工种</button>`}
-    </div>
-  </section>`;
+function sopAddStep(roleId){
+  if(!sopGuard())return;
+  const input=document.querySelector(`[data-sop-step-input="${roleId}"]`);
+  const pageSel=document.querySelector(`[data-sop-page-input="${roleId}"]`);
+  const text=(input&&input.value||"").trim();
+  if(!text){showToast("先写这一步要做什么");return;}
+  const r=sopData.find(x=>x.id===roleId);
+  if(!r)return;
+  r.steps.push({id:uid("step"),text:text,page:(pageSel&&pageSel.value)||""});
+  r.updatedAt=new Date().toISOString();
+  saveSop();
+  render();
+  // 渲染后把焦点放回同一张卡的输入框，连续添加不用动鼠标
+  const again=document.querySelector(`[data-sop-step-input="${roleId}"]`);
+  if(again)again.focus();
 }
 
 function renderSop(){
-  setHead("SOP 流程","按工种整理做事流程 · 每张卡一个工种",sopData.length?("共 "+sopData.length+" 个工种"):"");
+  setHead("SOP 流程","按工种整理做事流程 · 写一步存一步，不用点保存",sopData.length?("共 "+sopData.length+" 个工种"):"");
   byId("tabs").innerHTML=`<button class="btn primary" id="sopAddRole" type="button">＋ 新增工种</button>`;
-  const cards=sopData.map(sopCardHtml).join("");
-  const newCard=sopEditingId==="new"?sopEditCardHtml(normalizeSopRole({id:"new",role:"",steps:[]})):"";
   byId("content").innerHTML=`<div class="sop-page">
-    ${newCard}
-    ${cards||(sopEditingId==="new"?"":`<div class="student-empty-hint sop-empty"><h3>把团队的做事流程写下来</h3><p>点左上"＋ 新增工种"，比如先建一张「TA」卡：<br>开课前要查什么、上课要记什么、下课要交什么，一行一步写清楚。<br>新同事来了照着做，不用再口头交接。</p></div>`)}
+    ${sopData.map(sopCardHtml).join("")||`<div class="student-empty-hint sop-empty"><h3>把团队的做事流程写下来</h3><p>点左上"＋ 新增工种"建一张卡（比如「TA」），<br>然后在卡片底部一步一步往里加：开课前查什么、上课记什么、下课交什么。<br>写一步存一步，新同事来了照着做。</p></div>`}
   </div>`;
-  byId("sopAddRole").addEventListener("click",()=>{sopEditingId="new";render();});
-  document.querySelectorAll("[data-sop-edit]").forEach(b=>b.addEventListener("click",()=>{sopEditingId=b.dataset.sopEdit;render();}));
-  const cancel=document.querySelector("[data-sop-cancel]");
-  if(cancel)cancel.addEventListener("click",()=>{sopEditingId=null;render();});
-  const save=document.querySelector("[data-sop-save]");
-  if(save)save.addEventListener("click",()=>{
-    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
-    const role=byId("sopRole").value.trim();
-    if(!role){showToast("先给工种起个名字");return;}
-    const steps=sopTextToSteps(byId("sopSteps").value);
-    const note=byId("sopNote").value.trim();
-    const id=save.dataset.sopSave;
-    const old=sopData.find(x=>x.id===id);
-    if(old){
-      old.role=role;old.steps=steps;old.note=note;old.updatedAt=new Date().toISOString();
-    }else{
-      sopData.push(normalizeSopRole({role,steps,note}));
-    }
+  byId("sopAddRole").addEventListener("click",()=>{
+    if(!sopGuard())return;
+    const r=normalizeSopRole({role:"未命名工种",steps:[]});
+    sopData.push(r);
+    sopNameEditId=r.id;
     saveSop();
-    sopEditingId=null;
-    showToast("已保存「"+role+"」的流程");
     render();
+    const input=byId("sopName-"+r.id);
+    if(input)input.focus();
   });
-  const del=document.querySelector("[data-sop-delete]");
-  if(del)del.addEventListener("click",()=>{
-    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
-    const r=sopData.find(x=>x.id===del.dataset.sopDelete);
+  document.querySelectorAll("[data-sop-rename]").forEach(b=>b.addEventListener("click",()=>{sopNameEditId=b.dataset.sopRename;render();const i=byId("sopName-"+b.dataset.sopRename);if(i)i.focus();}));
+  document.querySelectorAll("[data-sop-save-name]").forEach(b=>b.addEventListener("click",()=>{
+    if(!sopGuard())return;
+    const r=sopData.find(x=>x.id===b.dataset.sopSaveName);
+    const input=byId("sopName-"+b.dataset.sopSaveName);
+    if(!r||!input)return;
+    r.role=input.value.trim()||"未命名工种";
+    r.updatedAt=new Date().toISOString();
+    sopNameEditId=null;
+    saveSop();
+    render();
+  }));
+  document.querySelectorAll("[data-sop-del-role]").forEach(b=>b.addEventListener("click",()=>{
+    if(!sopGuard())return;
+    const r=sopData.find(x=>x.id===b.dataset.sopDelRole);
     if(!r)return;
-    if(!confirm("确认删除「"+r.role+"」整张流程卡？"))return;
+    if(!confirm("删除「"+r.role+"」整张流程卡？"))return;
     sopData=sopData.filter(x=>x.id!==r.id);
     saveSop();
-    sopEditingId=null;
     showToast("已删除");
     render();
+  }));
+  document.querySelectorAll("[data-sop-del-step]").forEach(b=>b.addEventListener("click",()=>{
+    if(!sopGuard())return;
+    const [id,idx]=b.dataset.sopDelStep.split("|");
+    const r=sopData.find(x=>x.id===id);
+    if(!r)return;
+    r.steps.splice(Number(idx),1);
+    r.updatedAt=new Date().toISOString();
+    saveSop();
+    render();
+  }));
+  document.querySelectorAll("[data-sop-move]").forEach(b=>b.addEventListener("click",()=>{
+    if(!sopGuard())return;
+    const [id,idx,dir]=b.dataset.sopMove.split("|");
+    const r=sopData.find(x=>x.id===id);
+    const i=Number(idx),j=i+Number(dir);
+    if(!r||j<0||j>=r.steps.length)return;
+    const t=r.steps[i];r.steps[i]=r.steps[j];r.steps[j]=t;
+    r.updatedAt=new Date().toISOString();
+    saveSop();
+    render();
+  }));
+  document.querySelectorAll("[data-sop-add-step]").forEach(b=>b.addEventListener("click",()=>sopAddStep(b.dataset.sopAddStep)));
+  document.querySelectorAll("[data-sop-step-input]").forEach(inp=>inp.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){e.preventDefault();sopAddStep(inp.dataset.sopStepInput);}
+  }));
+  document.querySelectorAll(".sop-name-input").forEach(inp=>inp.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){
+      e.preventDefault();
+      const btn=inp.parentElement.querySelector("[data-sop-save-name]");
+      if(btn)btn.click();
+    }
+  }));
+}
+
+/* ===== 测试数据生成器（v20260611g）=====
+   Shirley 要求：真实数据太少看不出 UI 效果，做一批仿真班级/学生来 test，
+   看完一键清除。所有 id 以 "test-" 开头、名字以 "测试·" 开头，清除按这个认。 */
+function importTestData(){
+  const stuNames=["Amy","Ben","Coco","Derek","Ella","Felix","Gigi","Henry","Iris","Jack","Kiki","Leo","Mia","Nora","Oscar"];
+  const schools=["光明小学","育才小学","实验学校","阳光国际学校","新城小学"];
+  const cities=["上海","北京","深圳","新加坡","吉隆坡"];
+  const grades=["三年级","四年级","五年级","六年级","初一"];
+  const profiles=stuNames.map((n,i)=>normalizeStudentProfile({
+    id:"test-stu-"+i,
+    name:"测试·"+n,
+    gender:i%2?"女":"男",
+    birthday:(2013+i%5)+"-0"+(1+i%9)+"-1"+(i%9),
+    grade:grades[i%grades.length],
+    school:schools[i%schools.length],
+    city:cities[i%cities.length],
+    parentName:n+"妈妈",
+    parentContact:"wx_"+n.toLowerCase(),
+    enrollDate:"2026-0"+(1+i%3)+"-01",
+    status:"在读",
+    note:i===0?"性格活泼，课堂参与度高":""
+  }));
+  // [类别, 班名, 周几, 时间, 老师, 学期, 学生数, 有没有记录, 是否已结课]
+  const specs=[
+    ["LR","LR-3-4级 测试A班","周一","18:00","Teacher Chris","上半年",4,true,false],
+    ["LR","LR-5-6级","周三","19:00","Teacher Joe","下半年",3,true,false],
+    ["CW","CW-1-2级 测试班","周二","19:00","Teacher Tim","上半年",5,true,false],
+    ["CW","CW-7-8级","周四","20:00","Teacher Alex","下半年",4,true,false],
+    ["CR","中文趣味阅读 3级","周五","18:00","清滢老师","上半年",4,true,false],
+    ["CR","中文趣味阅读 6级","周六","10:00","清滢老师","下半年",5,true,false],
+    ["EW","EW-3-4级","周三","20:00","Teacher Ben","上半年",3,true,false],
+    ["EW","EW-5-6级","周日","10:00","Teacher Ben","下半年",3,false,false],
+    ["LR","Mia 1对1 精读","周五","21:00","Shirley","1对1",1,true,false],
+    ["CW","假期写作营 A","周六","14:00","Teacher Louise","假期营",6,true,true]
+  ];
+  const hwContents=["读下一章并写批注","写 150 字小作文","完成阅读理解练习","背诵本课生词","修改上次作文"];
+  const longRemark="测试·长表现示例：这节课主动举手五次，朗读流畅，对故事主旨的理解很到位。讨论环节能结合自己的生活经验发表看法，写作练习里用了两个新学的修辞。需要注意的是书写还有些急躁，个别字母大小写混用，已当堂提醒。建议家长本周陪读时让孩子复述一遍故事情节，巩固理解。";
+  const remarks=["回答问题很积极","作业质量比上周进步","上课有点走神，已提醒","朗读进步明显",""];
+  // 找到某个"周几"最近一次出现的日期，往前每 7 天一节课
+  function datesFor(weekday,count){
+    let d=new Date();
+    for(let i=0;i<7;i++){if(WEEKDAYS[d.getDay()]===weekday)break;d=addDays(d,-1);}
+    const out=[];
+    for(let i=0;i<count;i++){out.push(dateKey(addDays(d,-7*i)));}
+    return out;
+  }
+  let stuCursor=0;
+  const classes=specs.map((sp,ci)=>{
+    const [type,name,weekday,time,teacher,term,stuCount,hasRecords,done]=sp;
+    const members=[];
+    for(let k=0;k<stuCount;k++){members.push({name:profiles[(stuCursor+k)%profiles.length].name});}
+    stuCursor+=stuCount;
+    const records=[];
+    if(hasRecords){
+      datesFor(weekday,6).forEach((date,ri)=>{
+        const attendance={},hwEntries={};
+        members.forEach((m,mi)=>{
+          const roll=(ci*7+ri*3+mi)%10;
+          if(roll<7)attendance[m.name]={status:"到",tag:roll===6?"迟到":"",remark:(ri===0&&mi===0)?longRemark:remarks[(ci+ri+mi)%remarks.length]};
+          else if(roll<9)attendance[m.name]={status:"缺席",tag:roll===8?"请假":"",remark:roll===8?"家里有事提前请了假":""};
+          else attendance[m.name]={status:"到",tag:"",remark:""};
+          const h=(ci+ri*2+mi)%10;
+          hwEntries[m.name]={state:h<5?"已批改":h<8?"已交":"未交",score:h<3?["A","A-","B+"][h]:""};
+        });
+        const rec={date:date,attendance:attendance};
+        if(ri%3!==2)rec.homework={content:hwContents[(ci+ri)%hwContents.length],assignedAt:date,entries:hwEntries};
+        if(ri===1)rec.notes="测试·课堂笔记：今天讲完第三章，下周小测。";
+        records.push(rec);
+      });
+    }
+    return normalizeClassItem({
+      id:"test-cls-"+ci,
+      weekday:weekday,time:time,teacher:teacher,
+      courseType:type,className:"测试·"+name,
+      term:term,status:done?"Archived":"Active",
+      archivedAt:done?new Date().toISOString():"",
+      zoomLabel:"zoom"+(ci%3+1),totalLessons:"20",
+      students:members,classRecords:records
+    });
   });
+  const sopCards=[
+    {id:"test-sop-0",role:"测试·TA",steps:[
+      {text:"开课前 15 分钟检查 Zoom 链接和录制",page:"日程"},
+      {text:"上课点名，缺席的标请假或缺席",page:"课程详情"},
+      {text:"下课前布置作业并登记",page:"课程详情"},
+      {text:"周五查本周出席率和交作业率",page:"课程"}
+    ]},
+    {id:"test-sop-1",role:"测试·班主任",steps:[
+      {text:"每周一查上周缺勤学生，联系家长",page:"学生"},
+      {text:"新生入学先建档案",page:"学生档案"}
+    ]}
+  ].map(normalizeSopRole);
+  // 防御：normalizeSopRole 会生成新 id，这里要保住 test- 前缀
+  sopCards[0].id="test-sop-0";sopCards[1].id="test-sop-1";
+  scheduleData=[...scheduleData,...classes];
+  studentsData=[...studentsData,...profiles];
+  sopData=[...sopData,...sopCards];
+  saveSchedule();saveStudents();saveSop();
 }
