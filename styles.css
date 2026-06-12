@@ -7249,3 +7249,115 @@ b.tcc-name{
   font-size:12px;font-weight:900;color:#7a5a12;
   background:#ffe9a8;border-radius:9px;padding:6px 10px;margin:0 0 10px;
 }
+
+/* ============================================================
+   2026-06-12a ① 滚动修复（Shirley：100% 缩放下页面没法滑动）
+   根源：#content 从来没有滚动规则，外层全是 overflow:hidden，
+   内容一超出视口就被裁掉。现在内容区自己滚，滚动条可见。
+   ============================================================ */
+#content{
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding-right:6px;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(36,35,31,.45) transparent;
+}
+#content::-webkit-scrollbar{width:10px}
+#content::-webkit-scrollbar-track{background:rgba(36,35,31,.06);border-radius:999px}
+#content::-webkit-scrollbar-thumb{background:rgba(36,35,31,.5);border-radius:999px;border:2px solid rgba(255,253,247,.9)}
+#content::-webkit-scrollbar-thumb:hover{background:rgba(36,35,31,.75)}
+
+/* ============================================================
+   2026-06-12a ② 课程页筛选条更明显：组名做成小色块，
+   当前选中的筛选用深底白字，一眼分清三组
+   ============================================================ */
+.ov-group>i{
+  background:#e8e0cb;border-radius:7px;padding:2px 9px;
+  color:#52503f;letter-spacing:.5px;
+}
+.ov-toolbar .tab.active,.ov-toolbar .range-quick.active{
+  background:var(--ink)!important;color:#fffdf7!important;
+  border-color:var(--ink)!important;
+}
+.ov-toolbar{
+  padding:8px 10px;margin-bottom:10px;
+  border:1.5px dashed rgba(23,27,20,.22);border-radius:14px;
+  background:rgba(253,250,239,.6);
+}
+
+/* ============================================================
+   2026-06-12a ③ 课堂笔记卡最终版：方方正正、安安静静。
+   不再歪斜圆角、不再厚阴影，输入框细边白底。
+   ============================================================ */
+.detail-note-section{
+  border-radius:14px!important;
+  border:1.5px solid rgba(23,27,20,.5)!important;
+  box-shadow:none!important;
+  background:#fcfaf3!important;
+  background-image:none!important;
+  padding:12px 14px 14px!important;
+  margin-top:12px!important;
+}
+.note-section-head{margin-bottom:8px!important}
+.note-section-head h4{color:var(--ink)!important;font-size:14px!important}
+.detail-note-input{
+  border:1.5px solid rgba(23,27,20,.25)!important;
+  border-radius:10px!important;
+  background:#fff!important;
+  background-image:none!important;
+  padding:9px 12px!important;
+  font-size:14px!important;
+  font-weight:800!important;
+  line-height:1.7!important;
+  color:#2a3038!important;
+  min-height:76px!important;
+  max-height:160px!important;
+  box-shadow:none!important;
+}
+.detail-note-input:focus{border-color:var(--ocean)!important;outline:none!important}
+.detail-history-section{border-radius:12px!important;border:1.5px solid rgba(23,27,20,.2)!important}
+
+/* ============================================================
+   2026-06-12a ④ 学生页时间线筛选瘦身：去掉大框，一行细筛选
+   ============================================================ */
+.stu-tl-filterbar{
+  border:0;background:none;padding:0;
+  margin:6px 0 9px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;
+}
+.stu-tl-filter-row{gap:7px}
+.stu-tl-filter-row .ov-filter-label{
+  background:#e8e0cb;border-radius:6px;padding:1px 8px;
+  font-size:10.5px;color:#52503f;flex:none;
+}
+.stu-tl-filter-row .tab{min-height:24px;padding:1px 10px;font-size:11.5px}
+.stu-tl-filter-row .tab.active{background:var(--ink);color:#fffdf7;border-color:var(--ink)}
+
+/* ============================================================
+   2026-06-12a ⑤ 单班主页课堂记录美化：每天一张小卡，
+   日期做成小徽章，点名/作业/笔记行分组更清楚
+   ============================================================ */
+.course-rec-entry{
+  border:1.5px solid rgba(23,27,20,.4);
+  border-radius:12px;
+  background:#fffdf6;
+  padding:9px 13px;
+  margin-bottom:9px;
+  display:flex;gap:12px;align-items:flex-start;
+}
+.course-rec-date{
+  flex:none;font-size:12px;font-weight:950;color:#0f4f64;
+  background:#dcebf6;border:1px solid rgba(28,96,120,.35);
+  border-radius:999px;padding:2px 11px;margin-top:1px;
+}
+.course-rec-body{flex:1;display:grid;gap:6px;min-width:0}
+.course-rec-line{display:flex;flex-wrap:wrap;gap:5px 10px;align-items:baseline}
+.rec-label{
+  flex:none;font-size:10.5px;font-weight:950;color:#5a5440;
+  background:#f1ecdd;border-radius:6px;padding:1px 8px;
+}
+.done-hint{color:#7a5a12;background:#ffe9a8;border-radius:9px;padding:6px 10px;font-weight:850}
+
+/* 管理入口页：测试数据面板不要顶满宽 */
+.clean-manage-home+.test-data-box,.manage-home+.test-data-box{max-width:640px;margin-top:14px}

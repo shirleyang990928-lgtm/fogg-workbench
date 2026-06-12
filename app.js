@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260611g';
+const APP_VERSION='20260612a';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -354,39 +354,10 @@ function closeStickerDetail(){byId("detailModal").classList.remove("show");byId(
 function renderManage(){setHead("\u7ba1\u7406","\u5206\u6b65\u6574\u7406\u8bdd\u672f\u3001\u8bfe\u7a0b\u3001\u56de\u6536\u7ad9\u548c\u5907\u4efd","");byId("tabs").innerHTML=tabs([{value:"home",label:"\u5165\u53e3"},{value:"stickers",label:"\u7ba1\u7406\u8bdd\u672f"},{value:"classes",label:"\u7ba1\u7406\u8bfe\u7a0b"},{value:"trash",label:"\u56de\u6536\u7ad9"},{value:"backup",label:"\u5907\u4efd"}],manageMode,"manage");if(manageMode==="home")renderManageHome();if(manageMode==="stickers")renderStickerManage();if(manageMode==="classes")renderClassManage();if(manageMode==="trash")renderTrash();if(manageMode==="backup")renderBackup();bindManageEvents();}
 function renderTrash(){const ss=stickersData.filter(x=>x.deletedAt), cs=scheduleData.filter(x=>x.status==="Deleted");byId("content").innerHTML=`<div class="grid-2"><section class="panel"><div class="panel-head"><h3>\u5df2\u5220\u9664\u8bdd\u672f</h3><span>${ss.length}</span></div><div class="trash-grid">${ss.map(x=>`<div class="list-item"><b>${esc(x.title)}</b><span>${SCENE_LABELS[x.scene]} · ${AUDIENCE_LABELS[x.audience]}</span><div class="form-actions"><button class="btn" data-restore-sticker="${safeAttr(x.id)}">\u6062\u590d</button><button class="btn danger" data-purge-sticker="${safeAttr(x.id)}">\u5f7b\u5e95\u5220\u9664</button></div></div>`).join("")||'<p class="empty">\u6ca1\u6709\u5df2\u5220\u9664\u8bdd\u672f\u3002</p>'}</div></section><section class="panel"><div class="panel-head"><h3>\u5df2\u5220\u9664\u8bfe\u7a0b</h3><span>${cs.length}</span></div><div class="trash-grid">${cs.map(x=>`<div class="list-item"><b>${esc(x.className)}</b><span>${esc(x.weekday)} ${esc(x.time)}</span><div class="form-actions"><button class="btn" data-restore-class="${safeAttr(x.id)}">\u6062\u590d</button><button class="btn danger" data-purge-class="${safeAttr(x.id)}">\u5f7b\u5e95\u5220\u9664</button></div></div>`).join("")||'<p class="empty">\u6ca1\u6709\u5df2\u5220\u9664\u8bfe\u7a0b\u3002</p>'}</div></section></div>`;}
 function renderBackup(){
-  const testClsCount=scheduleData.filter(c=>String(c.id).startsWith("test-")).length;
-  const testStuCount=studentsData.filter(p=>String(p.id).startsWith("test-")).length;
   byId("content").innerHTML=`<div class="grid-2 backup-grid">
   <section class="panel backup-box"><div class="panel-head"><h3>\u5907\u4efd</h3><span>\u5bfc\u51fa\u540e\u53ef\u4fdd\u5b58\u5230\u672c\u5730</span></div><textarea id="backupText" placeholder="\u70b9\u51fb\u5bfc\u51fa\u540e\u4f1a\u51fa\u73b0 JSON"></textarea><div class="form-actions"><button class="btn primary" data-export-all>\u5bfc\u51fa\u5168\u90e8</button><button class="btn" data-import-all>\u5bfc\u5165</button></div></section>
-  <section class="panel test-data-box">
-    <div class="panel-head"><h3>\u6d4b\u8bd5\u6570\u636e</h3><span>\u968f\u4fbf\u73a9\uff0c\u4e00\u952e\u6e05\u6389</span></div>
-    <p class="test-data-hint">\u5bfc\u5165 <b>10 \u4e2a\u6d4b\u8bd5\u73ed + 15 \u4e2a\u6d4b\u8bd5\u5b66\u751f</b>\uff08\u8986\u76d6 LR/CW/CR/EW\u3001\u4e0a\u4e0b\u534a\u5e74/\u5047\u671f\u8425/1\u5bf91\u3001\u4e00\u4e2a\u5df2\u7ed3\u8bfe\u7684\u73ed\uff0c\u5e26 6 \u5468\u7684\u70b9\u540d\u548c\u4f5c\u4e1a\u8bb0\u5f55\uff09+ 2 \u5f20\u6d4b\u8bd5 SOP \u5361\u3002\u6240\u6709\u6d4b\u8bd5\u6570\u636e\u90fd\u5e26 <b>"\u6d4b\u8bd5\u00b7"</b> \u524d\u7f00\uff0c\u770b\u5b8c\u4e00\u952e\u6e05\u9664\uff0c\u4e0d\u78b0\u4f60\u7684\u771f\u5b9e\u8bfe\u7a0b\u3002</p>
-    ${testClsCount?`<p class="test-data-now">\u5f53\u524d\u6709\u6d4b\u8bd5\u6570\u636e\uff1a${testClsCount} \u4e2a\u73ed\u3001${testStuCount} \u4e2a\u5b66\u751f\u3002</p>`:""}
-    <div class="form-actions">
-      <button class="btn primary" id="importTestData" type="button">\u5bfc\u5165\u6d4b\u8bd5\u6570\u636e</button>
-      <button class="btn danger" id="clearTestData" type="button" ${testClsCount?"":"disabled"}>\u6e05\u9664\u5168\u90e8\u6d4b\u8bd5\u6570\u636e</button>
-    </div>
-  </section></div>`;
-  const imp=byId("importTestData");
-  if(imp)imp.addEventListener("click",()=>{
-    if(adminViewEmail){showToast("\u6b63\u5728\u67e5\u770b\u4ed6\u4eba\u6570\u636e\uff0c\u53ea\u80fd\u6d4f\u89c8\u4e0d\u80fd\u4fee\u6539");return;}
-    if(scheduleData.some(c=>String(c.id).startsWith("test-"))){showToast("\u5df2\u7ecf\u5bfc\u5165\u8fc7\u4e86\uff0c\u5148\u6e05\u9664\u518d\u91cd\u65b0\u5bfc\u5165");return;}
-    if(!confirm("\u5bfc\u5165 10 \u4e2a\u6d4b\u8bd5\u73ed + 15 \u4e2a\u6d4b\u8bd5\u5b66\u751f\uff1f\n\u5b83\u4eec\u90fd\u53eb\"\u6d4b\u8bd5\u00b7xx\"\uff0c\u4f1a\u548c\u771f\u5b9e\u6570\u636e\u4e00\u8d77\u663e\u793a\uff0c\u968f\u65f6\u53ef\u4ee5\u4e00\u952e\u6e05\u9664\u3002"))return;
-    importTestData();
-    showToast("\u6d4b\u8bd5\u6570\u636e\u5df2\u5bfc\u5165\uff0c\u53bb\u8bfe\u7a0b\u9875\u73a9\u73a9\u7b5b\u9009\u5427");
-    view="courses";render();
-  });
-  const clr=byId("clearTestData");
-  if(clr)clr.addEventListener("click",()=>{
-    if(adminViewEmail){showToast("\u6b63\u5728\u67e5\u770b\u4ed6\u4eba\u6570\u636e\uff0c\u53ea\u80fd\u6d4f\u89c8\u4e0d\u80fd\u4fee\u6539");return;}
-    if(!confirm("\u6e05\u9664\u6240\u6709\"\u6d4b\u8bd5\u00b7\"\u5f00\u5934\u7684\u73ed\u7ea7\u3001\u5b66\u751f\u548c SOP \u5361\uff1f\u771f\u5b9e\u6570\u636e\u4e0d\u53d7\u5f71\u54cd\u3002"))return;
-    scheduleData=scheduleData.filter(c=>!String(c.id).startsWith("test-"));
-    studentsData=studentsData.filter(p=>!String(p.id).startsWith("test-"));
-    sopData=sopData.filter(r=>!String(r.id).startsWith("test-"));
-    saveSchedule();saveStudents();saveSop();
-    showToast("\u6d4b\u8bd5\u6570\u636e\u5df2\u5168\u90e8\u6e05\u9664");
-    render();
-  });
+  ${testDataPanelHtml()}</div>`;
+  bindTestDataButtons();
 }
 function saveStickerFromForm(){const item=normalizeSticker({id:editingStickerId||uid("sticker"),scene:byId("stickerScene").value,audience:byId("stickerAudience").value,title:byId("stickerTitle").value||"\u672a\u547d\u540d\u8bdd\u672f",content:byId("stickerContent").value,note:byId("stickerNote").value});const idx=stickersData.findIndex(x=>x.id===editingStickerId);if(idx>=0)stickersData[idx]={...stickersData[idx],...item};else stickersData.push(item);editingStickerId=item.id;saveStickers();showToast("\u5df2\u4fdd\u5b58\u8bdd\u672f");render();}
 function parseStudents(text){return text.split(/\n+/).map(x=>x.trim()).filter(Boolean).map(line=>{const [name,...note]=line.split("|");return {id:uid("student"),name:name.trim(),note:note.join("|").trim()};});}
@@ -458,7 +429,47 @@ function bindLibraryEvents(){
 }
 
 function renderManageHome(){
-  byId("content").innerHTML=`<div class="manage-home compact earth-manage-home clean-manage-home"><button class="manage-card" data-manage-go="stickers"><b>整理话术</b><p>按分类搜索、修改、归档常用话术。</p></button><button class="manage-card" data-manage-go="classes"><b>整理课程</b><p>补开课日、Zoom、老师和学生。</p></button><button class="manage-card" data-manage-go="trash"><b>回收站</b><p>恢复误删内容。</p></button><button class="manage-card" data-manage-go="backup"><b>备份资料</b><p>导出或导入全部数据。</p></button></div>`;
+  byId("content").innerHTML=`<div class="manage-home compact earth-manage-home clean-manage-home"><button class="manage-card" data-manage-go="stickers"><b>整理话术</b><p>按分类搜索、修改、归档常用话术。</p></button><button class="manage-card" data-manage-go="classes"><b>整理课程</b><p>补开课日、Zoom、老师和学生。</p></button><button class="manage-card" data-manage-go="trash"><b>回收站</b><p>恢复误删内容。</p></button><button class="manage-card" data-manage-go="backup"><b>备份资料</b><p>导出或导入全部数据。</p></button></div>
+  ${testDataPanelHtml()}`;
+  bindTestDataButtons();
+}
+
+/* 测试数据面板：管理入口和备份页都放一份，Shirley 上次没找到 */
+function testDataPanelHtml(){
+  const n=scheduleData.filter(c=>String(c.id).startsWith("test-")).length;
+  const ns=studentsData.filter(p=>String(p.id).startsWith("test-")).length;
+  return `<section class="panel test-data-box">
+    <div class="panel-head"><h3>🧪 测试数据</h3><span>随便玩，一键清掉</span></div>
+    <p class="test-data-hint">导入 <b>10 个测试班 + 15 个测试学生</b>（LR/CW/CR/EW、上下半年/假期营/1对1、一个已结课的班，带 6 周点名和作业记录）+ 2 张测试 SOP 卡。都带 <b>"测试·"</b> 前缀，不碰你的真实课程。</p>
+    ${n?`<p class="test-data-now">当前有测试数据：${n} 个班、${ns} 个学生。</p>`:""}
+    <div class="form-actions">
+      <button class="btn primary" id="importTestData" type="button">导入测试数据</button>
+      <button class="btn danger" id="clearTestData" type="button" ${n?"":"disabled"}>清除全部测试数据</button>
+    </div>
+  </section>`;
+}
+
+function bindTestDataButtons(){
+  const imp=byId("importTestData");
+  if(imp)imp.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    if(scheduleData.some(c=>String(c.id).startsWith("test-"))){showToast("已经导入过了，先清除再重新导入");return;}
+    if(!confirm("导入 10 个测试班 + 15 个测试学生？\n它们都叫\"测试·xx\"，会和真实数据一起显示，随时可以一键清除。"))return;
+    importTestData();
+    showToast("测试数据已导入，去课程页玩玩筛选吧");
+    view="courses";render();
+  });
+  const clr=byId("clearTestData");
+  if(clr)clr.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    if(!confirm("清除所有\"测试·\"开头的班级、学生和 SOP 卡？真实数据不受影响。"))return;
+    scheduleData=scheduleData.filter(c=>!String(c.id).startsWith("test-"));
+    studentsData=studentsData.filter(p=>!String(p.id).startsWith("test-"));
+    sopData=sopData.filter(r=>!String(r.id).startsWith("test-"));
+    saveSchedule();saveStudents();saveSop();
+    showToast("测试数据已全部清除");
+    render();
+  });
 }
 
 /* Final week navigation: previous / current / next week */
@@ -756,7 +767,20 @@ function bindManageEvents(){
   document.querySelectorAll("[data-new-class]").forEach(b=>b.addEventListener("click",()=>{editingClassId=null;manageClassRecordDate="";render();}));
   document.querySelectorAll("[data-load-class-record]").forEach(b=>b.addEventListener("click",()=>{manageClassRecordDate=b.dataset.loadClassRecord;render();}));
   document.querySelectorAll("[data-save-class]").forEach(b=>b.addEventListener("click",saveClassFromForm));
-  document.querySelectorAll("[data-archive-class]").forEach(b=>b.addEventListener("click",()=>{const x=scheduleData.find(c=>c.id===editingClassId);if(x){x.status="Archived";x.archivedAt=new Date().toISOString();saveSchedule();render();}}));
+  // "结课/恢复开课"：和课程主页右上角的结课是同一个状态（status=Archived）
+  document.querySelectorAll("[data-archive-class]").forEach(b=>b.addEventListener("click",()=>{
+    const x=scheduleData.find(c=>c.id===editingClassId);
+    if(!x)return;
+    if(isClassDone(x)){
+      x.status="Active";x.archivedAt="";
+      saveSchedule();showToast("已恢复开课，课表上会重新出现");
+    }else{
+      if(!confirm("把「"+x.className+"」结课？\n结课后课表上不再显示，数据都还在，随时可恢复。"))return;
+      x.status="Archived";x.archivedAt=new Date().toISOString();
+      saveSchedule();showToast("已结课");
+    }
+    render();
+  }));
   document.querySelectorAll("[data-delete-class]").forEach(b=>b.addEventListener("click",()=>{const x=scheduleData.find(c=>c.id===editingClassId);if(x){x.status="Deleted";x.deletedAt=new Date().toISOString();editingClassId=null;saveSchedule();render();}}));
   document.querySelectorAll("[data-restore-sticker]").forEach(b=>b.addEventListener("click",()=>{const x=stickersData.find(s=>s.id===b.dataset.restoreSticker);if(x){x.deletedAt="";saveStickers();render();}}));
   document.querySelectorAll("[data-purge-sticker]").forEach(b=>b.addEventListener("click",()=>{if(!confirm("确定彻底删除这条话术吗？"))return;stickersData=stickersData.filter(s=>s.id!==b.dataset.purgeSticker);saveStickers();render();}));
@@ -967,7 +991,8 @@ function classForm(x){
       ${classRecordHistoryHtml(x,selectedDate)}
     </div>
   </div>
-  <div class="form-actions"><button class="btn primary" data-save-class>保存</button>${x.id?'<button class="btn ghost" data-archive-class>归档</button><button class="btn danger" data-delete-class>删除</button>':''}</div>`;
+  <div class="form-actions"><button class="btn primary" data-save-class>保存</button>${x.id?`<button class="btn ghost" data-archive-class>${isClassDone(x)?"恢复开课":"结课"}</button><button class="btn danger" data-delete-class>删除</button>`:''}</div>
+  ${x.id&&isClassDone(x)?'<p class="form-hint done-hint">这个班已结课：课表上不显示，课程页点"含已结课"能看到它的全部数据。</p>':''}`;
 }
 
 function saveClassFromForm(){
@@ -1569,7 +1594,7 @@ function refreshManageClassList(){
   const listEl=document.querySelector(".class-manage .item-list");
   if(!listEl) return;
   const list=filterClassesForManage(scheduleData.filter(x=>x.status!=="Deleted"));
-  listEl.innerHTML=list.map(x=>`<button class="list-item course-list-item ${x.id===editingClassId?'active':''}" data-edit-class="${safeAttr(x.id)}"><b>${esc(x.weekday)} ${esc(formatTimeCN(x.time)||"未定")} · ${esc(x.className)}</b><span>${esc(courseTypeLabel(x))} · ${esc(x.teacher||"未填老师")} · ${esc(classTermLabel(x))}</span></button>`).join("")||'<p class="empty">没找到。</p>';
+  listEl.innerHTML=list.map(x=>`<button class="list-item course-list-item ${x.id===editingClassId?'active':''}" data-edit-class="${safeAttr(x.id)}"><b>${esc(x.weekday)} ${esc(formatTimeCN(x.time)||"未定")} · ${esc(x.className)}${isClassDone(x)?'<i class="ov-done-tag">已结课</i>':''}</b><span>${esc(courseTypeLabel(x))} · ${esc(x.teacher||"未填老师")} · ${esc(x.term||classTermLabel(x))}</span></button>`).join("")||'<p class="empty">没找到。</p>';
   document.querySelectorAll("[data-edit-class]").forEach(b=>b.addEventListener("click",()=>{editingClassId=b.dataset.editClass;manageClassRecordDate="";render();}));
 }
 // capture:true so this runs BEFORE the element-level handler that calls render()
@@ -2352,8 +2377,12 @@ function courseStats(c,since,until){
     const hw=rec.homework||{};
     if(homeworkAssigned(hw)){
       counted=true;
+      // Shirley 拍板的口径：应交 = 当天出席（到）的人。缺席的不算应交；
+      // 没点名的那天没法判断，就全员算应交。缺席但补交的照样算进已交（可能超 100%）。
+      const rollTaken=Object.keys(rec.attendance||{}).some(n=>normalizeAttendanceEntry(rec.attendance[n]).status);
       (c.students||[]).forEach(st=>{
-        s.hwAssigned++;
+        const a=normalizeAttendanceEntry((rec.attendance||{})[st.name]);
+        if(!rollTaken||a.status==="到")s.hwAssigned++;
         const e=(hw.entries||{})[st.name]||{};
         if(e.state==="已交"||e.state==="已批改")s.hwIn++;
         if(e.state==="已批改")s.hwGraded++;
@@ -2384,7 +2413,10 @@ function courseStudentLineHtml(c,name,since,until){
     }
     const hw=rec.homework||{};
     if(homeworkAssigned(hw)){
-      hwAssigned++;
+      // 应交只算出席（到）的那天；没点名就照算
+      const rollTaken=Object.keys(rec.attendance||{}).some(n=>normalizeAttendanceEntry(rec.attendance[n]).status);
+      const a=normalizeAttendanceEntry(raw);
+      if(!rollTaken||a.status==="到")hwAssigned++;
       const e=(hw.entries||{})[name]||{};
       if(e.state==="已交"||e.state==="已批改")hwIn++;
     }
@@ -2453,10 +2485,10 @@ function renderCourseHome(){
       <div class="stu-tile t-yellow"><span>Zoom · 学期</span><b>${esc(zoomName(c)||"未填")} · ${esc(c.term||classTermLabel(c))}${done?" · 已结课":""}</b></div>
     </div>
     <div class="stu-info-grid course-home-stats">
-      <div class="stu-tile t-green"><span>已记录课次 · ${esc(rt)}</span><b>${s.lessons||0} 次</b></div>
-      <div class="stu-tile ${s.attRate===null?'no-val':'t-blue'}"><span>出勤率 · ${esc(rt)}</span><b>${s.attRate===null?"还没点过名":s.attRate+"%"}</b></div>
-      <div class="stu-tile ${s.hwRate===null?'no-val':'t-yellow'}"><span>作业提交率 · ${esc(rt)}</span><b>${s.hwRate===null?"还没布置过":s.hwRate+"%"}</b></div>
-      <div class="stu-tile ${s.gradeRate===null?'no-val':'t-green'}"><span>已交里批改率 · ${esc(rt)}</span><b>${s.gradeRate===null?"还没人交":s.gradeRate+"%"}</b></div>
+      <div class="stu-tile t-green"><span>已记录课次 · ${esc(rt)}</span><b>${s.lessons||0} 次</b><small class="ov-tile-detail">班里 ${(c.students||[]).length} 名学生</small></div>
+      <div class="stu-tile ${s.attRate===null?'no-val':'t-blue'}"><span>出勤率 · ${esc(rt)}</span><b>${s.attRate===null?"还没点过名":s.attRate+"%"}</b>${s.attRate===null?"":`<small class="ov-tile-detail">到 ${s.att} 人次 / 缺席 ${s.abs} 人次</small>`}</div>
+      <div class="stu-tile ${s.hwRate===null?'no-val':'t-yellow'}"><span>作业提交率 · ${esc(rt)}</span><b>${s.hwRate===null?"还没布置过":s.hwRate+"%"}</b>${s.hwRate===null?"":`<small class="ov-tile-detail">交 ${s.hwIn} / 应交 ${s.hwAssigned}（只算出席的）</small>`}</div>
+      <div class="stu-tile ${s.gradeRate===null?'no-val':'t-green'}"><span>已交里批改率 · ${esc(rt)}</span><b>${s.gradeRate===null?"还没人交":s.gradeRate+"%"}</b>${s.gradeRate===null?"":`<small class="ov-tile-detail">已改 ${s.hwGraded} / 已交 ${s.hwIn}</small>`}</div>
     </div>
     <div class="student-detail-extra">
       <h4>学生（点名字看档案 · 数字按${esc(rt)}算）</h4>
@@ -2498,7 +2530,7 @@ let courseOverviewShowDone=false; // 是否把已结课的班算进来
 function isClassDone(c){return c.status==="Archived"||!!c.archivedAt;}
 
 function dateRangeCtlHtml(prefix,from,to){
-  const quick=[["week","本周"],["lastweek","上周"],["4w","近4周"],["clear","全部"]];
+  const quick=[["week","本周"],["lastweek","上周"],["month","本月"],["clear","全部"]];
   return `<span class="date-range-ctl">
     <input type="date" class="range-date" id="${prefix}From" value="${safeAttr(from)}" title="从哪天开始算">
     <i class="range-arrow">→</i>
@@ -2510,7 +2542,12 @@ function quickRange(v){
   const ws=weekStart();
   if(v==="week")return [dateKey(ws),dateKey(addDays(ws,6))];
   if(v==="lastweek")return [dateKey(addDays(ws,-7)),dateKey(addDays(ws,-1))];
-  if(v==="4w")return [dateKey(addDays(ws,-21)),dateKey(new Date())];
+  if(v==="month"){
+    const now=new Date();
+    const first=new Date(now.getFullYear(),now.getMonth(),1);
+    const last=new Date(now.getFullYear(),now.getMonth()+1,0);
+    return [dateKey(first),dateKey(last)];
+  }
   return ["",""];
 }
 function bindDateRangeCtl(prefix,apply){
@@ -2526,6 +2563,8 @@ function rangeText(from,to){
   if(!from&&!to)return "全部时间";
   const ws=dateKey(weekStart()),we=dateKey(addDays(weekStart(),6));
   if(from===ws&&to===we)return "本周";
+  const [mf,mt]=quickRange("month");
+  if(from===mf&&to===mt)return "本月";
   const fmt=s=>s?Number(s.slice(5,7))+"/"+Number(s.slice(8,10)):"";
   if(from&&to)return fmt(from)+"–"+fmt(to);
   return from?fmt(from)+" 起":"到 "+fmt(to);
