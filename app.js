@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260612a';
+const APP_VERSION='20260612b';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -344,13 +344,31 @@ function updateNav(){document.querySelectorAll(".nav-btn").forEach(b=>b.classLis
 function setHead(title,sub,count){byId("viewTitle").textContent=title;byId("viewSubtitle").textContent=sub;byId("viewSubtitle").hidden=!sub;byId("counter").textContent=count||"";}
 function tabs(items,current,key){return items.map(x=>`<button class="tab ${x.value===current?'active':''}" data-${key}="${safeAttr(x.value)}">${esc(x.label)}</button>`).join("");}
 function render(){updateNav();if(view==="today")renderToday();if(view==="stickers")renderStickers();if(view==="courses")renderCourses();if(view==="students")renderStudents();if(view==="manage")renderManage();if(view==="courseHome")renderCourseHome();if(view==="sop")renderSop();}
+/* 页内筛选用这个重渲染：保住滚动位置，不再跳回顶部（Shirley 点学生页筛选会回跳的 bug）。
+   有的页是 #content 在滚，有的页（学生页）是里面的面板在滚，所以把所有滚着的容器都记下来。 */
+function rerenderKeepScroll(){
+  const saved=[];
+  const root=byId("content");
+  if(root){
+    if(root.scrollTop>0)saved.push({sel:"#content",top:root.scrollTop});
+    root.querySelectorAll("*").forEach(el=>{
+      if(el.scrollTop>0&&el.className&&typeof el.className==="string"){
+        saved.push({sel:"."+el.className.trim().split(/\s+/).join("."),top:el.scrollTop});
+      }
+    });
+  }
+  render();
+  saved.forEach(s=>{
+    try{const el=document.querySelector(s.sel);if(el)el.scrollTop=s.top;}catch(e){}
+  });
+}
 function renderFocus(current,suggested){if(!current)return `<div class="panel-head"><h3>\u5f53\u524d\u4efb\u52a1</h3><span>\u6682\u65e0\u8bfe\u7a0b</span></div><p class="empty">\u4eca\u5929\u6ca1\u6709\u8bfe\u65f6\uff0c\u5de5\u4f5c\u53f0\u4f1a\u81ea\u52a8\u663e\u793a\u6700\u8fd1\u7684\u8fdb\u884c\u4e2d\u8bfe\u7a0b\u3002</p>`;return `<div class="panel-head"><h3>\u5f53\u524d\u4efb\u52a1</h3><span>\u5efa\u8bae\uff1a${SCENE_LABELS[suggested]}</span></div><div class="focus-card"><div class="focus-top"><div><div class="course-time">${esc(current.time||"\u672a\u5b9a")}</div><div class="course-name">${esc(current.className)}</div></div><span class="chip ok">${STATUS_LABELS[current.status]}</span></div><div class="meta-row"><span class="chip">${esc(current.weekday)}</span><span class="chip">${esc(current.courseType)}</span><span class="chip">${esc(current.teacher||"\u672a\u586b\u8001\u5e08")}</span></div><div class="student-row">${current.students.map(s=>`<span class="chip">${esc(s.name)}</span>`).join("")||'<span class="chip">\u6682\u65e0\u5b66\u751f</span>'}</div><div class="course-note">${esc((current.notes[0]&&current.notes[0].text)||"\u6682\u65e0\u5907\u6ce8\u3002")}</div></div>`;}
 function renderCourseCards(classes,current){return `<div class="course-card-grid">${classes.map(x=>renderScheduleCard(x,current&&x.id===current.id)).join("")||'<p class="empty">\u6682\u65e0\u53ef\u663e\u793a\u8bfe\u7a0b\u3002</p>'}</div>`;}
 function renderDayColumn(day,items){return `<section class="week-day-card"><div class="day-card-head"><b>${esc(day)}</b><span>${items.length} \u8282</span></div><div class="day-card-list">${items.map(x=>renderScheduleCard(x,false)).join("")||'<p class="empty mini">\u6ca1\u8bfe</p>'}</div></section>`;}
 function bindScheduleCards(list=displayClasses()){document.querySelectorAll("[data-schedule-id]").forEach(btn=>btn.addEventListener("click",()=>{let item=list.find(x=>x.id===btn.dataset.scheduleId)||scheduleData.find(x=>x.id===btn.dataset.scheduleId);const d=parseLocalDate(btn.dataset.occurrenceDate);if(item&&d)item=classesOnDate([item],d)[0]||item;if(item)openClassDetailModal(item);}));}
 function bindCopy(list){document.querySelectorAll("[data-copy-id]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();const item=list.find(x=>x.id===btn.dataset.copyId);if(item)copyText(item.content);}));}
 function bindDetail(list){document.querySelectorAll("[data-detail-id]").forEach(btn=>btn.addEventListener("click",()=>{const item=list.find(x=>x.id===btn.dataset.detailId);if(item)openStickerDetail(item);}));}
-function closeStickerDetail(){byId("detailModal").classList.remove("show");byId("detailModal").setAttribute("aria-hidden","true");document.body.focus();}
+function closeStickerDetail(){byId("detailModal").classList.remove("show");byId("detailModal").setAttribute("aria-hidden","true");document.body.focus();if(recordDateOverride){recordDateOverride="";if(view==="courseHome")render();}}
 function renderManage(){setHead("\u7ba1\u7406","\u5206\u6b65\u6574\u7406\u8bdd\u672f\u3001\u8bfe\u7a0b\u3001\u56de\u6536\u7ad9\u548c\u5907\u4efd","");byId("tabs").innerHTML=tabs([{value:"home",label:"\u5165\u53e3"},{value:"stickers",label:"\u7ba1\u7406\u8bdd\u672f"},{value:"classes",label:"\u7ba1\u7406\u8bfe\u7a0b"},{value:"trash",label:"\u56de\u6536\u7ad9"},{value:"backup",label:"\u5907\u4efd"}],manageMode,"manage");if(manageMode==="home")renderManageHome();if(manageMode==="stickers")renderStickerManage();if(manageMode==="classes")renderClassManage();if(manageMode==="trash")renderTrash();if(manageMode==="backup")renderBackup();bindManageEvents();}
 function renderTrash(){const ss=stickersData.filter(x=>x.deletedAt), cs=scheduleData.filter(x=>x.status==="Deleted");byId("content").innerHTML=`<div class="grid-2"><section class="panel"><div class="panel-head"><h3>\u5df2\u5220\u9664\u8bdd\u672f</h3><span>${ss.length}</span></div><div class="trash-grid">${ss.map(x=>`<div class="list-item"><b>${esc(x.title)}</b><span>${SCENE_LABELS[x.scene]} · ${AUDIENCE_LABELS[x.audience]}</span><div class="form-actions"><button class="btn" data-restore-sticker="${safeAttr(x.id)}">\u6062\u590d</button><button class="btn danger" data-purge-sticker="${safeAttr(x.id)}">\u5f7b\u5e95\u5220\u9664</button></div></div>`).join("")||'<p class="empty">\u6ca1\u6709\u5df2\u5220\u9664\u8bdd\u672f\u3002</p>'}</div></section><section class="panel"><div class="panel-head"><h3>\u5df2\u5220\u9664\u8bfe\u7a0b</h3><span>${cs.length}</span></div><div class="trash-grid">${cs.map(x=>`<div class="list-item"><b>${esc(x.className)}</b><span>${esc(x.weekday)} ${esc(x.time)}</span><div class="form-actions"><button class="btn" data-restore-class="${safeAttr(x.id)}">\u6062\u590d</button><button class="btn danger" data-purge-class="${safeAttr(x.id)}">\u5f7b\u5e95\u5220\u9664</button></div></div>`).join("")||'<p class="empty">\u6ca1\u6709\u5df2\u5220\u9664\u8bfe\u7a0b\u3002</p>'}</div></section></div>`;}
 function renderBackup(){
@@ -518,8 +536,10 @@ function skippedDates(cls){
   return String(raw||"").split(/[,\n，、]+/).map(x=>x.trim()).filter(Boolean);
 }
 
+let recordDateOverride=""; // 课程主页点某天的日期 → 弹窗直接编辑那一天（v20260612b）
+
 function classRecordDate(item){
-  return item._occurrenceDate||dateKey(new Date());
+  return recordDateOverride||item._occurrenceDate||dateKey(new Date());
 }
 
 function classRecord(item){
@@ -1953,9 +1973,9 @@ function studentTimelineHtml(name,classes){
 /* 时间线筛选 + 长文本展开（事件委托，整页重渲染也不丢） */
 document.addEventListener("click",function(e){
   const courseBtn=e.target.closest&&e.target.closest("[data-stu-tl-course]");
-  if(courseBtn){stuTimelineCourse=courseBtn.dataset.stuTlCourse;render();return;}
+  if(courseBtn){stuTimelineCourse=courseBtn.dataset.stuTlCourse;rerenderKeepScroll();return;}
   const kindBtn=e.target.closest&&e.target.closest("[data-stu-tl-kind]");
-  if(kindBtn){stuTimelineKind=kindBtn.dataset.stuTlKind;render();return;}
+  if(kindBtn){stuTimelineKind=kindBtn.dataset.stuTlKind;rerenderKeepScroll();return;}
   const wrap=e.target.closest&&e.target.closest(".stu-tl-remark-wrap.clampable");
   if(wrap){
     const body=wrap.querySelector(".stu-tl-remark2");
@@ -2433,28 +2453,36 @@ function courseStudentLineHtml(c,name,since,until){
   </div>`;
 }
 
+/* 课堂记录 v3（v20260612b，Shirley："很乱"）：
+   每个学生一行（出勤+作业合在一起），长表现折叠两行点开看；
+   日期是按钮，点了回到那一天的编辑弹窗直接改点名/作业/笔记。 */
 function courseRecordEntryHtml(c,rec){
   const names=(c.students||[]).map(s=>s.name);
-  const attBits=names.map(n=>{
-    const raw=(rec.attendance||{})[n];
-    if(!raw)return "";
-    const a=normalizeAttendanceEntry(raw);
-    if(!a.status&&!a.tag&&!a.remark)return "";
-    return `<span class="rec-att-item">${esc(n)} <i class="att-chip ${attendanceStatusClass(a.status||a.tag)}">${esc(a.status||a.tag)}</i>${a.tag&&a.status?`<i class="att-chip att-tag-chip ${attendanceStatusClass(a.tag)}">${esc(a.tag)}</i>`:""}${a.remark?` <small>${esc(a.remark)}</small>`:""}</span>`;
-  }).filter(Boolean).join("");
   const hw=rec.homework||{};
-  const hwBits=homeworkAssigned(hw)?names.map(n=>{
-    const e=(hw.entries||{})[n]||{};
-    const st=HOMEWORK_STATES.includes(e.state)?e.state:"未交";
-    return `<span class="rec-att-item">${esc(n)} <i class="att-chip hw-chip ${hwStateClass(st)}">${st}</i>${e.score?` <small>${esc(e.score)}</small>`:""}</span>`;
-  }).join(""):"";
+  const hwAss=homeworkAssigned(hw);
+  const stuRows=names.map(n=>{
+    const a=normalizeAttendanceEntry((rec.attendance||{})[n]);
+    const e=hwAss?((hw.entries||{})[n]||{}):null;
+    const st=e?(HOMEWORK_STATES.includes(e.state)?e.state:"未交"):"";
+    if(!a.status&&!a.tag&&!a.remark&&!st)return "";
+    const long=(a.remark||"").length>64;
+    return `<div class="rec-stu-row">
+      <div class="rec-stu-line">
+        <span class="rec-stu-name">${esc(n)}</span>
+        ${a.status?`<i class="att-chip ${attendanceStatusClass(a.status)}">${esc(a.status)}</i>`:""}
+        ${a.tag?`<i class="att-chip att-tag-chip ${attendanceStatusClass(a.tag)}">${esc(a.tag)}</i>`:""}
+        ${st?`<i class="att-chip hw-chip ${hwStateClass(st)}">📚${st}${e.score?" "+esc(e.score):""}</i>`:""}
+      </div>
+      ${a.remark?`<div class="stu-tl-remark-wrap${long?' clampable':''}"><div class="stu-tl-remark2${long?' clamped':''}">${esc(a.remark)}</div>${long?'<span class="tl-expand-hint">▾ 点开看全部</span>':""}</div>`:""}
+    </div>`;
+  }).filter(Boolean).join("");
   const note=rec.notes||rec.materials||"";
-  if(!attBits&&!hwBits&&!note)return "";
+  if(!stuRows&&!hwAss&&!note)return "";
   return `<div class="course-rec-entry">
-    <div class="course-rec-date">${esc(formatDateShort(rec.date))}</div>
+    <button class="course-rec-date" data-edit-record-date="${safeAttr(rec.date)}" type="button" title="点一下回到这天，直接改点名、作业、笔记">${esc(formatDateShort(rec.date))} ✎</button>
     <div class="course-rec-body">
-      ${attBits?`<div class="course-rec-line"><span class="rec-label">点名</span>${attBits}</div>`:""}
-      ${hwBits?`<div class="course-rec-line"><span class="rec-label">作业</span>${hw.content?`<small class="rec-hw-content">${esc(hw.content)}</small>`:""}${hwBits}</div>`:""}
+      ${hw.content?`<div class="course-rec-line"><span class="rec-label">作业</span><small class="rec-hw-content">${esc(hw.content)}</small></div>`:""}
+      ${stuRows}
       ${note?`<div class="course-rec-line"><span class="rec-label">笔记</span><small class="rec-note">${esc(note)}</small></div>`:""}
     </div>
   </div>`;
@@ -2477,7 +2505,7 @@ function renderCourseHome(){
   setHead(c.className+(done?"（已结课）":""),"课程主页 · 出勤、作业、笔记都在这一页","共 "+(c.students||[]).length+" 名学生");
   byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>
     <span class="course-home-range">${dateRangeCtlHtml("ch",since,until)}</span>
-    <button class="btn ${done?'':'ghost'} course-done-btn" id="courseDoneToggle" type="button">${done?"恢复开课":"结课"}</button>`;
+    <button class="btn ghost course-edit-btn" id="courseHomeEdit" type="button">✎ 编辑课程资料</button>`;
   byId("content").innerHTML=`<div class="course-home">
     <div class="stu-info-grid course-home-info">
       <div class="stu-tile t-blue"><span>时间</span><b>${esc(c.weekday)} ${esc(formatTimeCN(c.time))}</b></div>
@@ -2498,21 +2526,20 @@ function renderCourseHome(){
     </div>
   </div>`;
   byId("courseHomeBack").addEventListener("click",()=>{view=courseHomeBack||"students";render();});
-  bindDateRangeCtl("ch",(f,t)=>{courseHomeFrom=f;courseHomeTo=t;render();});
-  byId("courseDoneToggle").addEventListener("click",()=>{
-    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
-    const live=scheduleData.find(x=>x.id===c.id);
-    if(!live){showToast("示例课程不能结课");return;}
-    if(isClassDone(live)){
-      live.status="Active";live.archivedAt="";
-      saveSchedule();showToast("已恢复开课，课表上会重新出现");
-    }else{
-      if(!confirm("把「"+live.className+"」结课？\n结课后：课表上不再显示；课程页默认也不算它，点\"含已结课\"还能看到全部数据；随时可以恢复。"))return;
-      live.status="Archived";live.archivedAt=new Date().toISOString();
-      saveSchedule();showToast("已结课，数据都还在");
-    }
+  bindDateRangeCtl("ch",(f,t)=>{courseHomeFrom=f;courseHomeTo=t;rerenderKeepScroll();});
+  // 编辑课程资料 → 跳到管理页的课程编辑器（结课也在那边）
+  byId("courseHomeEdit").addEventListener("click",()=>{
+    view="manage";manageMode="classes";
+    manageClassSearch="";manageClassType="all";
+    editingClassId=c.id;manageClassRecordDate="";
     render();
   });
+  // 点记录的日期 → 回到那一天的编辑弹窗，直接改点名/作业/笔记
+  document.querySelectorAll("[data-edit-record-date]").forEach(b=>b.addEventListener("click",e=>{
+    e.stopPropagation();
+    recordDateOverride=b.dataset.editRecordDate;
+    openClassDetailModal(c);
+  }));
 }
 
 /* ===== 课程总览页 v2（v20260611f，Shirley 2026-06-11 深夜反馈）=====
@@ -2574,10 +2601,10 @@ function overviewCourses(){
   return scheduleData.filter(c=>c.status!=="Deleted"&&!c.deletedAt);
 }
 
-function rateChip(label,rate){
+function rateChip(label,rate,sub){
   if(rate===null)return `<span class="ov-rate ov-rate-none"><span>${esc(label)}</span><b>—</b></span>`;
   const tone=rate>=80?"ov-rate-good":rate>=60?"ov-rate-mid":"ov-rate-bad";
-  return `<span class="ov-rate ${tone}"><span>${esc(label)}</span><b>${rate}%</b></span>`;
+  return `<span class="ov-rate ${tone}"><span>${esc(label)}</span><b>${rate}%</b>${sub?`<small>${esc(sub)}</small>`:""}</span>`;
 }
 
 function rateTile(label,rate,detail){
@@ -2590,9 +2617,9 @@ function courseOvRowHtml(c,s){
   return `<button class="course-ov-row${s.lessons?"":" ov-row-quiet"}" data-course-home="${safeAttr(c.id)}" type="button">
     <span class="ov-name"><b>${esc(c.className)}${isClassDone(c)?'<i class="ov-done-tag">已结课</i>':""}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(courseTypeLabel(c))} · ${esc(c.term||classTermLabel(c))}</small></span>
     <span class="ov-count">${(c.students||[]).length} 人</span>
-    ${rateChip("出席",s.attRate)}
-    ${rateChip("交作业",s.hwRate)}
-    ${rateChip("批改",s.gradeRate)}
+    ${rateChip("出席",s.attRate,s.attRate===null?"":`到${s.att} 缺${s.abs}`)}
+    ${rateChip("交作业",s.hwRate,s.hwRate===null?"":`${s.hwIn}/${s.hwAssigned}`)}
+    ${rateChip("批改",s.gradeRate,s.gradeRate===null?"":`${s.hwGraded}/${s.hwIn}`)}
     <span class="ov-lessons">${s.lessons} 次记录</span>
   </button>`;
 }
@@ -2648,11 +2675,11 @@ function renderCourses(){
     ${quiet.length?`<details class="ov-quiet-group"${active.length?"":" open"}><summary>${esc(rt)}内还没记录的班 · ${quiet.length} 个</summary><div class="course-ov-list ov-quiet-list">${quiet.map(r=>courseOvRowHtml(r.c,r.s)).join("")}</div></details>`:""}
     <p class="student-phase-hint">出席率 = 到 ÷（到+缺席）；提交率 = 已交+已批改 ÷ 应交；批改率 = 已批改 ÷ 已交。低于 60% 标红。已结课的班默认不算，点"含已结课"才算进来。</p>
   </div>`;
-  document.querySelectorAll("[data-ov-type]").forEach(b=>b.addEventListener("click",()=>{courseOverviewType=b.dataset.ovType;render();}));
-  document.querySelectorAll("[data-ov-term]").forEach(b=>b.addEventListener("click",()=>{courseOverviewTerm=b.dataset.ovTerm;render();}));
+  document.querySelectorAll("[data-ov-type]").forEach(b=>b.addEventListener("click",()=>{courseOverviewType=b.dataset.ovType;rerenderKeepScroll();}));
+  document.querySelectorAll("[data-ov-term]").forEach(b=>b.addEventListener("click",()=>{courseOverviewTerm=b.dataset.ovTerm;rerenderKeepScroll();}));
   const doneBtn=document.querySelector("[data-ov-done]");
-  if(doneBtn)doneBtn.addEventListener("click",()=>{courseOverviewShowDone=!courseOverviewShowDone;render();});
-  bindDateRangeCtl("ov",(f,t)=>{courseOverviewFrom=f;courseOverviewTo=t;render();});
+  if(doneBtn)doneBtn.addEventListener("click",()=>{courseOverviewShowDone=!courseOverviewShowDone;rerenderKeepScroll();});
+  bindDateRangeCtl("ov",(f,t)=>{courseOverviewFrom=f;courseOverviewTo=t;rerenderKeepScroll();});
   document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
 }
 
@@ -2709,6 +2736,7 @@ function sopCardHtml(r){
       <select class="sop-page-select" data-sop-page-input="${safeAttr(r.id)}"><option value="">页面(选填)</option>${SOP_PAGE_TAGS.map(p=>`<option value="${p}">${p}</option>`).join("")}</select>
       <button class="btn primary sop-mini-btn" data-sop-add-step="${safeAttr(r.id)}" type="button">＋</button>
     </div>
+    <input class="sop-note-input" data-sop-note="${safeAttr(r.id)}" value="${safeAttr(r.note)}" placeholder="📌 心得 / 提醒（选填，写完点别处自动保存）">
   </section>`;
 }
 
@@ -2798,6 +2826,16 @@ function renderSop(){
       const btn=inp.parentElement.querySelector("[data-sop-save-name]");
       if(btn)btn.click();
     }
+  }));
+  // 心得/提醒：写完失焦自动保存
+  document.querySelectorAll("[data-sop-note]").forEach(inp=>inp.addEventListener("change",()=>{
+    if(!sopGuard())return;
+    const r=sopData.find(x=>x.id===inp.dataset.sopNote);
+    if(!r)return;
+    r.note=inp.value.trim();
+    r.updatedAt=new Date().toISOString();
+    saveSop();
+    showToast("已保存");
   }));
 }
 
