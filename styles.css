@@ -7834,3 +7834,233 @@ b.tcc-name{
 .upgraded-class-manage .edit-panel.preview-edit>.course-editor-clean{
   overflow:visible!important;flex:none!important;max-height:none!important;height:auto!important;
 }
+
+/* ============================================================
+   2026-06-13c Shirley 第十轮：压缩顶部空间 / 导航六色各不同 /
+   学生卡背景上色 / 学生名字统一上色 / 课堂记录头部按钮+作业行重排 /
+   时间线去框 / 最近课程时间0高度bug / 加入紫棕粉配色
+   ============================================================ */
+
+/* (1) 压缩顶部：标题区/筛选条/统计瓦片都收紧，把空间让给真正看东西的地方 */
+.workspace-head{margin-bottom:4px!important}
+.workspace-head h2,.workspace h2{font-size:18px!important;line-height:1.15!important;margin:0!important}
+.workspace-head p,#viewSubtitle{font-size:11.5px!important;margin:1px 0 0!important;line-height:1.3!important}
+.count-pill{padding:3px 12px!important;font-size:12px!important}
+.ov-toolbar{padding:7px 9px!important;gap:5px 7px!important;margin-bottom:8px!important}
+.ov-toolbar .tab,.ov-toolbar .range-quick{padding:3px 10px!important;font-size:12px!important;min-height:0!important}
+.ov-toolbar .ov-group i,.ov-toolbar .ov-filter-label{font-size:11px!important}
+.ov-toolbar .range-date{padding:2px 6px!important;font-size:11.5px!important}
+/* 统计瓦片收紧（课程总览/课程主页/学生页都用 .stu-tile） */
+.ov-stats .stu-tile,.course-home-stats .stu-tile,.course-home-info .stu-tile{padding:8px 12px!important}
+.ov-stats .stu-tile span,.course-home-stats .stu-tile span,.course-home-info .stu-tile span{font-size:11px!important}
+.ov-stats .stu-tile b,.course-home-stats .stu-tile b{font-size:21px!important;line-height:1.1!important}
+.course-home-info .stu-tile b{font-size:14px!important;line-height:1.2!important}
+.ov-stats .stu-tile .ov-tile-detail,.course-home-stats .stu-tile .ov-tile-detail{font-size:10.5px!important}
+.ov-stats,.course-home-stats{gap:8px!important;margin-bottom:8px!important}
+.course-home-info{gap:8px!important;margin-bottom:8px!important}
+
+/* (2) 导航六个标签：激活时每个一个颜色，绝不重复（蓝/绿/黄/紫/粉/棕） */
+.main-nav .nav-btn.active[data-view="today"]{background:#d3ebd8!important;border-color:#7fbf8e!important}
+.main-nav .nav-btn.active[data-view="today"] span{color:#226b38!important}
+.main-nav .nav-btn.active[data-view="stickers"]{background:#d7e6f6!important;border-color:#88b4dd!important}
+.main-nav .nav-btn.active[data-view="stickers"] span{color:#245784!important}
+.main-nav .nav-btn.active[data-view="courses"]{background:#f6e6b6!important;border-color:#d6b85f!important}
+.main-nav .nav-btn.active[data-view="courses"] span{color:#866017!important}
+.main-nav .nav-btn.active[data-view="students"]{background:#e6dff5!important;border-color:#ad9dda!important}
+.main-nav .nav-btn.active[data-view="students"] span{color:#574790!important}
+.main-nav .nav-btn.active[data-view="sop"]{background:#f6dbe7!important;border-color:#dd9ebb!important}
+.main-nav .nav-btn.active[data-view="sop"] span{color:#963a63!important}
+.main-nav .nav-btn.active[data-view="manage"]{background:#ecdcc2!important;border-color:#cab084!important}
+.main-nav .nav-btn.active[data-view="manage"] span{color:#785628!important}
+
+/* (3) 学生资料卡：背景上柔和色（和细边不同色，更跳更好认），按位置轮换 蓝/绿/黄/紫/粉/棕 */
+.course-student-grid .cs-cell:nth-child(6n+1){background:#eaf3fb!important;border-color:#b6d3ec!important}
+.course-student-grid .cs-cell:nth-child(6n+2){background:#e8f5ea!important;border-color:#b6d9bc!important}
+.course-student-grid .cs-cell:nth-child(6n+3){background:#fbf2d6!important;border-color:#e0cb8d!important}
+.course-student-grid .cs-cell:nth-child(6n+4){background:#efeafb!important;border-color:#c6bbe6!important}
+.course-student-grid .cs-cell:nth-child(6n+5){background:#fbe8f0!important;border-color:#e7b9d0!important}
+.course-student-grid .cs-cell:nth-child(6n+6){background:#f4e8d4!important;border-color:#d7bd96!important}
+/* 年龄徽章改白底，放在任何彩色卡上都跳得出来 */
+.cs-age{background:#fff!important;border:1px solid rgba(23,27,20,.16)!important;color:#1d4f74!important}
+
+/* (4) 学生名字统一上色——很多地方都黑字，名字是主角要跳出来（深青蓝+粗） */
+.cs-name,.rec-stu-name,.att-row-top .att-name,.stu-tl-meta .stu-tl-class{
+  color:#175e74!important;font-weight:950!important;
+}
+.cs-name:hover{color:#1f8aa8!important}
+/* 时间线里班级名去掉药丸框，改纯色文字（少一个框，没那么乱） */
+.stu-tl-meta .stu-tl-class{background:none!important;border:0!important;padding:0!important;border-radius:0!important;font-size:13px!important}
+
+/* (5) 课堂记录卡：头部=可点的折叠区 + 右侧轻巧"改这天"小钮；作业/笔记行重新排版 */
+.course-rec-head{display:flex!important;align-items:center!important;gap:8px!important;padding:0!important;background:none!important}
+.rec-toggle-zone{
+  flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:11px;flex-wrap:wrap;
+  background:none;border:0;cursor:pointer;font-family:inherit;text-align:left;
+  padding:11px 8px 11px 14px;transition:background .12s;
+}
+.rec-toggle-zone:hover{background:#f7f3e9}
+.rec-edit-icon{
+  flex:0 0 auto;margin-right:12px;align-self:center;
+  border:1px solid rgba(28,96,120,.35);background:#eef6fa;border-radius:999px;
+  padding:3px 12px;font-size:11.5px;font-weight:900;color:#1d5274;cursor:pointer;font-family:inherit;
+}
+.rec-edit-icon:hover{background:#dcedf6;border-color:rgba(28,96,120,.6)}
+.rec-hw-row,.rec-note-row{display:flex;align-items:baseline;gap:8px;margin:6px 0 2px;flex-wrap:wrap}
+.rec-hw-tag{flex:none;font-size:11.5px;font-weight:900;color:#1d5f86;background:#e3f0f8;border-radius:7px;padding:1px 9px}
+.rec-note-tag{flex:none;font-size:11.5px;font-weight:900;color:#7a5512;background:#fbe9c8;border-radius:7px;padding:1px 9px}
+.rec-hw-text,.rec-note-text{font-size:12.5px;font-weight:800;color:#3c4633;line-height:1.5;min-width:0;overflow-wrap:anywhere}
+
+/* (6) 最近课程卡：用 flex 列稳稳排（修 .recent-time 高度塌成 0、底部被裁的老问题） */
+.today-recent-cards .recent-course-card{
+  display:flex!important;flex-direction:column!important;gap:3px!important;
+  height:auto!important;min-height:0!important;overflow:visible!important;
+  padding:11px 13px!important;
+}
+.today-recent-cards .recent-course-card>*{flex:0 0 auto!important}
+.today-recent-cards .recent-course-card .recent-time{
+  display:block!important;height:auto!important;min-height:1.2em!important;
+  font-size:15px!important;line-height:1.25!important;color:#1f6d86!important;font-weight:950!important;
+}
+.today-recent-cards .recent-course-card .recent-cls-name{
+  display:block!important;height:auto!important;
+  font-size:14.5px!important;line-height:1.35!important;color:#102c30!important;font-weight:950!important;
+  overflow-wrap:anywhere!important;word-break:break-word!important;white-space:normal!important;
+}
+.today-recent-cards .recent-course-card small{display:block!important;height:auto!important;line-height:1.4!important}
+
+/* ============================================================
+   2026-06-13d Shirley 第十一轮：最近课程卡固定行高裁切 / 课堂记录对齐 /
+   时间线班级名要能认出 / 管理页要有距离 / 右上时钟重设计
+   ============================================================ */
+
+/* (A) 最近课程：容器之前是 grid 把高度均分成 6 个 89px 固定行，卡内容 106px 被裁、
+   老师那行溢出压到下一张("一直在跑")。改成 flex 列，卡按内容自然撑高，容器滚动。 */
+.recent-index.today-recent-cards{
+  display:flex!important;flex-direction:column!important;
+  grid-template-rows:none!important;grid-template-columns:none!important;
+  align-content:normal!important;gap:10px!important;
+}
+.today-recent-cards .recent-course-card{height:auto!important;min-height:0!important;flex:0 0 auto!important;overflow:visible!important}
+
+/* (B) 课堂记录展开后：作业行和学生行分开、学生行两列网格对齐（姓名定宽列｜彩签列），
+   评语在第二列下方对齐缩进——Shirley 强迫症：所有东西要对齐 */
+.course-rec-body{padding:9px 15px 13px!important}
+.rec-hw-row{margin:0 0 11px!important;padding-bottom:10px!important;border-bottom:1px dashed rgba(23,27,20,.13)!important}
+.rec-stu-row{
+  display:grid!important;grid-template-columns:100px 1fr!important;
+  gap:3px 12px!important;padding:8px 0!important;align-items:start!important;
+  border-top:1px solid rgba(23,27,20,.07)!important;margin:0!important;
+}
+.rec-stu-row:first-of-type{border-top:0!important}
+.rec-stu-name{
+  align-self:start!important;padding-top:2px!important;min-width:0!important;
+  overflow-wrap:anywhere!important;white-space:normal!important;line-height:1.35!important;
+}
+.rec-stu-chips{display:flex!important;flex-wrap:wrap!important;gap:6px!important;align-items:center!important;min-width:0!important}
+.rec-stu-remark{
+  grid-column:2!important;margin:3px 0 0!important;padding:1px 0 1px 9px!important;
+  border:0!important;border-left:2px solid rgba(28,96,120,.22)!important;
+}
+
+/* (C) 时间线：班级名做成清楚的浅青标签(去框去过头了不行)，日期/标签/彩签一行对齐 */
+.stu-tl-top{display:flex!important;align-items:center!important;gap:9px!important;flex-wrap:wrap!important;margin-bottom:0!important}
+.stu-tl-top .stu-tl-date{flex:none!important;font-size:12.5px!important;font-weight:950!important;color:#0f4f64!important}
+.stu-tl-classtag{
+  flex:none!important;font-size:12.5px!important;font-weight:900!important;color:#175e74!important;
+  background:#e7f1f5!important;border:1px solid #b3d4de!important;border-radius:8px!important;padding:2px 10px!important;
+  overflow-wrap:anywhere;
+}
+.stu-tl-chips{display:flex!important;flex-wrap:wrap!important;gap:5px!important;align-items:center!important}
+.stu-tl-card{padding:10px 13px!important}
+
+/* (D) 管理课程页：到处都要有距离，别黏在一起 */
+.upgraded-class-manage{gap:18px!important}
+.upgraded-class-manage .list-panel{padding:18px 18px!important}
+.upgraded-class-manage .list-panel .panel-head{margin-bottom:12px!important}
+.upgraded-class-manage .list-panel .search-input{margin-bottom:11px!important}
+.upgraded-class-manage .class-type-filter{margin-bottom:12px!important;gap:7px!important}
+.upgraded-class-manage .item-list.card-list{gap:11px!important}
+.upgraded-class-manage .course-list-item{padding:11px 13px!important}
+.upgraded-class-manage .edit-panel.preview-edit{padding:18px 20px!important}
+.class-editor-grid .form-section,.course-editor-clean>.form-section{margin-bottom:13px!important;padding:13px 15px!important}
+.class-editor-grid .form-grid,.course-editor-clean .form-grid{gap:11px!important}
+.workspace .tabs{gap:8px!important;margin-bottom:10px!important}
+
+/* (E) 右上时钟：去掉笨重歪框，改干净利落的轻卡，时间和日期右对齐留白 */
+.clock{
+  border:1.5px solid rgba(23,27,20,.15)!important;background:#fffdf8!important;
+  border-radius:14px!important;box-shadow:none!important;transform:none!important;
+  padding:7px 14px!important;display:flex!important;flex-direction:column!important;
+  align-items:flex-end!important;gap:3px!important;
+}
+.clock .time{font-size:18px!important;font-weight:950!important;color:#1c211a!important;line-height:1!important}
+.clock .time small{font-size:10px!important;color:#9a9384!important;margin-left:3px!important}
+
+/* ============================================================
+   2026-06-13e Shirley 第十二轮：时钟加回框且对齐 / 管理页再松 /
+   课堂记录 到与已批改拉开+淡化行间线
+   ============================================================ */
+
+/* (A) 右上时钟：她要框框回来，且时间和日期右对齐排整齐 */
+.clock{
+  border:2px solid var(--ink)!important;background:#fffdf8!important;
+  border-radius:14px 10px 16px 11px!important;box-shadow:2.5px 2.5px 0 rgba(28,33,26,.8)!important;
+  transform:none!important;padding:8px 15px!important;
+  display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:4px!important;
+  min-width:118px!important;
+}
+.clock .time{
+  font-size:19px!important;font-weight:950!important;color:#1c211a!important;
+  line-height:1!important;letter-spacing:.5px!important;
+}
+.clock .time small{font-size:10px!important;color:#9a9384!important;margin-left:4px!important;font-weight:900!important}
+.clock .date{
+  margin-top:0!important;justify-content:flex-end!important;gap:6px!important;
+  border-top:1px solid rgba(23,27,20,.12)!important;padding-top:4px!important;width:100%!important;
+}
+
+/* (B) 管理课程页：再加大留白，别挤 */
+.upgraded-class-manage{gap:22px!important}
+.upgraded-class-manage .list-panel{padding:20px 20px!important}
+.upgraded-class-manage .edit-panel.preview-edit{padding:20px 24px!important}
+.upgraded-class-manage .list-panel .search-input{margin-bottom:14px!important}
+.upgraded-class-manage .class-type-filter{margin-bottom:14px!important}
+.upgraded-class-manage .item-list.card-list{gap:13px!important}
+.class-editor-grid .form-section,.course-editor-clean>.form-section{
+  margin-bottom:18px!important;padding:16px 18px!important;
+}
+.class-editor-grid .form-section:last-child,.course-editor-clean>.form-section:last-child{margin-bottom:0!important}
+.class-editor-grid .form-grid,.course-editor-clean .form-grid{gap:14px!important}
+.class-editor-grid .form-section .field,.course-editor-clean .field{margin-bottom:2px!important}
+.course-editor-clean>.form-hint{margin-bottom:14px!important}
+
+/* (C) 课堂记录学生行：到 / 已批改 拉开距离；行间不要硬线条，用留白分隔 */
+.rec-stu-chips{gap:11px!important}
+.rec-stu-row{border-top:0!important;padding:6px 0 11px!important}
+.rec-stu-row+.rec-stu-row{border-top:1px solid rgba(23,27,20,.05)!important;padding-top:11px!important}
+
+.manage-layout.upgraded-class-manage{gap:22px!important;column-gap:22px!important}
+
+/* ============================================================
+   2026-06-13f 四期★0：粘贴 AI 课堂观察 → 自动分配
+   ============================================================ */
+.obs-paste-btn{
+  flex:none;border:1.5px solid #b39157;background:#fbf0d8;border-radius:999px;
+  padding:3px 13px;font-size:12px;font-weight:900;color:#7a5512;cursor:pointer;font-family:inherit;
+  margin-left:6px;
+}
+.obs-paste-btn:hover{background:#f6e6b8;border-color:#9a7b3c}
+.obs-paste{
+  margin:8px 0 4px;border:1.5px dashed #c9a96a;border-radius:12px;
+  background:#fffaf0;padding:11px 13px;
+}
+.obs-paste-area{
+  width:100%;box-sizing:border-box;min-height:96px;resize:vertical;
+  border:1.5px solid rgba(23,27,20,.25);border-radius:10px;background:#fff;
+  padding:10px 12px;font-family:inherit;font-size:13.5px;font-weight:700;line-height:1.7;color:#33392f;
+}
+.obs-paste-area:focus{outline:none;border-color:var(--ocean)}
+.obs-paste-actions{display:flex;align-items:center;gap:12px;margin-top:9px;flex-wrap:wrap}
+.obs-paste-actions .btn.primary{min-height:36px!important;padding:6px 18px!important;font-size:13px!important}
+.obs-paste-result{font-size:12.5px;font-weight:850;color:#3c4633}
+.obs-paste-result b{color:#1f7a3f}

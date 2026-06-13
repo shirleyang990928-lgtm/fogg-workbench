@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260613b';
+const APP_VERSION='20260613f';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -795,7 +795,8 @@ function classRecordTextForDate(x,date){
 
 function formatDateShort(value){
   const d=parseLocalDate(value);
-  return d?`${d.getMonth()+1}/${d.getDate()}`:(value||"");
+  // 写成"6月8日"而不是"6/8"——Shirley：6/8 分不清是六月八号还是八月六号
+  return d?`${d.getMonth()+1}月${d.getDate()}日`:(value||"");
 }
 
 function classRecordHistoryHtml(x,selectedDate){
@@ -1499,7 +1500,7 @@ function renderRecentCourseCard(x){
   const occ=nextClassOccurrence(x);
   if(!occ) return "";
   const d=parseLocalDate(occ._occurrenceDate)||new Date();
-  const dayText=`${todayName(daysBetween(d,new Date()))} ${(d.getMonth()+1)}/${d.getDate()}`;
+  const dayText=`${todayName(daysBetween(d,new Date()))} ${(d.getMonth()+1)}月${d.getDate()}日`;
   // 每张卡结构完全一致：日期块 / 时间 / 课名 / 老师人数（各占一行，长名只在自己那行换行，不影响对齐）
   return `<button class="recent-course-card ${courseTone(x)}" data-schedule-id="${safeAttr(x.id)}" data-occurrence-date="${safeAttr(occ._occurrenceDate||"")}" type="button">
     <span class="recent-date">${esc(dayText)}</span>
@@ -2057,12 +2058,14 @@ function studentTimelineHtml(name,classes){
   const entryHtml=e=>{
     const long=(e.remark||"").length>64;
     return `<div class="stu-tl-card">
-      <div class="stu-tl-meta">
+      <div class="stu-tl-top">
         <span class="stu-tl-date">${esc(formatDateShort(e.date))}</span>
-        <span class="stu-tl-class">${esc(e.cls.className)}</span>
-        ${e.status?`<i class="att-chip ${attendanceStatusClass(e.status)}">${esc(e.status)}</i>`:""}
-        ${e.tag?`<i class="att-chip att-tag-chip ${attendanceStatusClass(e.tag)}">${esc(e.tag)}</i>`:""}
-        ${e.hwState?`<i class="att-chip hw-chip ${hwStateClass(e.hwState)}">📚${esc(e.hwState)}${e.hwScore?` ${esc(e.hwScore)}`:""}</i>`:""}
+        <span class="stu-tl-classtag">${esc(e.cls.className)}</span>
+        <span class="stu-tl-chips">
+          ${e.status?`<i class="att-chip ${attendanceStatusClass(e.status)}">${esc(e.status)}</i>`:""}
+          ${e.tag?`<i class="att-chip att-tag-chip ${attendanceStatusClass(e.tag)}">${esc(e.tag)}</i>`:""}
+          ${e.hwState?`<i class="att-chip hw-chip ${hwStateClass(e.hwState)}">📚${esc(e.hwState)}${e.hwScore?` ${esc(e.hwScore)}`:""}</i>`:""}
+        </span>
       </div>
       ${e.remark?`<div class="stu-tl-remark-wrap${long?' clampable':''}"><div class="stu-tl-remark2${long?' clamped':''}">${esc(e.remark)}</div>${long?'<span class="tl-expand-hint">▾ 点开看全部</span>':""}</div>`:""}
     </div>`;
@@ -2145,7 +2148,7 @@ function studentDetailHtml(){
 
 function renderStudents(){
   byId("viewTitle").textContent="学生";
-  byId("viewSubtitle").textContent="名册 = 已建档案 + 课程里填过的学生名";
+  byId("viewSubtitle").textContent="";byId("viewSubtitle").hidden=true;
   byId("counter").textContent="共 "+studentRoster().length+" 人";
   byId("tabs").innerHTML=`<div class="filter-line compact-filter">${[["all","全部"],["在读","在读"],["停课","停课"],["结课","结课"],["未建档","未建档"]].map(([v,l])=>`<button class="tab ${studentStatusFilter===v?'active':''}" data-student-status="${safeAttr(v)}">${l}</button>`).join("")}</div>`;
   byId("content").innerHTML=`<div class="manage-layout student-manage">
@@ -2308,6 +2311,41 @@ function classAttendance(item,date){
   return (rec&&rec.attendance)||{};
 }
 
+/* ===== 四期 ★0：粘贴 AI 课堂观察 → 自动分配（v20260613f）=====
+   Shirley 用外部 AI 生成一整段"学生课堂观察记录"（一行名字 + 下面一段，多个学生连排）。
+   这里纯本地解析：按"名字标题行"切块，匹配到本班学生（支持"高翌容（易蓉）"这种别名），
+   把每段填进对应学生当天的"表现"栏。完全不连付费 AI、不花钱。 */
+function parseObservations(text,names){
+  const norm=s=>String(s||"").replace(/\s/g,"").replace(/（/g,"(").replace(/）/g,")");
+  const variants=h=>{const n=norm(h);const out=[n];const m=n.match(/^(.+?)\((.+?)\)$/);if(m){out.push(m[1]);out.push(m[2]);}return out.filter(Boolean);};
+  // 一行是不是某学生的"标题"：短、不带句末标点、和某学生名互相包含（或别名匹配）
+  const matchName=line=>{
+    const L=norm(line);
+    if(!L||L.length>16)return null;
+    if(/[。！？!?，,、：:；;.]$/.test(line.trim()))return null;
+    const vs=variants(line);
+    for(const nm of names){
+      const N=norm(nm);
+      if(vs.some(v=>v===N||v.includes(N)||N.includes(v)))return nm;
+    }
+    return null;
+  };
+  const lines=String(text||"").replace(/\r/g,"").split("\n");
+  const blocks=[];let cur=null;
+  for(const raw of lines){
+    const line=raw.trim();
+    if(!line)continue;
+    if(/^(学生)?课堂观察(记录)?$/.test(line))continue; // 跳过"学生课堂观察记录"这种总标题
+    const hit=matchName(line);
+    if(hit){cur={name:hit,lines:[]};blocks.push(cur);continue;}
+    if(cur)cur.lines.push(line);
+  }
+  const matched=[],seen=new Set();
+  blocks.forEach(b=>{const t=b.lines.join("").trim();if(t&&!seen.has(b.name)){matched.push({name:b.name,text:t});seen.add(b.name);}});
+  const missing=names.filter(n=>!seen.has(n));
+  return {matched,missing};
+}
+
 function attendanceSectionHtml(item,date){
   const students=item.students||[];
   if(!students.length)return "";
@@ -2317,7 +2355,15 @@ function attendanceSectionHtml(item,date){
     <div class="att-head">
       <h4>📋 ${formatDateShort(date)} 点名</h4>
       <i class="att-count" id="attCount">${marked}/${students.length}</i>
+      <button class="obs-paste-btn" data-paste-obs type="button" title="把 AI 生成的课堂观察整段贴进来，自动分到每个学生">📋 粘贴课堂观察</button>
       <button class="sec-collapse" data-sec-collapse type="button" title="折叠/展开这一栏">收起 ▾</button>
+    </div>
+    <div class="obs-paste" id="obsPaste" hidden>
+      <textarea class="obs-paste-area" id="obsPasteText" placeholder="把 AI 生成的整段课堂观察贴这里：每个学生「名字单独一行 + 下面一段观察」，多个学生连着贴都行。点下面按钮自动分到每个学生的表现栏。"></textarea>
+      <div class="obs-paste-actions">
+        <button class="btn primary" id="obsPasteApply" type="button">自动分配到学生</button>
+        <span class="obs-paste-result" id="obsPasteResult"></span>
+      </div>
     </div>
     <div class="att-rows">${students.map(s=>{
       const a=normalizeAttendanceEntry(att[s.name]);
@@ -2387,6 +2433,34 @@ function bindAttendanceSection(item){
       const name=inp.closest(".att-row").dataset.attName;
       if(saveAttendanceEntry(item,date,name,{remark:inp.value.trim()}))showToast("已记下 "+name+" 的表现");
     });
+  });
+  // ★0 粘贴课堂观察 → 自动分配（v20260613f）
+  const pasteBtn=section.querySelector("[data-paste-obs]");
+  const panel=byId("obsPaste");
+  if(pasteBtn&&panel)pasteBtn.addEventListener("click",()=>{
+    panel.hidden=!panel.hidden;
+    if(!panel.hidden){const t=byId("obsPasteText");if(t)t.focus();}
+  });
+  const applyBtn=byId("obsPasteApply");
+  if(applyBtn)applyBtn.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    const text=(byId("obsPasteText")||{}).value||"";
+    const names=(item.students||[]).map(s=>s.name);
+    const {matched,missing}=parseObservations(text,names);
+    const resEl=byId("obsPasteResult");
+    if(!matched.length){if(resEl)resEl.textContent="没认出学生名——确认每个学生的名字单独占一行，且和本班学生名字一致。";return;}
+    let n=0;
+    const rows=[...section.querySelectorAll(".att-row")];
+    matched.forEach(m=>{
+      const row=rows.find(r=>r.dataset.attName===m.name);
+      if(!row)return;
+      const ta=row.querySelector("[data-att-remark]");
+      if(ta){ta.value=m.text;autoGrowArea(ta);}
+      saveAttendanceEntry(item,date,m.name,{remark:m.text});
+      n++;
+    });
+    if(resEl)resEl.innerHTML=`✅ 已填入 <b>${n}</b> 人${missing.length?`　·　没粘到：${esc(missing.join("、"))}`:"　·　全班都配上了"}`;
+    showToast("已自动分配 "+n+" 个学生的课堂观察");
   });
 }
 
@@ -2650,14 +2724,15 @@ function courseRecordEntryHtml(c,rec){
     const st=e?(HOMEWORK_STATES.includes(e.state)?e.state:"未交"):"";
     if(!a.status&&!a.tag&&!a.remark&&!st)return "";
     const long=(a.remark||"").length>64;
+    // 网格两列：姓名定宽对齐 | 出勤+作业彩签对齐，评语在第二列下方对齐缩进（Shirley 强迫症：所有东西要对齐）
     return `<div class="rec-stu-row">
-      <div class="rec-stu-line">
-        <span class="rec-stu-name">${esc(n)}</span>
+      <span class="rec-stu-name">${esc(n)}</span>
+      <div class="rec-stu-chips">
         ${a.status?`<i class="att-chip ${attendanceStatusClass(a.status)}">${esc(a.status)}</i>`:""}
         ${a.tag?`<i class="att-chip att-tag-chip ${attendanceStatusClass(a.tag)}">${esc(a.tag)}</i>`:""}
         ${st?`<i class="att-chip hw-chip ${hwStateClass(st)}">📚${st}${e.score?" "+esc(e.score):""}</i>`:""}
       </div>
-      ${a.remark?`<div class="stu-tl-remark-wrap${long?' clampable':''}"><div class="stu-tl-remark2${long?' clamped':''}">${esc(a.remark)}</div>${long?'<span class="tl-expand-hint">▾ 点开看全部</span>':""}</div>`:""}
+      ${a.remark?`<div class="rec-stu-remark stu-tl-remark-wrap${long?' clampable':''}"><div class="stu-tl-remark2${long?' clamped':''}">${esc(a.remark)}</div>${long?'<span class="tl-expand-hint">▾ 点开看全部</span>':""}</div>`:""}
     </div>`;
   }).filter(Boolean).join("");
   const note=rec.notes||rec.materials||"";
@@ -2687,16 +2762,18 @@ function courseRecordEntryHtml(c,rec){
   const open=courseRecOpenDates.has(String(rec.date));
   // 折叠卡（v20260613b，Shirley：点开当天日期才看孩子详情，头部一键全展/全折）
   return `<div class="course-rec-entry${open?"":" collapsed"}" data-rec-date="${safeAttr(rec.date)}">
-    <button class="course-rec-head" data-rec-toggle="${safeAttr(rec.date)}" type="button">
-      <span class="rec-chevron">▸</span>
-      <span class="rec-head-date">${esc(formatDateShort(rec.date))}</span>
-      <span class="rec-head-sum">${sumText.join("")||'<i class="cs-n cs-muted">未记录</i>'}</span>
-    </button>
+    <div class="course-rec-head">
+      <button class="rec-toggle-zone" data-rec-toggle="${safeAttr(rec.date)}" type="button">
+        <span class="rec-chevron">▸</span>
+        <span class="rec-head-date">${esc(formatDateShort(rec.date))}</span>
+        <span class="rec-head-sum">${sumText.join("")||'<i class="cs-n cs-muted">未记录</i>'}</span>
+      </button>
+      <button class="rec-edit-icon" data-edit-record-date="${safeAttr(rec.date)}" type="button" title="回到这天，直接改点名、作业、笔记">✎ 改这天</button>
+    </div>
     <div class="course-rec-body">
-      <button class="rec-edit-btn" data-edit-record-date="${safeAttr(rec.date)}" type="button" title="回到这天，直接改点名、作业、笔记">✎ 改这天的点名 / 作业 / 笔记</button>
-      ${hw.content?`<div class="course-rec-line"><span class="rec-label">作业</span><small class="rec-hw-content">${esc(hw.content)}</small></div>`:""}
+      ${hw.content?`<div class="rec-hw-row"><span class="rec-hw-tag">📚 作业</span><span class="rec-hw-text">${esc(hw.content)}</span></div>`:""}
       ${stuRows}
-      ${note?`<div class="course-rec-line"><span class="rec-label">笔记</span><small class="rec-note">${esc(note)}</small></div>`:""}
+      ${note?`<div class="rec-note-row"><span class="rec-note-tag">📝 笔记</span><span class="rec-note-text">${esc(note)}</span></div>`:""}
     </div>
   </div>`;
 }
@@ -2720,7 +2797,7 @@ function renderCourseHome(){
   const skipsAll=skippedDates(c).slice().sort();
   const skipNote=skipsAll.length?`休息 ${skipsAll.slice(0,4).map(formatDateShort).join("、")}${skipsAll.length>4?` 等 ${skipsAll.length} 天`:""}`:"";
   const schedSmall=sched?[courseProgressText(sched),skipNote].filter(Boolean).join(" · "):"在编辑页填开课日期或指定上课日期";
-  setHead(c.className+(done?"（已结课）":""),"课程主页 · 出勤、作业、笔记都在这一页","共 "+(c.students||[]).length+" 名学生");
+  setHead(c.className+(done?"（已结课）":""),"","共 "+(c.students||[]).length+" 名学生");
   byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>
     <span class="course-home-range">${dateRangeCtlHtml("ch",since,until)}</span>
     <button class="btn ghost course-edit-btn" id="courseHomeEdit" type="button" title="改时间、学生、排期、停课日期都在编辑页">✎ 编辑资料</button>`;
@@ -2984,7 +3061,7 @@ function renderCourses(){
   const rt=rangeText(since,until);
   const chip=(cur,val,label,key)=>`<button class="tab ${cur===val?'active':''}" data-${key}="${safeAttr(val)}" type="button">${esc(label)}</button>`;
   // 班级数徽章跟着当前筛选走（Shirley：选结课/LR/CW/时间，上面的"共 X 班"也要变，不能永远显示总数）
-  setHead("课程","总览与对比 · 点一个班进它的主页","共 "+list.length+" 班");
+  setHead("课程","","共 "+list.length+" 班");
   byId("tabs").innerHTML="";
   byId("content").innerHTML=`<div class="course-home course-overview">
     <div class="ov-toolbar">
@@ -3088,7 +3165,7 @@ function sopAddStep(roleId){
 }
 
 function renderSop(){
-  setHead("SOP 流程","按工种整理做事流程 · 写一步存一步，不用点保存",sopData.length?("共 "+sopData.length+" 个工种"):"");
+  setHead("SOP 流程","",sopData.length?("共 "+sopData.length+" 个工种"):"");
   byId("tabs").innerHTML=`<button class="btn primary" id="sopAddRole" type="button">＋ 新增工种</button>`;
   byId("content").innerHTML=`<div class="sop-page">
     ${sopData.map(sopCardHtml).join("")||`<div class="student-empty-hint sop-empty"><h3>把团队的做事流程写下来</h3><p>点左上"＋ 新增工种"建一张卡（比如「TA」），<br>然后在卡片底部一步一步往里加：开课前查什么、上课记什么、下课交什么。<br>写一步存一步，新同事来了照着做。</p></div>`}
