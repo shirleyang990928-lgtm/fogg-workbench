@@ -8064,3 +8064,52 @@ b.tcc-name{
 .obs-paste-actions .btn.primary{min-height:36px!important;padding:6px 18px!important;font-size:13px!important}
 .obs-paste-result{font-size:12.5px;font-weight:850;color:#3c4633}
 .obs-paste-result b{color:#1f7a3f}
+
+/* ============================================================
+   2026-06-13g Shirley 第十三轮：滚动条撕卡(各页+缩放都要稳) /
+   课程总览每行列对齐 / 时钟排整齐
+   ============================================================ */
+
+/* (A) 全局细滚动条——经典宽灰条会压到卡片右边框("撕掉")，改成细圆角半透明 */
+*::-webkit-scrollbar{width:9px;height:9px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:rgba(23,27,20,.22);border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+*::-webkit-scrollbar-thumb:hover{background:rgba(23,27,20,.42);background-clip:padding-box}
+
+/* (B) 卡片型滚动容器：永远预留滚动条空位 + 右内距，卡片不再被滚动条压到/撕开，
+   而且 75%/100% 缩放切换时不跳位（gutter 一直留着） */
+.lane-scroll,.month-detail-list,.month-dots-grid,
+.recent-index,.today-recent-cards,
+.upgraded-class-manage .item-list.card-list,.student-manage .item-list.card-list,
+.item-list.card-list,#content{
+  scrollbar-gutter:stable;
+}
+.lane-scroll{padding-right:9px!important}
+.month-detail-list{padding-right:8px!important}
+.recent-index.today-recent-cards{padding-right:6px!important}
+.upgraded-class-manage .item-list.card-list,.student-manage .item-list.card-list{padding-right:7px!important}
+
+/* (C) 课程总览每一行：列宽全部固定(不用 1fr/minmax)，每行独立 grid 才会跨行对齐。
+   名字弹性、其余人数/出席/交作业/批改/进度都定宽 → 每行同一竖线对齐 */
+.course-ov-row{
+  grid-template-columns:minmax(150px,1fr) 56px 112px 112px 112px 150px!important;
+  gap:14px!important;align-items:center!important;
+}
+.ov-count{text-align:center!important}
+.ov-rate{justify-items:start!important}
+.ov-progress{justify-items:end!important;text-align:right!important}
+@media(max-width:860px){
+  .course-ov-row{grid-template-columns:1fr 1fr!important;row-gap:8px!important}
+  .course-ov-row .ov-name{grid-column:1/-1!important}
+}
+
+/* (D) 右上时钟：时间一行、日期+星期一行，全部右对齐、同基线，去掉星期色块让它整齐 */
+.clock .date{
+  display:flex!important;justify-content:flex-end!important;align-items:baseline!important;
+  gap:7px!important;width:100%!important;
+}
+.clock .date b{font-size:14px!important;font-weight:950!important;color:#1c211a!important;letter-spacing:.3px!important}
+.clock .date i{
+  background:none!important;border:0!important;padding:0!important;border-radius:0!important;
+  font-style:normal!important;font-size:12.5px!important;font-weight:900!important;color:#6a7560!important;
+}
