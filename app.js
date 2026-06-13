@@ -1,5 +1,5 @@
 ﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260612d';
+const APP_VERSION='20260612e';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -656,11 +656,14 @@ function renderTodayDesk(classes){
   const day=todoDate();
   const dayItems=classesOnDate(classes,day);
   const todos=todosForDay(day,dayItems);
-  const upcoming=classes.map(x=>nextClassOccurrence(x)).filter(Boolean).sort((a,b)=>{
-    const ad=parseLocalDate(a._occurrenceDate)||new Date();
-    const bd=parseLocalDate(b._occurrenceDate)||new Date();
-    return ad-bd||timeMinutes(a.time)-timeMinutes(b.time);
-  }).slice(0,6);
+  const realToday=dateKey(new Date());
+  const upcoming=classes.map(x=>nextClassOccurrence(x)).filter(Boolean)
+    .filter(o=>o._occurrenceDate!==realToday) // 今天的课已在"今天课程"里，最近课程只列今天之后，避免重复
+    .sort((a,b)=>{
+      const ad=parseLocalDate(a._occurrenceDate)||new Date();
+      const bd=parseLocalDate(b._occurrenceDate)||new Date();
+      return ad-bd||timeMinutes(a.time)-timeMinutes(b.time);
+    }).slice(0,6);
   const renderCard=(x)=>{
     const linked=allPendingTodosForClass(x.id); // 跨所有日期查找关联待办
     return renderTodayCourseCard(x,linked);
@@ -1812,6 +1815,7 @@ let studentStatusFilter="all";   // all | 在读 | 停课 | 结课 | 未建档
 let editingStudentName=null;
 let studentDetailEditing=false;  // 详情默认"查看"，点"编辑档案"才展开表单
 let studentLinkPickerOpen=false; // "＋ 关联课程"选课列表是否展开
+let studentSortDir="desc";       // 找学生排序：desc=年龄大→小，asc=小→大
 
 const STUDENT_STATUSES=["在读","停课","结课"];
 
@@ -1873,13 +1877,14 @@ function filteredRoster(){
 }
 
 function studentListHtml(){
-  // 按年龄从大到小排（没填生日的排最后，再按名字）；找学生面板这样更好扫
+  // 按年龄排（没填生日的永远排最后，再按名字）；方向由 studentSortDir 切换
+  const dir=studentSortDir==="asc"?1:-1;
   const list=filteredRoster().slice().sort((a,b)=>{
     const ageA=studentAgeNum(a.profile),ageB=studentAgeNum(b.profile);
     if(ageA===null&&ageB===null)return a.name.localeCompare(b.name,"zh-Hans-CN");
     if(ageA===null)return 1;
     if(ageB===null)return -1;
-    return ageB-ageA;
+    return (ageA-ageB)*dir;
   });
   return list.map(r=>{
     const st=studentStatusLabel(r);
@@ -2034,6 +2039,16 @@ function refreshStudentTimeline(){
   block.innerHTML=studentTimelineHtml(editingStudentName,r?r.classes:[]);
 }
 
+/* 点名/作业栏折叠（事件委托）：点"收起"把这一栏内容藏起来，页面不会拉太长 */
+document.addEventListener("click",function(e){
+  const cb=e.target.closest&&e.target.closest("[data-sec-collapse]");
+  if(cb){
+    const sec=cb.closest(".attendance-section");
+    if(sec){const now=sec.classList.toggle("collapsed");cb.textContent=now?"展开 ▸":"收起 ▾";}
+    return;
+  }
+});
+
 /* 时间线筛选 + 长文本展开（事件委托，整页重渲染也不丢） */
 document.addEventListener("click",function(e){
   const courseBtn=e.target.closest&&e.target.closest("[data-stu-tl-course]");
@@ -2092,7 +2107,7 @@ function renderStudents(){
   byId("tabs").innerHTML=`<div class="filter-line compact-filter">${[["all","全部"],["在读","在读"],["停课","停课"],["结课","结课"],["未建档","未建档"]].map(([v,l])=>`<button class="tab ${studentStatusFilter===v?'active':''}" data-student-status="${safeAttr(v)}">${l}</button>`).join("")}</div>`;
   byId("content").innerHTML=`<div class="manage-layout student-manage">
     <section class="list-panel">
-      <div class="panel-head"><h3>找学生</h3></div>
+      <div class="panel-head"><h3>找学生</h3><button class="stu-sort-btn" id="studentSortToggle" type="button" title="点击切换年龄排序方向">年龄 ${studentSortDir==="desc"?"大 → 小 ↓":"小 → 大 ↑"}</button></div>
       <input class="search-input" id="studentSearch" value="${safeAttr(studentSearch)}" placeholder="搜名字、学校、城市、家长…">
       <div class="item-list card-list student-list">${studentListHtml()}</div>
     </section>
@@ -2117,6 +2132,8 @@ function bindStudentPicks(){
 function bindStudentEvents(){
   bindStudentPicks();
   document.querySelectorAll("[data-student-status]").forEach(b=>b.addEventListener("click",()=>{studentStatusFilter=b.dataset.studentStatus;rerenderKeepScroll();}));
+  const sortBtn=byId("studentSortToggle");
+  if(sortBtn)sortBtn.addEventListener("click",()=>{studentSortDir=studentSortDir==="desc"?"asc":"desc";refreshStudentList();sortBtn.textContent="年龄 "+(studentSortDir==="desc"?"大 → 小 ↓":"小 → 大 ↑");});
   // ＋ 关联课程 / 移除关联（v20260611f）
   const linkToggle=document.querySelector("[data-link-course-toggle]");
   if(linkToggle)linkToggle.addEventListener("click",()=>{studentLinkPickerOpen=!studentLinkPickerOpen;render();});
@@ -2255,6 +2272,7 @@ function attendanceSectionHtml(item,date){
     <div class="att-head">
       <h4>📋 ${formatDateShort(date)} 点名</h4>
       <i class="att-count" id="attCount">${marked}/${students.length}</i>
+      <button class="sec-collapse" data-sec-collapse type="button" title="折叠/展开这一栏">收起 ▾</button>
     </div>
     <div class="att-rows">${students.map(s=>{
       const a=normalizeAttendanceEntry(att[s.name]);
@@ -2355,6 +2373,7 @@ function homeworkSectionHtml(item,date){
     <div class="att-head">
       <h4>📚 ${formatDateShort(date)} 作业</h4>
       <i class="att-count" id="hwCount">交 ${done}/${students.length}</i>
+      <button class="sec-collapse" data-sec-collapse type="button" title="折叠/展开这一栏">收起 ▾</button>
     </div>
     <input class="hw-content" id="hwContent" placeholder="今天布置了什么作业？写一句（不布置可留空）" value="${safeAttr(hw.content)}">
     <div class="att-rows">${students.map(s=>{
@@ -2806,14 +2825,16 @@ function courseOvRowHtml(c,s){
 function renderCourses(){
   const allPool=overviewCourses();
   const doneCount=allPool.filter(isClassDone).length;
-  const all=courseOverviewShowDone?allPool:allPool.filter(c=>!isClassDone(c));
+  const termIsDone=courseOverviewTerm==="结课"; // 学期筛选里选了"结课"=只看已结课的班
+  // 选"结课"时强制把已结课的班纳进来；否则按"含已结课"开关决定
+  const all=termIsDone?allPool:(courseOverviewShowDone?allPool:allPool.filter(c=>!isClassDone(c)));
   const codeOf=c=>courseCode(c)||"其他";
   const cats=["LR","CW","CR","EW"];
   if(all.some(c=>codeOf(c)==="其他"))cats.push("其他");
   // 当前筛选下的班级
   const list=all.filter(c=>
     (courseOverviewType==="all"||codeOf(c)===courseOverviewType)&&
-    (courseOverviewTerm==="all"||classTermLabel(c)===courseOverviewTerm)
+    (termIsDone?isClassDone(c):(courseOverviewTerm==="all"||classTermLabel(c)===courseOverviewTerm))
   );
   const since=courseOverviewFrom,until=courseOverviewTo;
   // 每班统计（按所选日期范围）+ 全选区汇总
@@ -2841,7 +2862,7 @@ function renderCourses(){
   byId("content").innerHTML=`<div class="course-home course-overview">
     <div class="ov-toolbar">
       <span class="ov-group"><i>类别</i>${chip(courseOverviewType,"all","全部","ov-type")}${cats.map(t=>chip(courseOverviewType,t,t,"ov-type")).join("")}</span>
-      <span class="ov-group"><i>学期</i>${chip(courseOverviewTerm,"all","全部","ov-term")}${TERM_OPTIONS.map(t=>chip(courseOverviewTerm,t,t,"ov-term")).join("")}</span>
+      <span class="ov-group"><i>学期</i>${chip(courseOverviewTerm,"all","全部","ov-term")}${TERM_OPTIONS.map(t=>chip(courseOverviewTerm,t,t,"ov-term")).join("")}${chip(courseOverviewTerm,"结课","结课"+(doneCount?" "+doneCount:""),"ov-term")}</span>
       <span class="ov-group"><button class="tab ov-done-toggle ${courseOverviewShowDone?'active':''}" data-ov-done type="button">含已结课${doneCount?" "+doneCount:""}</button></span>
       <span class="ov-group ov-group-time"><i>时间</i>${dateRangeCtlHtml("ov",since,until)}</span>
     </div>
@@ -2901,7 +2922,8 @@ function sopCardHtml(r){
     :`<div class="sop-card-head"><h3>${esc(r.role)}</h3><span class="sop-head-ops"><button class="sop-op-btn" data-sop-rename="${safeAttr(r.id)}" type="button" title="改名">✏️</button><button class="sop-op-btn" data-sop-del-role="${safeAttr(r.id)}" type="button" title="删除整张卡">🗑</button></span></div>`;
   const steps=r.steps.length
     ?`<ol class="sop-steps">${r.steps.map((s,i)=>`<li class="sop-step-row">
-        <span class="sop-step-text">${esc(s.text)}${s.page?`<i class="sop-page-tag">${esc(s.page)}</i>`:""}</span>
+        <span class="sop-step-text">${esc(s.text)}</span>
+        ${s.page?`<i class="sop-page-tag">↳ ${esc(s.page)}</i>`:""}
         <span class="sop-step-ops">
           ${i>0?`<button class="sop-op-btn" data-sop-move="${safeAttr(r.id)}|${i}|-1" type="button" title="上移">↑</button>`:""}
           ${i<r.steps.length-1?`<button class="sop-op-btn" data-sop-move="${safeAttr(r.id)}|${i}|1" type="button" title="下移">↓</button>`:""}

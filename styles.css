@@ -7560,3 +7560,83 @@ b.tcc-name{
 /* (14) "已结课"标记：和前面的课程名拉开距离，不再贴着 */
 .ov-done-tag{margin-left:9px!important;margin-right:2px}
 .course-list-item .ov-done-tag{display:inline-block;margin-top:1px}
+
+/* ============================================================
+   2026-06-12e Shirley 第六轮反馈
+   ============================================================ */
+
+/* (15) 课堂记录当天汇总：拉开间距 + 去掉框感，改成竖排彩色文字 */
+.course-rec-left{width:96px!important;gap:9px!important}
+.rec-day-summary{
+  display:flex!important;flex-direction:column;gap:3px;
+  margin-top:2px;
+}
+.rec-day-summary .att-chip{
+  border:0!important;background:none!important;padding:0!important;
+  font-size:11.5px;font-weight:950;border-radius:0;
+}
+.rec-day-summary .att-chip.att-ok{color:#1f5e30}
+.rec-day-summary .att-chip.att-absent{color:#8c2f23}
+.rec-day-summary .att-chip.att-late{color:#7a5a12}
+.rec-day-summary .att-chip.att-leave{color:#4a4480}
+.rec-day-summary .att-chip.hw-chip{color:#1d4f74}
+
+/* (17) 找学生：年龄排序切换按钮 */
+.student-manage .list-panel .panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.stu-sort-btn{
+  flex:none;border:1.5px solid rgba(23,27,20,.38);background:#fff;
+  border-radius:999px;padding:3px 12px;font-size:11.5px;font-weight:900;
+  cursor:pointer;font-family:inherit;color:#1d4f74;
+}
+.stu-sort-btn:hover{background:#dcebf6}
+
+/* (18) 课堂笔记 section 对齐点名/作业 section（同样的边框、圆角、阴影） */
+.detail-note-section{
+  border:2px solid rgba(23,27,20,.82)!important;
+  border-radius:20px 14px 22px 16px!important;
+  box-shadow:3px 3px 0 rgba(23,27,20,.8)!important;
+  background:#fbfaf2!important;
+  padding:13px 16px!important;
+  margin-top:14px!important;
+}
+.detail-history-section{
+  border:2px solid rgba(23,27,20,.5)!important;
+  border-radius:18px 12px 18px 12px!important;
+  background:#fffdf6!important;
+  padding:10px 14px!important;margin-top:10px!important;
+}
+
+/* (19) 弹窗底部三按钮统一大小（specificity 压过 .btn:not(.primary):not(.danger) 的 !important） */
+.detail-footer{display:flex!important;gap:9px!important;flex-wrap:wrap!important;align-items:center!important}
+.detail-footer .btn,
+.detail-footer .btn:not(.primary):not(.danger),
+.detail-footer .btn.primary{
+  min-height:42px!important;padding:9px 17px!important;
+  font-size:13px!important;line-height:1.2!important;box-sizing:border-box!important;
+  border-radius:12px 16px 12px 14px!important;flex:0 0 auto!important;
+}
+
+/* (20) 点名/作业栏折叠按钮 */
+.sec-collapse{
+  margin-left:auto;flex:none;
+  border:1.5px solid rgba(23,27,20,.38);background:#fff;
+  border-radius:999px;padding:2px 12px;font-size:11.5px;font-weight:900;
+  cursor:pointer;font-family:inherit;color:#3c4633;
+}
+.sec-collapse:hover{background:#f1ece2}
+.attendance-section.collapsed .att-rows,
+.attendance-section.collapsed .att-hint,
+.attendance-section.collapsed .hw-content{display:none!important}
+.attendance-section.collapsed{padding-bottom:12px!important}
+
+/* (22) SOP 页面标签：固定到行右侧，去掉药丸框改成轻文字（↳ 页面名） */
+.sop-step-row{align-items:center!important}
+.sop-page-tag{
+  flex:none!important;margin-left:10px!important;
+  background:none!important;border:0!important;padding:0!important;border-radius:0!important;
+  color:#7a5512!important;font-size:11px!important;font-weight:900!important;
+  white-space:nowrap!important;vertical-align:baseline!important;
+}
+.sop-step-row .sop-step-text{flex:1 1 auto!important;min-width:0}
+/* ops 固定宽度，页面标签就不会因为某行少一个按钮而左右乱跳 */
+.sop-step-row .sop-step-ops{min-width:76px!important;justify-content:flex-end!important}
