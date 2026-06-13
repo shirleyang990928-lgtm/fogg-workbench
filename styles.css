@@ -7707,3 +7707,130 @@ b.tcc-name{
   width:100%!important;min-width:0!important;max-width:100%!important;
   overflow-wrap:anywhere!important;word-break:break-word!important;white-space:normal!important;
 }
+
+/* ============================================================
+   2026-06-13b Shirley 第八轮：自定义删除弹窗 / 学生卡与课堂记录卡重新设计好看 /
+   课堂记录折叠展开 / 最近课程真正对齐
+   ============================================================ */
+
+/* (A) 自定义确认弹窗——取代浏览器那个丑确认框，所有删除/危险操作统一走它 */
+.confirm-modal{
+  position:fixed;inset:0;z-index:300;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(28,33,26,.42);backdrop-filter:blur(2px);
+}
+.confirm-modal.open{display:flex}
+.confirm-card{
+  width:min(380px,90vw);background:#fffdf5;
+  border:2.5px solid #1c211a;border-radius:20px 14px 22px 16px;
+  box-shadow:5px 6px 0 rgba(28,33,26,.85);
+  padding:22px 22px 18px;text-align:center;
+  animation:confirmPop .16s ease-out;
+}
+@keyframes confirmPop{from{transform:scale(.94) translateY(6px);opacity:.4}to{transform:none;opacity:1}}
+.confirm-icon{font-size:30px;line-height:1;margin-bottom:8px}
+.confirm-msg{
+  margin:0 0 18px;font-size:14.5px;font-weight:850;line-height:1.7;
+  color:#2c3328;white-space:pre-line;
+}
+.confirm-actions{display:flex;gap:10px;justify-content:center}
+.confirm-actions .btn{
+  min-height:42px!important;padding:9px 22px!important;font-size:14px!important;
+  font-weight:950!important;border-radius:12px 16px 12px 14px!important;
+  flex:1 1 0;max-width:160px;box-sizing:border-box!important;cursor:pointer;
+}
+.confirm-cancel{background:#fff!important;border:2px solid rgba(28,33,26,.5)!important;color:#3c4633!important}
+.confirm-cancel:hover{background:#f1ece2!important}
+.confirm-ok.danger{background:#e06a52!important;border:2px solid #1c211a!important;color:#fff!important;box-shadow:2px 2px 0 rgba(28,33,26,.7)!important}
+.confirm-ok.danger:hover{background:#d3543c!important}
+.confirm-ok.primary{background:#5aa9c4!important;border:2px solid #1c211a!important;color:#fff!important;box-shadow:2px 2px 0 rgba(28,33,26,.7)!important}
+.confirm-ok.primary:hover{background:#479ab8!important}
+
+/* (B) 课程主页学生：干净一致的浅色资料卡（不是裸文字、也不是堆框，轻边+留白） */
+.course-student-grid{
+  display:grid!important;grid-template-columns:repeat(auto-fill,minmax(228px,1fr))!important;
+  gap:10px!important;margin:8px 0 6px!important;
+}
+.cs-cell{
+  display:flex!important;flex-direction:column!important;gap:3px!important;
+  padding:11px 13px!important;min-width:0!important;
+  border:1.5px solid rgba(23,27,20,.13)!important;border-radius:14px!important;
+  background:#fffdf7!important;box-shadow:1px 2px 0 rgba(23,27,20,.05)!important;
+}
+.cs-top{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.cs-name{background:none;border:0;padding:0;cursor:pointer;font-family:inherit;font-size:15.5px;font-weight:950;color:#10312f}
+.cs-name:hover{text-decoration:underline;color:#1f7895}
+.cs-age{font-style:normal;font-size:11px;font-weight:900;color:#1d4f74;background:#dcebf6;border-radius:999px;padding:0 8px}
+.cs-meta{font-size:12px;font-weight:800;color:#54624c;overflow-wrap:anywhere}
+.cs-meta-none{color:#a59a86;font-weight:700}
+.cs-join{font-size:11px;font-weight:800;color:#9a7b3c}
+.cs-roll{margin-top:5px;padding-top:6px;border-top:1px dashed rgba(23,27,20,.12);display:flex;flex-wrap:wrap;gap:2px 12px}
+.cs-n{font-style:normal;font-size:12px;font-weight:900}
+.cs-ok{color:#2a7a3f}.cs-abs{color:#b4382a}.cs-late{color:#9a6a16}.cs-leave{color:#6b4fa0}
+.cs-hw{color:#1d5f86}.cs-muted{color:#9a9384;font-weight:800}
+
+/* (C) 课堂记录：折叠卡。默认折叠=只看日期+当天彩色汇总；点头部展开看孩子详情 */
+.rec-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.rec-section-head h4{margin:0!important}
+.rec-foldall-btn{
+  border:1.5px solid rgba(23,27,20,.32);background:#fff;border-radius:999px;
+  padding:4px 14px;font-size:12px;font-weight:900;color:#3c4633;cursor:pointer;font-family:inherit;
+}
+.rec-foldall-btn:hover{background:#f1ece2}
+.course-rec-entry{
+  display:block!important;align-items:stretch!important;
+  border:1.5px solid rgba(23,27,20,.16)!important;border-radius:14px!important;
+  background:#fffdf7!important;box-shadow:1px 2px 0 rgba(23,27,20,.05)!important;
+  margin-bottom:9px!important;overflow:hidden!important;padding:0!important;
+}
+.course-rec-head{
+  width:100%;display:flex;align-items:center;gap:11px;flex-wrap:wrap;
+  background:none;border:0;cursor:pointer;font-family:inherit;text-align:left;
+  padding:11px 14px!important;transition:background .12s;
+}
+.course-rec-head:hover{background:#f7f3e9}
+.rec-chevron{flex:none;font-size:11px;color:#7a8472;transition:transform .15s;width:12px}
+.course-rec-entry:not(.collapsed) .rec-chevron{transform:rotate(90deg)}
+.rec-head-date{
+  flex:none;font-size:13.5px;font-weight:950;color:#1d4f74;
+  background:#dcebf6;border:1px solid rgba(28,96,120,.3);border-radius:999px;padding:1px 12px;
+}
+.rec-head-sum{display:flex;flex-wrap:wrap;gap:1px 12px;align-items:baseline}
+.course-rec-entry.collapsed .course-rec-body{display:none!important}
+.course-rec-body{
+  display:block!important;flex:none!important;width:auto!important;
+  padding:4px 15px 13px!important;border-top:1px dashed rgba(23,27,20,.14)!important;
+}
+.rec-edit-btn{
+  display:inline-block;margin:8px 0 4px;border:1.5px solid rgba(28,96,120,.4);
+  background:#eef6fa;border-radius:999px;padding:4px 14px;font-size:12px;font-weight:900;
+  color:#1d5274;cursor:pointer;font-family:inherit;
+}
+.rec-edit-btn:hover{background:#dcedf6}
+.rec-stu-row{padding:6px 0!important;border-top:1px solid rgba(23,27,20,.07)!important}
+
+/* (D) 最近课程卡：每张结构一致，日期/时间/课名/老师各占一行，长名只在自己行换行 */
+.today-recent-cards .recent-course-card{
+  display:grid!important;grid-template-columns:1fr!important;gap:4px!important;
+  align-content:start!important;min-height:0!important;
+}
+.today-recent-cards .recent-course-card .recent-date{justify-self:start!important;margin-bottom:1px}
+.today-recent-cards .recent-course-card .recent-time{
+  font-size:15px!important;font-weight:950!important;color:#1f6d86!important;line-height:1.2!important;
+}
+.today-recent-cards .recent-course-card .recent-cls-name{
+  font-size:14.5px!important;font-weight:950!important;color:#102c30!important;line-height:1.35!important;
+  overflow-wrap:anywhere!important;word-break:break-word!important;white-space:normal!important;min-width:0!important;
+}
+.today-recent-cards .recent-course-card small{margin-top:1px}
+
+/* (E) 管理课程编辑面板：别再把整个表单塞进 600px 的内部滚动小框里
+   （矮屏上内框只剩 ~200px，字段大半被"折"在看不见处=Shirley 说的"被覆盖折叠"）。
+   改成表单按自然高度完整展开，靠外层 #content 整页滚动，所有字段一路往下看得见。 */
+.upgraded-class-manage .edit-panel.preview-edit,
+.final-class-manage .edit-panel.preview-edit{
+  max-height:none!important;overflow:visible!important;height:auto!important;display:block!important;
+}
+.upgraded-class-manage .edit-panel.preview-edit>.course-editor-clean{
+  overflow:visible!important;flex:none!important;max-height:none!important;height:auto!important;
+}

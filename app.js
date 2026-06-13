@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260613a';
+const APP_VERSION='20260613b';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -116,16 +116,17 @@ async function adminClearByEmail(){
   const input=document.getElementById('adminEmailInput');
   const target=(input&&input.value.trim())||adminViewEmail||currentUser.email;
   if(!target){showToast('请先输入要清空的 email');return;}
-  if(!confirm('确认清空 '+target+' 的所有班级、话术和待办？此操作不可撤销。')) return;
-  await sb.from('user_data').upsert({user_email:target,stickers:[],schedule:[],todos:{},updated_at:new Date().toISOString()},{onConflict:'user_email'});
-  if(target===currentUser.email){
-    Object.values(STORAGE_KEYS).forEach(k=>localStorage.removeItem(k));
-    localStorage.removeItem(DAILY_TODO_KEY);
-    stickersData=[];scheduleData=[];
-    render();
-  }
-  if(input) input.value='';
-  showToast('已清空 '+target+' 的所有数据');
+  askConfirm('确认清空 '+target+' 的所有班级、话术和待办？此操作不可撤销。',async()=>{
+    await sb.from('user_data').upsert({user_email:target,stickers:[],schedule:[],todos:{},updated_at:new Date().toISOString()},{onConflict:'user_email'});
+    if(target===currentUser.email){
+      Object.values(STORAGE_KEYS).forEach(k=>localStorage.removeItem(k));
+      localStorage.removeItem(DAILY_TODO_KEY);
+      stickersData=[];scheduleData=[];
+      render();
+    }
+    if(input) input.value='';
+    showToast('已清空 '+target+' 的所有数据');
+  },{okText:'清空',icon:'⚠️'});
 }
 /* ===== END 管理员功能 ===== */
 
@@ -385,6 +386,41 @@ function parseStudents(text){return text.split(/\n+/).map(x=>x.trim()).filter(Bo
 function importAll(){try{const data=JSON.parse(byId("backupText").value);if(Array.isArray(data.stickers))stickersData=data.stickers.map(normalizeSticker);if(Array.isArray(data.classes))scheduleData=data.classes.map(normalizeClassItem);if(Array.isArray(data.stickerCategories)&&data.stickerCategories.length){stickerCategories=data.stickerCategories.map(normalizeCategory);localStorage.setItem(STORAGE_KEYS.stickerCategories,JSON.stringify(stickerCategories));}if(Array.isArray(data.courseCategories)&&data.courseCategories.length){courseCategories=data.courseCategories.map(normalizeCategory);localStorage.setItem(STORAGE_KEYS.courseCategories,JSON.stringify(courseCategories));}saveStickers();saveSchedule();showToast("\u5bfc\u5165\u6210\u529f");render();}catch(e){showToast("\u5bfc\u5165\u5931\u8d25\uff0c\u8bf7\u786e\u8ba4\u683c\u5f0f\uff1aJSON \u5305\u542b stickers \u548c classes \u6570\u7ec4");}}
 async function copyText(text){let ok=false;try{await navigator.clipboard.writeText(text);ok=true;}catch(e){const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.left="-9999px";document.body.appendChild(ta);ta.select();try{ok=document.execCommand("copy");}catch(err){}document.body.removeChild(ta);}showToast(ok?"\u5df2\u590d\u5236":"\u590d\u5236\u88ab\u62e6\u622a");}
 function showToast(msg){const toast=byId("toast");toast.textContent=msg;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),1200);}
+
+/* 自定义确认弹窗（v20260613b，Shirley：不要浏览器那个丑确认框，所有删除/危险操作都走这个统一的好看弹窗）
+   用法：askConfirm("要删吗？", ()=>{ 真正执行的代码 }, {danger:true, okText:"删除", icon:"🗑"}) */
+function askConfirm(message,onYes,opts){
+  opts=opts||{};
+  let ov=byId("confirmModal");
+  if(!ov){
+    ov=document.createElement("div");
+    ov.id="confirmModal";
+    ov.className="confirm-modal";
+    ov.innerHTML=`<div class="confirm-card" role="alertdialog" aria-modal="true">
+      <div class="confirm-icon"></div>
+      <p class="confirm-msg"></p>
+      <div class="confirm-actions">
+        <button class="btn confirm-cancel" type="button"></button>
+        <button class="btn confirm-ok" type="button"></button>
+      </div></div>`;
+    document.body.appendChild(ov);
+  }
+  const danger=opts.danger!==false; // 默认按危险（红）处理
+  ov.querySelector(".confirm-icon").textContent=opts.icon||(danger?"🗑":"❓");
+  ov.querySelector(".confirm-msg").textContent=message;
+  const okBtn=ov.querySelector(".confirm-ok");
+  const cancelBtn=ov.querySelector(".confirm-cancel");
+  okBtn.textContent=opts.okText||(danger?"删除":"确定");
+  cancelBtn.textContent=opts.cancelText||"取消";
+  okBtn.className="btn confirm-ok "+(danger?"danger":"primary");
+  const close=()=>{ov.classList.remove("open");okBtn.onclick=cancelBtn.onclick=ov.onclick=document.onkeydown=null;};
+  okBtn.onclick=()=>{close();if(onYes)onYes();};
+  cancelBtn.onclick=close;
+  ov.onclick=e=>{if(e.target===ov)close();};
+  document.onkeydown=e=>{if(e.key==="Escape")close();};
+  ov.classList.add("open");
+  cancelBtn.focus();
+}
 let librarySearch = "", manageStickerSearch = "", monthSelectedDate = dateKey(new Date());
 
 function statusTone(x){const text=countdownText(x);if(text.includes("上课中"))return "now";if(text.includes("还有"))return "soon";if(text.includes("已"))return "past";return "plain";}
@@ -475,22 +511,24 @@ function bindTestDataButtons(){
   if(imp)imp.addEventListener("click",()=>{
     if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
     if(scheduleData.some(c=>String(c.id).startsWith("test-"))){showToast("已经导入过了，先清除再重新导入");return;}
-    if(!confirm("导入 10 个测试班 + 15 个测试学生？\n它们都叫\"测试·xx\"，会和真实数据一起显示，随时可以一键清除。"))return;
-    importTestData();
-    autoCloseFinishedClasses(); // 日期全上完的测试假期营立刻演示自动结课
-    showToast("测试数据已导入，去课程页玩玩筛选吧");
-    view="courses";render();
+    askConfirm("导入 10 个测试班 + 15 个测试学生？\n它们都叫\"测试·xx\"，会和真实数据一起显示，随时可以一键清除。",()=>{
+      importTestData();
+      autoCloseFinishedClasses(); // 日期全上完的测试假期营立刻演示自动结课
+      showToast("测试数据已导入，去课程页玩玩筛选吧");
+      view="courses";render();
+    },{danger:false,okText:"导入",icon:"📦"});
   });
   const clr=byId("clearTestData");
   if(clr)clr.addEventListener("click",()=>{
     if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
-    if(!confirm("清除所有\"测试·\"开头的班级、学生和 SOP 卡？真实数据不受影响。"))return;
-    scheduleData=scheduleData.filter(c=>!String(c.id).startsWith("test-"));
-    studentsData=studentsData.filter(p=>!String(p.id).startsWith("test-"));
-    sopData=sopData.filter(r=>!String(r.id).startsWith("test-"));
-    saveSchedule();saveStudents();saveSop();
-    showToast("测试数据已全部清除");
-    render();
+    askConfirm("清除所有\"测试·\"开头的班级、学生和 SOP 卡？真实数据不受影响。",()=>{
+      scheduleData=scheduleData.filter(c=>!String(c.id).startsWith("test-"));
+      studentsData=studentsData.filter(p=>!String(p.id).startsWith("test-"));
+      sopData=sopData.filter(r=>!String(r.id).startsWith("test-"));
+      saveSchedule();saveStudents();saveSop();
+      showToast("测试数据已全部清除");
+      render();
+    },{okText:"清除"});
   });
 }
 
@@ -802,17 +840,20 @@ function bindManageEvents(){
       x.status="Active";x.archivedAt="";
       saveSchedule();showToast("已恢复开课，课表上会重新出现");
     }else{
-      if(!confirm("把「"+x.className+"」结课？\n结课后课表上不再显示，数据都还在，随时可恢复。"))return;
-      x.status="Archived";x.archivedAt=new Date().toISOString();
-      saveSchedule();showToast("已结课");
+      askConfirm("把「"+x.className+"」结课？\n结课后课表上不再显示，数据都还在，随时可恢复。",()=>{
+        x.status="Archived";x.archivedAt=new Date().toISOString();
+        saveSchedule();showToast("已结课");
+        render();
+      },{danger:false,okText:"结课",icon:"🎓"});
+      return;
     }
     render();
   }));
   document.querySelectorAll("[data-delete-class]").forEach(b=>b.addEventListener("click",()=>{const x=scheduleData.find(c=>c.id===editingClassId);if(x){x.status="Deleted";x.deletedAt=new Date().toISOString();editingClassId=null;saveSchedule();render();}}));
   document.querySelectorAll("[data-restore-sticker]").forEach(b=>b.addEventListener("click",()=>{const x=stickersData.find(s=>s.id===b.dataset.restoreSticker);if(x){x.deletedAt="";saveStickers();render();}}));
-  document.querySelectorAll("[data-purge-sticker]").forEach(b=>b.addEventListener("click",()=>{if(!confirm("确定彻底删除这条话术吗？"))return;stickersData=stickersData.filter(s=>s.id!==b.dataset.purgeSticker);saveStickers();render();}));
+  document.querySelectorAll("[data-purge-sticker]").forEach(b=>b.addEventListener("click",()=>askConfirm("确定彻底删除这条话术吗？",()=>{stickersData=stickersData.filter(s=>s.id!==b.dataset.purgeSticker);saveStickers();render();},{okText:"彻底删除"})));
   document.querySelectorAll("[data-restore-class]").forEach(b=>b.addEventListener("click",()=>{const x=scheduleData.find(c=>c.id===b.dataset.restoreClass);if(x){x.status="Active";x.deletedAt="";saveSchedule();render();}}));
-  document.querySelectorAll("[data-purge-class]").forEach(b=>b.addEventListener("click",()=>{if(!confirm("确定彻底删除这节课吗？"))return;scheduleData=scheduleData.filter(c=>c.id!==b.dataset.purgeClass);saveSchedule();render();}));
+  document.querySelectorAll("[data-purge-class]").forEach(b=>b.addEventListener("click",()=>askConfirm("确定彻底删除这节课吗？",()=>{scheduleData=scheduleData.filter(c=>c.id!==b.dataset.purgeClass);saveSchedule();render();},{okText:"彻底删除"})));
   document.querySelectorAll("[data-export-all]").forEach(b=>b.addEventListener("click",()=>{byId("backupText").value=JSON.stringify({stickers:stickersData,classes:scheduleData,stickerCategories,courseCategories},null,2);showToast("已导出");}));
   document.querySelectorAll("[data-import-all]").forEach(b=>b.addEventListener("click",importAll));
 }
@@ -1459,9 +1500,11 @@ function renderRecentCourseCard(x){
   if(!occ) return "";
   const d=parseLocalDate(occ._occurrenceDate)||new Date();
   const dayText=`${todayName(daysBetween(d,new Date()))} ${(d.getMonth()+1)}/${d.getDate()}`;
+  // 每张卡结构完全一致：日期块 / 时间 / 课名 / 老师人数（各占一行，长名只在自己那行换行，不影响对齐）
   return `<button class="recent-course-card ${courseTone(x)}" data-schedule-id="${safeAttr(x.id)}" data-occurrence-date="${safeAttr(occ._occurrenceDate||"")}" type="button">
     <span class="recent-date">${esc(dayText)}</span>
-    <div class="recent-name-row"><span class="recent-time">${esc(formatTimeCN(x.time))}</span><b>${esc(x.className)}</b></div>
+    <span class="recent-time">${esc(formatTimeCN(x.time))}</span>
+    <b class="recent-cls-name">${esc(x.className)}</b>
     <small>${esc(x.teacher||"未填老师")} · ${x.students.length||0} 人 · ${esc(lessonLabel(x))}</small>
   </button>`;
 }
@@ -2153,11 +2196,12 @@ function bindStudentEvents(){
     if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
     const c=scheduleData.find(x=>x.id===b.dataset.unlinkCourse);
     if(!c||!editingStudentName)return;
-    if(!confirm("把 "+editingStudentName+" 从「"+c.className+"」的学生栏移除？\n已有的点名、作业记录不会被删。"))return;
-    c.students=(c.students||[]).filter(s=>(s.name||"").trim()!==editingStudentName);
-    saveSchedule();
-    showToast("已移除关联");
-    render();
+    askConfirm("把 "+editingStudentName+" 从「"+c.className+"」的学生栏移除？\n已有的点名、作业记录不会被删。",()=>{
+      c.students=(c.students||[]).filter(s=>(s.name||"").trim()!==editingStudentName);
+      saveSchedule();
+      showToast("已移除关联");
+      render();
+    },{okText:"移除"});
   }));
   const editBtn=document.querySelector("[data-edit-student]");
   if(editBtn)editBtn.addEventListener("click",()=>{studentDetailEditing=true;render();});
@@ -2204,11 +2248,12 @@ function bindStudentEvents(){
     if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
     const p=studentsData.find(x=>x.id===del.dataset.deleteStudent);
     if(!p)return;
-    if(!confirm("确认删除 "+p.name+" 的档案？只删档案，课程里的名字不受影响。"))return;
-    studentsData=studentsData.filter(x=>x.id!==p.id);
-    saveStudents();
-    showToast("已删除档案");
-    render();
+    askConfirm("确认删除 "+p.name+" 的档案？只删档案，课程里的名字不受影响。",()=>{
+      studentsData=studentsData.filter(x=>x.id!==p.id);
+      saveStudents();
+      showToast("已删除档案");
+      render();
+    },{okText:"删除档案"});
   });
 }
 
@@ -2459,10 +2504,11 @@ function bindHomeworkSection(item){
    每个学生的小结 + 全部课堂记录时间线（点名、作业、笔记都在）。 */
 let courseHomeId=null;
 let courseHomeBack="students";
+let courseRecOpenDates=new Set(); // 课堂记录里当前展开的日期（默认全折叠，点日期才展开）
 
 function openCourseHome(id){
   courseHomeBack=(view==="courseHome")?courseHomeBack:view;
-  if(courseHomeId!==id){courseHomeFrom="";courseHomeTo="";} // 换班时重置日期范围
+  if(courseHomeId!==id){courseHomeFrom="";courseHomeTo="";courseRecOpenDates=new Set();} // 换班时重置日期范围+折叠状态
   courseHomeId=id;
   view="courseHome";
   render();
@@ -2631,18 +2677,23 @@ function courseRecordEntryHtml(c,rec){
       if(e.state==="已交"||e.state==="已批改")dHwIn++;
     }
   });
-  const sumChips=[];
-  if(dAtt)sumChips.push(`<i class="att-chip att-ok">到${dAtt}</i>`);
-  if(dAbs)sumChips.push(`<i class="att-chip att-absent">缺${dAbs}</i>`);
-  if(dLate)sumChips.push(`<i class="att-chip att-tag-chip att-late">迟${dLate}</i>`);
-  if(dLeave)sumChips.push(`<i class="att-chip att-tag-chip att-leave">假${dLeave}</i>`);
-  if(dHwTotal)sumChips.push(`<i class="att-chip hw-chip">交${dHwIn}/${dHwTotal}</i>`);
-  return `<div class="course-rec-entry">
-    <div class="course-rec-left">
-      <button class="course-rec-date" data-edit-record-date="${safeAttr(rec.date)}" type="button" title="点一下回到这天，直接改点名、作业、笔记">${esc(formatDateShort(rec.date))} ✎</button>
-      ${sumChips.length?`<div class="rec-day-summary">${sumChips.join("")}</div>`:""}
-    </div>
+  // 汇总用纯彩色文字（不套框），放在折叠头里，折着也能一眼看当天概况
+  const sumText=[];
+  if(dAtt)sumText.push(`<i class="cs-n cs-ok">到 ${dAtt}</i>`);
+  if(dAbs)sumText.push(`<i class="cs-n cs-abs">缺 ${dAbs}</i>`);
+  if(dLate)sumText.push(`<i class="cs-n cs-late">迟 ${dLate}</i>`);
+  if(dLeave)sumText.push(`<i class="cs-n cs-leave">假 ${dLeave}</i>`);
+  if(dHwTotal)sumText.push(`<i class="cs-n cs-hw">作业 ${dHwIn}/${dHwTotal}</i>`);
+  const open=courseRecOpenDates.has(String(rec.date));
+  // 折叠卡（v20260613b，Shirley：点开当天日期才看孩子详情，头部一键全展/全折）
+  return `<div class="course-rec-entry${open?"":" collapsed"}" data-rec-date="${safeAttr(rec.date)}">
+    <button class="course-rec-head" data-rec-toggle="${safeAttr(rec.date)}" type="button">
+      <span class="rec-chevron">▸</span>
+      <span class="rec-head-date">${esc(formatDateShort(rec.date))}</span>
+      <span class="rec-head-sum">${sumText.join("")||'<i class="cs-n cs-muted">未记录</i>'}</span>
+    </button>
     <div class="course-rec-body">
+      <button class="rec-edit-btn" data-edit-record-date="${safeAttr(rec.date)}" type="button" title="回到这天，直接改点名、作业、笔记">✎ 改这天的点名 / 作业 / 笔记</button>
       ${hw.content?`<div class="course-rec-line"><span class="rec-label">作业</span><small class="rec-hw-content">${esc(hw.content)}</small></div>`:""}
       ${stuRows}
       ${note?`<div class="course-rec-line"><span class="rec-label">笔记</span><small class="rec-note">${esc(note)}</small></div>`:""}
@@ -2689,7 +2740,7 @@ function renderCourseHome(){
     <div class="student-detail-extra">
       <h4>学生（点名字看档案 · 按年龄大→小排 · 数字按${esc(rt)}算）</h4>
       <div class="course-student-grid">${sortStudentsByAge(c.students||[]).map(st=>courseStudentLineHtml(c,st.name,since,until)).join("")||'<p class="empty">课程里还没填学生。</p>'}</div>
-      <h4>${esc(rt)}课堂记录（${records.length} 天）</h4>
+      <div class="rec-section-head"><h4>${esc(rt)}课堂记录（${records.length} 天）</h4>${records.length?`<button class="rec-foldall-btn" id="recFoldAll" type="button">${records.every(r=>courseRecOpenDates.has(String(r.date)))?"▾ 全部折叠":"▸ 全部展开"}</button>`:""}</div>
       ${recHtml||'<p class="empty">这段时间没有记录。上课时在课程详情弹窗里点名、记作业、写笔记，都会汇总到这里。</p>'}
     </div>
   </div>`;
@@ -2702,12 +2753,41 @@ function renderCourseHome(){
     editingClassId=c.id;manageClassRecordDate="";
     render();
   });
+  // 点课堂记录的日期头 → 展开/收起当天详情（只改 DOM，不整页重渲染，保持滚动位置）
+  document.querySelectorAll("[data-rec-toggle]").forEach(b=>b.addEventListener("click",()=>{
+    const d=b.dataset.recToggle;
+    const entry=b.closest(".course-rec-entry");
+    if(!entry)return;
+    if(courseRecOpenDates.has(d)){courseRecOpenDates.delete(d);entry.classList.add("collapsed");}
+    else{courseRecOpenDates.add(d);entry.classList.remove("collapsed");}
+    refreshRecFoldAllBtn(records);
+  }));
+  // 一键全部展开 / 全部折叠
+  const foldAll=byId("recFoldAll");
+  if(foldAll)foldAll.addEventListener("click",()=>{
+    const allOpen=records.every(r=>courseRecOpenDates.has(String(r.date)));
+    if(allOpen){courseRecOpenDates=new Set();}
+    else{courseRecOpenDates=new Set(records.map(r=>String(r.date)));}
+    document.querySelectorAll(".course-rec-entry").forEach(en=>{
+      const d=en.dataset.recDate;
+      en.classList.toggle("collapsed",!courseRecOpenDates.has(d));
+    });
+    refreshRecFoldAllBtn(records);
+  });
   // 点记录的日期 → 回到那一天的编辑弹窗，直接改点名/作业/笔记
   document.querySelectorAll("[data-edit-record-date]").forEach(b=>b.addEventListener("click",e=>{
     e.stopPropagation();
     recordDateOverride=b.dataset.editRecordDate;
     openClassDetailModal(c);
   }));
+}
+
+/* 刷新"全部展开/折叠"按钮文字（不整页重渲染） */
+function refreshRecFoldAllBtn(records){
+  const btn=byId("recFoldAll");
+  if(!btn)return;
+  const allOpen=records.length&&records.every(r=>courseRecOpenDates.has(String(r.date)));
+  btn.textContent=allOpen?"▾ 全部折叠":"▸ 全部展开";
 }
 
 /* ===== 课程总览页 v2（v20260611f，Shirley 2026-06-11 深夜反馈）=====
@@ -3039,11 +3119,12 @@ function renderSop(){
     if(!sopGuard())return;
     const r=sopData.find(x=>x.id===b.dataset.sopDelRole);
     if(!r)return;
-    if(!confirm("删除「"+r.role+"」整张流程卡？"))return;
-    sopData=sopData.filter(x=>x.id!==r.id);
-    saveSop();
-    showToast("已删除");
-    render();
+    askConfirm("删除「"+r.role+"」整张流程卡？",()=>{
+      sopData=sopData.filter(x=>x.id!==r.id);
+      saveSop();
+      showToast("已删除");
+      render();
+    },{okText:"删除"});
   }));
   document.querySelectorAll("[data-sop-del-step]").forEach(b=>b.addEventListener("click",()=>{
     if(!sopGuard())return;
