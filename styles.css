@@ -7112,7 +7112,7 @@ b.tcc-name{
 .sop-step-text{margin-right:6px}
 .sop-page-tag{
   display:inline-block;font-style:normal;font-size:10.5px;font-weight:950;
-  color:#23566b;background:#dcebf6;border:1px solid rgba(28,96,120,.4);
+  color:#7a5512;background:#fbe6b8;border:1px solid rgba(122,90,18,.42);
   border-radius:999px;padding:1px 9px;vertical-align:1px;white-space:nowrap;
 }
 .sop-note{
@@ -7497,3 +7497,66 @@ b.tcc-name{
 .ov-progress{display:grid;gap:1px;justify-items:end}
 .ov-progress b{font-size:12px;font-weight:950;color:var(--ink)}
 .ov-progress small{font-size:9.5px;font-weight:900;color:rgba(36,35,31,.55);letter-spacing:.2px}
+
+/* ============================================================
+   2026-06-12d Shirley 第五轮反馈
+   ============================================================ */
+
+/* ① 课程主页学生卡：出勤一行 + 作业固定单独一行，下面一排都是作业好扫 */
+.course-student-line{gap:4px!important}
+.course-student-hw{display:inline-flex;align-items:center;gap:5px;margin-top:1px}
+.course-student-hw .hw-chip{background:#eef3fa;color:#1d4f74}
+
+/* ② 课堂记录：日期下面利用左侧空间放当天汇总 */
+.course-rec-entry{align-items:flex-start}
+.course-rec-left{flex:none;display:flex;flex-direction:column;gap:6px;width:86px}
+.rec-day-summary{display:flex;flex-wrap:wrap;gap:3px}
+.rec-day-summary .att-chip{font-size:10px;padding:0 7px;border-width:1px}
+
+/* ⑤(9) 点名表现改成整行文本域，自动长高，不用横拉 */
+.att-row.att-row-2line{display:block;padding:9px 2px}
+.att-row-top{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+.att-row-top .att-name{flex:0 0 auto;min-width:60px}
+.att-remark-area{
+  display:block;width:100%;box-sizing:border-box;margin-top:7px;
+  border:1.5px solid rgba(23,27,20,.22);border-radius:10px;
+  background:#fffdf6;padding:7px 11px;resize:none;overflow:hidden;
+  font-family:inherit;font-size:13px;font-weight:800;line-height:1.55;color:var(--ink);
+  min-height:34px;
+}
+.att-remark-area:focus{outline:none;border-color:var(--ocean);background:#fff}
+.att-remark-area::placeholder{color:rgba(95,102,115,.5);font-weight:850}
+
+/* (11) 课堂笔记输入框：补 box-sizing，框不再超出卡片 */
+.detail-note-input{
+  width:100%!important;box-sizing:border-box!important;resize:vertical!important;
+}
+.detail-note-section{overflow:hidden}
+
+/* (12) 弹窗排期行 */
+.detail-sched-line b{font-weight:900;color:#2a3038}
+.detail-sched-line .muted-fill{color:var(--muted);font-weight:800;font-size:12.5px}
+
+/* (6) 找学生列表：右上角年龄徽章，按年龄排好后一眼看 */
+.student-list-item .stu-li-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.stu-li-age{
+  font-style:normal;flex:none;font-size:11px;font-weight:950;
+  color:#1d4f74;background:#dcebf6;border:1px solid rgba(28,96,120,.35);
+  border-radius:999px;padding:0 8px;
+}
+.stu-li-age-none{color:#9a9384;background:#f1ece2;border-style:dashed}
+
+/* (13) 管理课程列表：长课程名自动换行，不再吃掉下面信息 */
+.upgraded-class-manage .course-list-item{
+  display:flex!important;flex-direction:column!important;gap:3px!important;
+  height:auto!important;
+}
+.upgraded-class-manage .course-list-item b,
+.upgraded-class-manage .course-list-item span{
+  display:block;min-width:0;max-width:100%;
+  overflow-wrap:anywhere;word-break:break-word;white-space:normal;
+}
+
+/* (14) "已结课"标记：和前面的课程名拉开距离，不再贴着 */
+.ov-done-tag{margin-left:9px!important;margin-right:2px}
+.course-list-item .ov-done-tag{display:inline-block;margin-top:1px}
