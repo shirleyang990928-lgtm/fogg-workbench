@@ -7640,3 +7640,70 @@ b.tcc-name{
 .sop-step-row .sop-step-text{flex:1 1 auto!important;min-width:0}
 /* ops 固定宽度，页面标签就不会因为某行少一个按钮而左右乱跳 */
 .sop-step-row .sop-step-ops{min-width:76px!important;justify-content:flex-end!important}
+
+/* ============================================================
+   2026-06-13a Shirley 第七轮反馈：日期字号 / 课程学生纯文字资料 /
+   SOP 输入框 / 关联页 / 最近课程卡与长课程名不破版
+   ============================================================ */
+
+/* (1) 顶部日期：放大、月日与星期分块、间距拉开（之前 11px 一行太小太挤） */
+.clock{padding:6px 12px!important}
+.clock .date{
+  font-size:12px!important;font-weight:850!important;margin-top:5px!important;
+  display:flex!important;align-items:baseline!important;justify-content:flex-end!important;
+  gap:7px!important;color:#5a6b50!important;line-height:1.2!important;
+}
+.clock .date b{font-size:14.5px!important;font-weight:950!important;color:#1c211a!important;letter-spacing:.3px}
+.clock .date i{
+  font-style:normal!important;font-size:11.5px!important;font-weight:900!important;
+  color:#1f7895!important;background:#dcebf6!important;border-radius:7px!important;padding:1px 8px!important;
+}
+
+/* (2) 课程主页学生：纯文字资料网格，按年龄大→小左→右排，少框只用细分隔线 */
+.course-student-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
+  gap:2px 20px;margin:6px 0 2px;
+}
+.cs-cell{padding:8px 2px;min-width:0;border-bottom:1px solid rgba(23,27,20,.09)}
+.cs-top{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.cs-name{background:none;border:0;padding:0;cursor:pointer;font-family:inherit;font-size:15px;font-weight:950;color:#10312f}
+.cs-name:hover{text-decoration:underline;color:#1f7895}
+.cs-age{font-style:normal;font-size:11.5px;font-weight:900;color:#1d4f74}
+.cs-meta{font-size:12px;font-weight:800;color:#54624c;margin-top:2px;overflow-wrap:anywhere}
+.cs-meta-none{color:#a59a86;font-weight:700}
+.cs-join{font-size:11px;font-weight:800;color:#9a7b3c;margin-top:1px}
+.cs-roll{margin-top:4px;display:flex;flex-wrap:wrap;gap:1px 12px}
+.cs-n{font-style:normal;font-size:12px;font-weight:900}
+.cs-ok{color:#2a7a3f}.cs-abs{color:#b4382a}.cs-late{color:#9a6a16}.cs-leave{color:#6b4fa0}
+.cs-hw{color:#1d5f86}.cs-muted{color:#9a9384;font-weight:800}
+
+/* (3) SOP：卡片加宽 + 输入框整行大字（之前框窄字小看不见自己打的字） */
+.sop-page{grid-template-columns:repeat(auto-fill,minmax(440px,1fr))!important}
+@media(max-width:980px){.sop-page{grid-template-columns:1fr!important}}
+.sop-add-row{flex-wrap:wrap!important;gap:7px 8px!important}
+.sop-step-input{flex:1 1 100%!important;font-size:14px!important;padding:10px 12px!important;border-radius:10px!important}
+.sop-page-select{max-width:none!important;flex:1 1 auto!important;font-size:12.5px!important;padding:7px 8px!important}
+.sop-add-row .sop-mini-btn{flex:0 0 auto!important;min-height:38px!important;padding:6px 20px!important}
+.sop-step-row .sop-step-text{font-size:14px!important}
+
+/* (4) 关联页：去掉笨重的虚线外框和阴影，轻一点 */
+.link-course-picker{border:0!important;background:none!important;padding:4px 0 2px!important;margin:8px 0 2px!important}
+.link-picker-hint{color:#5a6b50!important;font-size:12.5px!important}
+.link-course-option{border:1px solid rgba(23,27,20,.18)!important;box-shadow:none!important;border-radius:10px!important;background:#fbfaf4!important}
+.link-course-option:hover{box-shadow:none!important;transform:none!important;background:#eef4ef!important}
+
+/* (5) 最近课程卡：日期块固定不被挤掉，长课程名整段换行不破版 */
+.today-recent-cards .recent-course-card{overflow:visible!important}
+.today-recent-cards .recent-course-card .recent-date{flex:0 0 auto!important;align-self:flex-start!important}
+.today-recent-cards .recent-course-card .recent-name-row{display:flex!important;flex-wrap:wrap!important;align-items:baseline!important;gap:3px 7px!important;min-width:0!important}
+.today-recent-cards .recent-course-card .recent-name-row b{min-width:0!important;overflow-wrap:anywhere!important;word-break:break-word!important;white-space:normal!important}
+
+/* (6) 管理→找课程：长课程名换行、两列顶部对齐，不再吃掉下面信息/跑位 */
+.upgraded-class-manage .item-list.card-list,
+.final-class-manage .item-list.card-list{align-items:start!important}
+.upgraded-class-manage .course-list-item{height:auto!important;align-items:flex-start!important}
+.upgraded-class-manage .course-list-item b,
+.upgraded-class-manage .course-list-item span{
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  overflow-wrap:anywhere!important;word-break:break-word!important;white-space:normal!important;
+}

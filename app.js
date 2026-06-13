@@ -1,5 +1,5 @@
-﻿/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260612e';
+/* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
+const APP_VERSION='20260613a';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -299,7 +299,7 @@ function normalizeClassItem(x){return {id:x.id||uid("class"),weekday:x.weekday||
 function loadCollection(key,fallback,normalizer){try{const raw=localStorage.getItem(key);if(!raw)return fallback.map(normalizer);const parsed=JSON.parse(raw);if(!Array.isArray(parsed))throw new Error("not array");return parsed.map(normalizer);}catch(e){console.warn("local data failed",key,e);return fallback.map(normalizer);}}
 function saveStickers(){if(adminViewEmail)return;localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(stickersData));syncToCloud();}
 function saveSchedule(){if(adminViewEmail)return;localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(scheduleData));syncToCloud();}
-function updateClock(){const now=new Date();let h=now.getHours();const ampm=h>=12?"PM":"AM";h=h%12||12;byId("time").innerHTML=h+":"+String(now.getMinutes()).padStart(2,"0")+" <small>"+ampm+"</small>";byId("date").textContent=now.getFullYear()+"\u5e74"+(now.getMonth()+1)+"\u6708"+now.getDate()+"\u65e5 · "+WEEKDAYS[now.getDay()];}
+function updateClock(){const now=new Date();let h=now.getHours();const ampm=h>=12?"PM":"AM";h=h%12||12;byId("time").innerHTML=h+":"+String(now.getMinutes()).padStart(2,"0")+" <small>"+ampm+"</small>";byId("date").innerHTML="<b>"+(now.getMonth()+1)+"月"+now.getDate()+"日</b><i>"+WEEKDAYS[now.getDay()]+"</i>";}
 function todayName(offset=0){const d=new Date();d.setDate(d.getDate()+offset);return WEEKDAYS[d.getDay()];}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
 function weekStart(d=new Date()){const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;}
@@ -2142,7 +2142,7 @@ function bindStudentEvents(){
     const c=scheduleData.find(x=>x.id===b.dataset.linkCourse);
     if(!c||!editingStudentName)return;
     if((c.students||[]).some(s=>(s.name||"").trim()===editingStudentName)){showToast("TA 已经在这门课里了");return;}
-    c.students=[...(c.students||[]),{id:uid("student"),name:editingStudentName,note:""}];
+    c.students=[...(c.students||[]),{id:uid("student"),name:editingStudentName,note:"",joinedAt:dateKey(new Date())}];
     saveSchedule();
     studentLinkPickerOpen=false;
     showToast("已把 "+editingStudentName+" 加进「"+c.className+"」");
@@ -2506,6 +2506,46 @@ function courseStats(c,since,until){
   return s;
 }
 
+/* 加入本班的日期（v20260613a，Shirley：入学时间≠加入某班时间，一个孩子可能在好几个班）
+   先看课程学生栏里手填的 joinedAt；没有就从"最早一条含 TA 的课堂记录"自动推断，
+   两者都没有就返回空（不瞎猜）。 */
+function courseJoinDate(c,name){
+  const key=String(name||"").trim();
+  const st=(c.students||[]).find(s=>(s.name||"").trim()===key);
+  if(st&&st.joinedAt)return st.joinedAt;
+  const dates=(Array.isArray(c.classRecords)?c.classRecords:[])
+    .filter(r=>r.date&&(((r.attendance||{})[key])||(((r.homework&&r.homework.entries)||{})[key])))
+    .map(r=>String(r.date)).sort();
+  return dates[0]||"";
+}
+function courseJoinText(c,name){
+  const d=courseJoinDate(c,name);
+  const dd=parseLocalDate(d);
+  if(!dd)return "";
+  const days=Math.floor((new Date().setHours(0,0,0,0)-dd.getTime())/86400000);
+  let span;
+  if(days<=0)span="今天";
+  else if(days<30)span=`${days} 天`;
+  else if(days<365)span=`约 ${Math.floor(days/30)} 个月`;
+  else span=`约 ${Math.floor(days/365)} 年`;
+  return `${formatDateShort(d)} 加入本班 · ${span}`;
+}
+
+/* 课程学生按年龄从大到小排（没生日的排最后）（v20260613a，Shirley：从大到小、左到右） */
+function sortStudentsByAge(students){
+  return (students||[]).slice().sort((a,b)=>{
+    const aa=studentAgeNum(studentsData.find(x=>(x.name||"").trim()===(a.name||"").trim()));
+    const bb=studentAgeNum(studentsData.find(x=>(x.name||"").trim()===(b.name||"").trim()));
+    if(aa===null&&bb===null)return 0;
+    if(aa===null)return 1;
+    if(bb===null)return -1;
+    return bb-aa;
+  });
+}
+
+/* 课程主页一个学生 = 一格纯文字资料（v20260613a，Shirley：用文字显示孩子资料，
+   要年龄/年级/学校/城市/加入本班日期；出勤作业用轻彩色文字不套框）。
+   外层按年龄从大到小排（见 renderCourseHome）。 */
 function courseStudentLineHtml(c,name,since,until){
   const records=(Array.isArray(c.classRecords)?c.classRecords:[]).filter(r=>{
     const d=String(r.date||"");
@@ -2531,17 +2571,23 @@ function courseStudentLineHtml(c,name,since,until){
       if(e.state==="已交"||e.state==="已批改")hwIn++;
     }
   });
-  // 出勤标签一行，作业固定单独一行（Shirley：作业框位置要固定，下面一排都是作业才好扫）
-  const attBits=[];
-  if(att)attBits.push(`<i class="att-chip att-ok">到 ${att}</i>`);
-  if(abs)attBits.push(`<i class="att-chip att-absent">缺席 ${abs}</i>`);
-  if(late)attBits.push(`<i class="att-chip att-tag-chip att-late">迟到 ${late}</i>`);
-  if(leave)attBits.push(`<i class="att-chip att-tag-chip att-leave">请假 ${leave}</i>`);
-  const hwBit=hwAssigned?`<i class="att-chip hw-chip">作业 ${hwIn}/${hwAssigned}</i>`:`<small class="muted-bit">暂无作业</small>`;
-  return `<div class="course-student-line">
-    <button class="student-link" data-student-name="${safeAttr(name)}" type="button">${esc(name)}</button>
-    <span class="course-student-bits">${attBits.join("")||'<small class="muted-bit">还没点名</small>'}</span>
-    <span class="course-student-hw">${hwBit}</span>
+  // 档案资料按名字关联，纯文字显示
+  const p=studentsData.find(x=>(x.name||"").trim()===String(name).trim());
+  const age=studentAgeNum(p);
+  const meta=[p&&p.grade,p&&p.school,p&&p.city].filter(Boolean).join(" · ");
+  const joinText=courseJoinText(c,name);
+  // 出勤/作业：轻彩色文字，不套框
+  const roll=[];
+  if(att)roll.push(`<i class="cs-n cs-ok">到 ${att}</i>`);
+  if(abs)roll.push(`<i class="cs-n cs-abs">缺 ${abs}</i>`);
+  if(late)roll.push(`<i class="cs-n cs-late">迟 ${late}</i>`);
+  if(leave)roll.push(`<i class="cs-n cs-leave">假 ${leave}</i>`);
+  const hwText=hwAssigned?`<i class="cs-n cs-hw">作业 ${hwIn}/${hwAssigned}</i>`:`<i class="cs-n cs-muted">暂无作业</i>`;
+  return `<div class="cs-cell">
+    <div class="cs-top"><button class="student-link cs-name" data-student-name="${safeAttr(name)}" type="button">${esc(name)}</button>${age!==null?`<span class="cs-age">${age}岁</span>`:""}</div>
+    <div class="cs-meta${meta?"":" cs-meta-none"}">${meta?esc(meta):"未建档 · 点名字补资料"}</div>
+    ${joinText?`<div class="cs-join">${esc(joinText)}</div>`:""}
+    <div class="cs-roll">${roll.join("")||'<i class="cs-n cs-muted">还没点名</i>'}${hwText}</div>
   </div>`;
 }
 
@@ -2641,8 +2687,8 @@ function renderCourseHome(){
       <div class="stu-tile ${s.gradeRate===null?'no-val':'t-green'}"><span>已交里批改率 · ${esc(rt)}</span><b>${s.gradeRate===null?"还没人交":s.gradeRate+"%"}</b>${s.gradeRate===null?"":`<small class="ov-tile-detail">已改 ${s.hwGraded} / 已交 ${s.hwIn}</small>`}</div>
     </div>
     <div class="student-detail-extra">
-      <h4>学生（点名字看档案 · 数字按${esc(rt)}算）</h4>
-      <div class="course-student-lines">${(c.students||[]).map(st=>courseStudentLineHtml(c,st.name,since,until)).join("")||'<p class="empty">课程里还没填学生。</p>'}</div>
+      <h4>学生（点名字看档案 · 按年龄大→小排 · 数字按${esc(rt)}算）</h4>
+      <div class="course-student-grid">${sortStudentsByAge(c.students||[]).map(st=>courseStudentLineHtml(c,st.name,since,until)).join("")||'<p class="empty">课程里还没填学生。</p>'}</div>
       <h4>${esc(rt)}课堂记录（${records.length} 天）</h4>
       ${recHtml||'<p class="empty">这段时间没有记录。上课时在课程详情弹窗里点名、记作业、写笔记，都会汇总到这里。</p>'}
     </div>
@@ -2857,7 +2903,8 @@ function renderCourses(){
   const quiet=rows.filter(r=>!r.s.lessons).sort(byWeekdayTime);
   const rt=rangeText(since,until);
   const chip=(cur,val,label,key)=>`<button class="tab ${cur===val?'active':''}" data-${key}="${safeAttr(val)}" type="button">${esc(label)}</button>`;
-  setHead("课程","总览与对比 · 点一个班进它的主页","共 "+all.length+" 班");
+  // 班级数徽章跟着当前筛选走（Shirley：选结课/LR/CW/时间，上面的"共 X 班"也要变，不能永远显示总数）
+  setHead("课程","总览与对比 · 点一个班进它的主页","共 "+list.length+" 班");
   byId("tabs").innerHTML="";
   byId("content").innerHTML=`<div class="course-home course-overview">
     <div class="ov-toolbar">
