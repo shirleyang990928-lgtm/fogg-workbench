@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260614f';
+const APP_VERSION='20260614g';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -1872,6 +1872,7 @@ let studentCatType="all";        // all | LR | CW | CR | EW | MV | 其他
 let studentTermFilter="all";     // all | 上半年 | 下半年 | 假期营 | 1对1 | 结课
 let studentRange=null;           // null=默认本周；{from,to}=用户选过（{from:"",to:""}=全部时间）
 let stuFuOpen=false;             // 学生详情"作业跟进"块是否展开（默认折叠，页面不被拉长）
+let stuTlOpen=false;             // 学生详情"课堂时间线"是否展开（默认折叠）
 
 const STUDENT_STATUSES=["在读","停课","结课"];
 
@@ -1892,9 +1893,11 @@ function normalizeStudentProfile(p){
     // 而 const 声明在下面，会报"before initialization"导致本地缓存的学生档案读不出来
     status:["在读","停课","结课"].includes(p.status)?p.status:"在读",
     note:p.note||"",
-    // 作业欠交跟进记录（v20260614b，老师面板黑榜用）：[{id,date,action,parentReply,result,status,loggedAt}]
+    // 作业欠交跟进记录（v20260614b）：[{id,date,action,parentReply,result,status,loggedAt}]
     // 存在学生档案里，跟着 students jsonb 列上云，不用改数据库
     followups:Array.isArray(p.followups)?p.followups:[],
+    // 补作标记（v20260614g）：哪些欠交的作业经我跟进后补交了，记录保留不消失：[{date,classId,className,hw,madeAt}]
+    makeups:Array.isArray(p.makeups)?p.makeups:[],
     createdAt:p.createdAt||new Date().toISOString(),
     updatedAt:p.updatedAt||new Date().toISOString()
   };
@@ -2194,7 +2197,10 @@ function studentDetailHtml(){
     ${studentLinkPickerOpen?studentLinkPickerHtml():""}
     ${classNotes.length?`<h4>课程"学生"栏里的小备注</h4><p class="student-note">📝 ${esc(classNotes.join("；"))}<small class="student-note-hint">（在课程编辑页"学生"栏用"姓名 | 备注"的写法写的，会显示在这里）</small></p>`:""}
     ${studentFollowupSectionHtml(editingStudentName)}
-    <div id="stuTlBlock">${studentTimelineHtml(editingStudentName,classes)}</div>
+    <section class="tl-section${stuTlOpen?' open':''}">
+      <button class="fu-toggle tl-toggle" data-tl-toggle type="button"><span class="fu-chevron">▸</span>📅 课堂时间线</button>
+      ${stuTlOpen?`<div id="stuTlBlock">${studentTimelineHtml(editingStudentName,classes)}</div>`:'<p class="fu-collapsed-sum">点标题展开 TA 的点名 / 作业 / 评语记录</p>'}
+    </section>
   </div>`;
 }
 
@@ -2246,7 +2252,7 @@ function renderStudents(){
   document.querySelectorAll("[data-stu-open-course]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.stuOpenCourse)));
   // 返回黑榜/名册（取消选中学生，右面板回到落地黑榜）
   const back=document.querySelector("[data-stu-back]");
-  if(back)back.addEventListener("click",()=>{editingStudentName=null;followupFormFor="";stuFuOpen=false;render();});
+  if(back)back.addEventListener("click",()=>{editingStudentName=null;followupFormFor="";stuFuOpen=false;stuTlOpen=false;render();});
 }
 
 function refreshStudentList(){
@@ -2257,7 +2263,7 @@ function refreshStudentList(){
 }
 
 function bindStudentPicks(){
-  document.querySelectorAll("[data-pick-student]").forEach(b=>b.addEventListener("click",()=>{editingStudentName=b.dataset.pickStudent;studentDetailEditing=false;stuTimelineCourse="all";stuTimelineKind="all";studentLinkPickerOpen=false;followupFormFor="";stuFuOpen=false;render();}));
+  document.querySelectorAll("[data-pick-student]").forEach(b=>b.addEventListener("click",()=>{editingStudentName=b.dataset.pickStudent;studentDetailEditing=false;stuTimelineCourse="all";stuTimelineKind="all";studentLinkPickerOpen=false;followupFormFor="";stuFuOpen=false;stuTlOpen=false;render();}));
 }
 
 function bindStudentEvents(){
@@ -2942,7 +2948,7 @@ function renderCourseHome(){
   byId("content").innerHTML=`<div class="course-home">
     <div class="stu-info-grid course-home-info">
       <div class="stu-tile t-blue"><span>时间</span><b>${esc(c.weekday)} ${esc(formatTimeCN(c.time))}</b></div>
-      <div class="stu-tile t-green"><span>老师 · 课程</span><b>${esc(c.teacher||"未填")} · ${esc(c.courseType||"未填")}</b></div>
+      <div class="stu-tile t-green"><span>老师 · 课程</span><b>${c.teacher?`<button class="tile-teacher-link" data-open-teacher="${safeAttr(c.teacher)}" type="button" title="看这位老师的面板">${esc(c.teacher)}</button>`:"未填"} · ${esc(c.courseType||"未填")}</b></div>
       <div class="stu-tile t-yellow"><span>Zoom · 学期</span><b>${esc(zoomName(c)||"未填")} · ${esc(c.term||classTermLabel(c))}</b></div>
       <div class="stu-tile ${sched?'t-pink':'no-val'}"><span>开课 → 结课</span><b>${sched?`${esc(formatDateShort(sched.first))} → ${esc(formatDateShort(sched.last))}`:"未填排期"}</b><small class="ov-tile-detail">${esc(schedSmall)}</small></div>
     </div>
@@ -2996,6 +3002,8 @@ function renderCourseHome(){
     recordDateOverride=b.dataset.editRecordDate;
     openClassDetailModal(c);
   }));
+  // 课程主页点老师名 → 跳到那位老师的面板详情（双向跳转）
+  document.querySelectorAll("[data-open-teacher]").forEach(b=>b.addEventListener("click",()=>openTeacher(b.dataset.openTeacher)));
   // "＋ 关联学生"：展开/收起选择器 + 搜索 + 点学生写进课程（v20260614a）
   const linkToggle=byId("courseLinkToggle");
   if(linkToggle)linkToggle.addEventListener("click",()=>{courseLinkPickerOpen=!courseLinkPickerOpen;if(!courseLinkPickerOpen)courseLinkSearch="";render();});
@@ -3076,7 +3084,7 @@ function homeworkOwedInRange(since,until,teacher){
         const e=(hw.entries||{})[name]||{};
         if(e.state==="已交"||e.state==="已批改"){sub[name].submitted++;return;}
         if(!owed[name])owed[name]={name,occ:[]};
-        owed[name].occ.push({date:d,className:c.className,hw:(hw.content||"").trim()});
+        owed[name].occ.push({date:d,classId:c.id,className:c.className,hw:(hw.content||"").trim()});
       });
     });
   });
@@ -3106,6 +3114,24 @@ function deleteFollowup(name,id){
   if(!p||!Array.isArray(p.followups))return;
   p.followups=p.followups.filter(f=>f.id!==id);p.updatedAt=new Date().toISOString();
   saveStudents();
+}
+
+/* 补作标记（v20260614g）：记录某次欠交作业经跟进后补交了。记录保留、不让欠交从黑榜消失 */
+function studentMakeups(name){const p=studentsData.find(x=>(x.name||"").trim()===String(name).trim());return (p&&Array.isArray(p.makeups))?p.makeups:[];}
+function isMadeUp(name,date,classId){return studentMakeups(name).some(m=>m.date===date&&m.classId===classId);}
+function toggleMakeupByKey(name,date,classId){
+  if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+  const p=ensureProfileFor(name);
+  if(!Array.isArray(p.makeups))p.makeups=[];
+  const i=p.makeups.findIndex(m=>m.date===date&&m.classId===classId);
+  if(i>=0){p.makeups.splice(i,1);}
+  else{
+    const c=scheduleData.find(x=>x.id===classId);
+    const rec=c&&(Array.isArray(c.classRecords)?c.classRecords:[]).find(r=>String(r.date)===date);
+    const hw=rec&&rec.homework?(rec.homework.content||""):"";
+    p.makeups.push({date,classId,className:c?c.className:"",hw,madeAt:new Date().toISOString()});
+  }
+  p.updatedAt=new Date().toISOString();saveStudents();
 }
 
 function followupFormHtml(name){
@@ -3144,6 +3170,14 @@ function followupItemHtml(name,f){
 function bindFollowupControls(){
   const tg=document.querySelector("[data-fu-toggle]");
   if(tg)tg.addEventListener("click",()=>{stuFuOpen=!stuFuOpen;if(!stuFuOpen)followupFormFor="";render();});
+  const tlt=document.querySelector("[data-tl-toggle]");
+  if(tlt)tlt.addEventListener("click",()=>{stuTlOpen=!stuTlOpen;render();});
+  document.querySelectorAll("[data-makeup]").forEach(b=>b.addEventListener("click",()=>{
+    const [name,date,classId]=b.dataset.makeup.split("|");
+    toggleMakeupByKey(name,date,classId);
+    showToast(isMadeUp(name,date,classId)?"已标记补作 ✓":"已取消补作");
+    stuFuOpen=true;render();
+  }));
   document.querySelectorAll("[data-bb-log]").forEach(b=>b.addEventListener("click",()=>{
     const n=b.dataset.bbLog;followupFormFor=(followupFormFor===n)?"":n;if(followupFormFor)stuFuOpen=true;render();
   }));
@@ -3184,7 +3218,7 @@ function followupEffect(name,afterDate){
       if(rollTaken&&a.status!=="到")return;
       assigned++;if(d>last)last=d;
       const e=(hw.entries||{})[name]||{};
-      if(e.state==="已交"||e.state==="已批改")submitted++;
+      if(e.state==="已交"||e.state==="已批改"||isMadeUp(name,d,c.id))submitted++;
     });
   });
   return {assigned,submitted,last};
@@ -3199,11 +3233,18 @@ function studentFollowupSectionHtml(name){
   const fus=studentFollowups(name).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const formOpen=followupFormFor===name;
   const open=stuFuOpen||formOpen; // 记录跟进时强制展开
-  const badge=owedWeek.length?`<i class="fu-badge fu-badge-alert">本周欠交 ${owedWeek.length} 次</i>`:`<i class="fu-badge fu-badge-ok">本周交齐 👍</i>`;
-  const allDetail=owedAll.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)))
-    .map(o=>`<span class="fu-miss"><b>${esc(formatDateShort(o.date))}</b> ${esc(o.className)}${o.hw?`《${esc(o.hw)}》`:""}</span>`).join("");
+  const weekAllMade=owedWeek.length>0&&owedWeek.every(o=>isMadeUp(name,o.date,o.classId));
+  const badge=owedWeek.length?(weekAllMade?`<i class="fu-badge fu-badge-made">本周欠交已补作 👍</i>`:`<i class="fu-badge fu-badge-alert">本周欠交 ${owedWeek.length} 次</i>`):`<i class="fu-badge fu-badge-ok">本周交齐 👍</i>`;
+  const owedSorted=owedAll.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const madeCount=owedSorted.filter(o=>isMadeUp(name,o.date,o.classId)).length;
+  const allDetail=owedSorted.map(o=>{
+    const made=isMadeUp(name,o.date,o.classId);
+    return `<div class="fu-owed-item${made?' made':''}">
+      <span class="fu-miss"><b>${esc(formatDateShort(o.date))}</b> ${esc(o.className)}${o.hw?`《${esc(o.hw)}》`:""}</span>
+      <button class="fu-makeup-btn${made?' on':''}" data-makeup="${safeAttr(name+"|"+o.date+"|"+o.classId)}" type="button">${made?"✓ 已补作":"标记补作"}</button>
+    </div>`;}).join("");
   const body=open?`
-    ${owedAll.length?`<div class="fu-owed"><span class="fu-owed-cap">累计欠交 <b>${owedAll.length}</b> 次</span><div class="fu-miss-list">${allDetail}</div></div>`:'<p class="fu-empty">目前没有欠交记录，很棒 👍</p>'}
+    ${owedAll.length?`<div class="fu-owed"><span class="fu-owed-cap">累计欠交 <b>${owedAll.length}</b> 次${madeCount?` · 已补作 <b class="fu-made-n">${madeCount}</b>`:""}</span><div class="fu-owed-list">${allDetail}</div></div>`:'<p class="fu-empty">目前没有欠交记录，很棒 👍</p>'}
     ${formOpen?followupFormHtml(name):""}
     ${fus.length?`<div class="fu-history"><h5 class="fu-history-cap">跟进记录 · ${fus.length} 条</h5>${fus.map(f=>followupItemHtml(name,f)).join("")}</div>`:(formOpen?"":'<p class="fu-empty">还没有跟进记录。点右上"✎ 记录跟进"，写下你做了什么、家长怎么回。</p>')}`
     :`<p class="fu-collapsed-sum">累计欠交 ${owedAll.length} 次 · 跟进 ${fus.length} 条（点标题展开）</p>`;
@@ -3226,23 +3267,29 @@ function studentBoardHtml(){
   const names=new Set(filteredRoster().map(r=>r.name));
   const owed=homeworkOwedInRange(since,until,"").owed;
   const followedIn=n=>studentFollowups(n).some(f=>!since||String(f.date)>=since);
+  // 这个学生这段时间欠交的，是不是都已经补作了（都补了=已处理，但仍留在榜上当记录）
+  const allMadeUp=b=>b.occ.length>0&&b.occ.every(o=>isMadeUp(b.name,o.date,o.classId));
+  const statusOf=b=>allMadeUp(b)?"made":(followedIn(b.name)?"done":"todo");
+  const order={todo:0,done:1,made:2};
   const list=Object.values(owed).filter(b=>names.has(b.name)).sort((a,b)=>{
-    const fa=followedIn(a.name),fb=followedIn(b.name);
-    if(fa!==fb)return fa?1:-1;
+    const sa=statusOf(a),sb=statusOf(b);
+    if(order[sa]!==order[sb])return order[sa]-order[sb];
     return b.occ.length-a.occ.length||a.name.localeCompare(b.name,"zh-Hans-CN");
   });
-  const todoCount=list.filter(b=>!followedIn(b.name)).length;
+  const todoCount=list.filter(b=>statusOf(b)==="todo").length;
   const rows=list.map(b=>{
-    const followed=followedIn(b.name);
-    return `<button class="bb-board-row${followed?"":" bb-row-alert"}" data-pick-student="${safeAttr(b.name)}" type="button">
+    const st=statusOf(b);
+    const madeN=b.occ.filter(o=>isMadeUp(b.name,o.date,o.classId)).length;
+    const tag=st==="made"?'<i class="bb-status bb-made">✓ 已补作</i>':(st==="done"?'<i class="bb-status bb-done">🟡 已跟进</i>':'<i class="bb-status bb-todo">🔴 待跟进</i>');
+    return `<button class="bb-board-row${st==="todo"?" bb-row-alert":(st==="made"?" bb-row-made":"")}" data-pick-student="${safeAttr(b.name)}" type="button">
       <span class="bb-name">${esc(b.name)}</span>
-      <span class="bb-count">${esc(rt)}欠交 <b>${b.occ.length}</b> 次</span>
-      <i class="bb-status ${followed?'bb-done':'bb-todo'}">${followed?'🟡 已跟进':'🔴 待跟进'}</i>
+      <span class="bb-count">${esc(rt)}欠交 <b>${b.occ.length}</b> 次${madeN?` · 补作 ${madeN}`:""}</span>
+      ${tag}
     </button>`;
   }).join("");
   return `<div class="stu-board">
-    <div class="bb-section-head"><h3>📕 作业欠交黑榜 · ${esc(rt)}</h3><span class="bb-todo-badge ${todoCount?'on':''}">${todoCount?`🔴 ${todoCount} 人待跟进`:"✓ 都跟进过了"}</span></div>
-    <p class="bb-hint">这段时间累积欠交作业的孩子（跟着上面的类别/学期/时间筛选）。🔴 = 还没记录跟进，需要你去找家长。点名字进 TA 的档案，在"作业跟进"里写下你做了什么、家长怎么回。</p>
+    <div class="bb-section-head"><h3>📕 作业欠交黑榜 · ${esc(rt)}</h3><span class="bb-todo-badge ${todoCount?'on':''}">${todoCount?`🔴 ${todoCount} 人待跟进`:"✓ 都处理过了"}</span></div>
+    <p class="bb-hint">这段时间累积欠交的孩子（记录会一直保留）。🔴 待跟进 → 去找家长；🟡 已记录跟进；✓ 已补作 = 经你跟进后补交了。点名字进档案，在"作业跟进"里标补作、写沟通。</p>
     ${rows||'<p class="empty">这个筛选/时间范围内没有人欠交作业 👍。</p>'}
   </div>`;
 }
@@ -3314,6 +3361,13 @@ function renderTeachers(){
   bindTeacherPanelEvents();
 }
 
+/* 跳到某位老师的面板详情（课程主页点老师名时用，双向跳转） */
+function openTeacher(name){
+  const t=String(name||"").trim();if(!t)return;
+  teacherPanelSel=t;teacherType="all";teacherTerm="all";teacherShowDone=false;teacherFrom="";teacherTo="";
+  view="teachers";render();
+}
+
 /* 从某天到今天的时长文字（加入多久） */
 function daysSpanText(dateStr){
   const dd=parseLocalDate(dateStr);if(!dd)return "";
@@ -3333,22 +3387,26 @@ function teacherStudentCardHtml(name,courses,since,until){
   const inCourses=courses.filter(c=>(c.students||[]).some(s=>(s.name||"").trim()===name));
   let earliest="";inCourses.forEach(c=>{const d=courseJoinDate(c,name);if(d&&(!earliest||d<earliest))earliest=d;});
   const clsNames=inCourses.map(c=>c.className).join("、");
-  let att=0,abs=0,hwA=0,hwIn=0;
+  let att=0,abs=0,hwA=0,hwIn=0,hwGraded=0;
   inCourses.forEach(c=>{(Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
     const d=String(rec.date||"");if((since&&d<since)||(until&&d>until))return;
     const a=normalizeAttendanceEntry((rec.attendance||{})[name]);
     if(a.status==="到")att++;if(a.status==="缺席")abs++;
     const hw=rec.homework||{};if(homeworkAssigned(hw)){
       const rollTaken=Object.keys(rec.attendance||{}).some(n=>normalizeAttendanceEntry(rec.attendance[n]).status);
-      if(!rollTaken||a.status==="到"){hwA++;const e=(hw.entries||{})[name]||{};if(e.state==="已交"||e.state==="已批改")hwIn++;}
+      if(!rollTaken||a.status==="到"){hwA++;const e=(hw.entries||{})[name]||{};if(e.state==="已交"||e.state==="已批改")hwIn++;if(e.state==="已批改")hwGraded++;}
     }
   });});
+  // 这孩子有交但老师还没批改 → 名字标红，提醒老师批改
+  const ungraded=hwIn>hwGraded;
   const roll=[];
   if(att)roll.push(`<i class="cs-n cs-ok">到 ${att}</i>`);
   if(abs)roll.push(`<i class="cs-n cs-abs">缺 ${abs}</i>`);
-  const hwText=hwA?`<i class="cs-n cs-hw">作业 ${hwIn}/${hwA}</i>`:`<i class="cs-n cs-muted">暂无作业</i>`;
-  return `<div class="cs-cell">
-    <div class="cs-top"><button class="student-link cs-name" data-student-name="${safeAttr(name)}" type="button">${esc(name)}</button>${age!==null?`<span class="cs-age">${age}岁</span>`:""}</div>
+  let hwText;
+  if(!hwA)hwText=`<i class="cs-n cs-muted">暂无作业</i>`;
+  else hwText=`<i class="cs-n cs-hw">交 ${hwIn}/${hwA}</i><i class="cs-n ${ungraded?'cs-ungraded':'cs-graded'}">已改 ${hwGraded}/${hwIn}</i>`;
+  return `<div class="cs-cell${ungraded?' cs-cell-ungraded':''}">
+    <div class="cs-top"><button class="student-link cs-name${ungraded?' cs-name-red':''}" data-student-name="${safeAttr(name)}" type="button">${esc(name)}</button>${age!==null?`<span class="cs-age">${age}岁</span>`:""}</div>
     <div class="cs-meta${meta?"":" cs-meta-none"}">${meta?esc(meta):"未建档 · 点名字补资料"}</div>
     ${clsNames?`<div class="cs-join">${esc(clsNames)}${earliest?` · ${esc(daysSpanText(earliest))}`:""}</div>`:""}
     <div class="cs-roll">${roll.join("")||'<i class="cs-n cs-muted">还没点名</i>'}${hwText}</div>
@@ -3361,11 +3419,9 @@ function renderTeacherDetail(sel,since,until,rt){
   setHead("老师面板","","");
   byId("tabs").innerHTML=`<button class="btn" id="teacherBack" type="button">← 返回老师列表</button>`;
   byId("content").innerHTML=`<div class="course-home teacher-detail-page">
-    <div class="td-header">
-      <h2 class="td-name">${esc(sel.teacher)}</h2>
-      <p class="td-sub">${sel.courseCount} 个班 · ${sel.studentCount} 名学生 · ${esc(rt)}</p>
-    </div>
-    <div class="stu-info-grid course-home-stats">
+    <h2 class="td-name">${esc(sel.teacher)}</h2>
+    <div class="stu-info-grid course-home-stats td-stats">
+      <div class="stu-tile t-blue"><span>带班 · 学生</span><b>${sel.courseCount} 班 · ${sel.studentCount} 人</b><small class="ov-tile-detail">${esc(rt)}</small></div>
       ${rateTile("出席率 · "+rt,sel.attRate,sel.attRate===null?"":`到 ${sel.att} / 缺 ${sel.abs}`)}
       ${rateTile("交作业率 · "+rt,sel.hwRate,sel.hwRate===null?"这段时间没布置过":`交 ${sel.hwIn} / 应交 ${sel.hwAssigned}`)}
       ${rateTile("批改率 · "+rt,sel.gradeRate,sel.gradeRate===null?"还没人交":`已改 ${sel.hwGraded} / 已交 ${sel.hwIn}`)}

@@ -8220,8 +8220,8 @@ b.tcc-name{
 .teacher-panel{display:flex;flex-direction:column;gap:14px}
 /* 老师横向对比表：名字 + 出席/交作业/批改三个率，批改率突出 */
 .teacher-table{display:flex;flex-direction:column;gap:8px}
-.tt-row{display:grid;grid-template-columns:minmax(140px,1.6fr) repeat(3,minmax(78px,1fr)) 64px;align-items:center;gap:12px;
-  text-align:left;background:#fffdf7;border:1.5px solid #e3ddcb;border-radius:14px;padding:11px 16px;cursor:pointer;font-family:inherit;transition:.12s}
+.tt-row{display:grid;grid-template-columns:minmax(150px,2.4fr) 112px 112px 150px 56px;align-items:center;gap:10px;
+  text-align:left;background:#fffdf7;border:1.5px solid #e3ddcb;border-radius:13px;padding:9px 15px;cursor:pointer;font-family:inherit;transition:.12s}
 .tt-row:hover{background:#f3faf8;border-color:#9fd3c8;transform:translateY(-1px)}
 .tt-row.tt-grade-low{border-color:#e7b1a5;background:#fdf5f2}
 .tt-name b{display:block;font-size:14.5px;font-weight:950;color:#1f6f60}
@@ -8309,10 +8309,38 @@ b.tcc-name{
 .fu-effect-mid{color:#9a7616;background:#f8edcf;border:1px solid #e0c97f}
 .fu-effect-bad{color:#b23b27;background:#fbe3dd;border:1px solid #e7b1a5}
 .fu-effect-none{color:#8a8470;background:#f3f1ea;border:1px solid #ddd8c8}
-/* 老师详情页大标题 */
-.td-header{margin-bottom:14px}
-.td-name{margin:0;font-size:26px;font-weight:950;color:#1f6f60;letter-spacing:.5px}
-.td-sub{margin:4px 0 0;font-size:13px;font-weight:800;color:var(--muted)}
+/* 老师详情页大标题 + 收紧空白 */
+.td-name{margin:0 0 12px;font-size:28px;font-weight:950;color:#1f6f60;letter-spacing:.5px}
+.td-stats{margin-bottom:6px}
+.teacher-detail-page{display:flex;flex-direction:column;gap:10px}
+.teacher-detail-page .student-detail-extra{margin-top:6px}
+.teacher-detail-page .student-detail-extra h4{margin:0 0 9px}
+/* 补作：欠交明细一行一项 + 标记补作按钮 */
+.fu-owed-list{display:flex;flex-direction:column;gap:7px;margin-top:9px}
+.fu-owed-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fu-owed-item .fu-miss{flex:1 1 auto}
+.fu-owed-item.made .fu-miss{background:#e6f4ea;border-color:#b6ddc2;color:#3a6b48;text-decoration:line-through;text-decoration-color:#9cc9a8}
+.fu-makeup-btn{flex:0 0 auto;border:1.4px solid #c0533f;background:#fff;color:#b23b27;border-radius:999px;padding:3px 12px;font-size:11.5px;font-weight:900;cursor:pointer;font-family:inherit}
+.fu-makeup-btn:hover{background:#fbeae6}
+.fu-makeup-btn.on{border-color:#79c1b3;color:#2f7d50;background:#e6f4ea}
+.fu-made-n{color:#2f7d50}
+.fu-badge-made{color:#2f7d50;background:#e6f4ea;border:1px solid #b6ddc2}
+/* 跟进记录：一行三个 */
+.fu-history{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
+.fu-history-cap{grid-column:1/-1;margin:0;font-size:12.5px;font-weight:950;color:#5a6b50}
+/* 课堂时间线折叠 */
+.tl-section{margin-top:16px;border-top:1.5px dashed #e0d8c4;padding-top:13px}
+.tl-toggle{font-size:15px!important;color:#3f6b5e!important}
+.tl-section.open .fu-chevron{transform:rotate(90deg)}
+/* 黑榜"已补作"状态 + 老师名可点 + 学生卡未批改标红 */
+.bb-status.bb-made{color:#2f7d50;background:#e6f4ea;border:1px solid #b6ddc2}
+.bb-board-row.bb-row-made{background:#f3faf4;border-color:#c3e3cb}
+.tile-teacher-link{background:none;border:0;padding:0;font:inherit;color:#1f6f60;font-weight:950;cursor:pointer;text-decoration:underline;text-decoration-color:#9fd3c8;text-underline-offset:2px}
+.tile-teacher-link:hover{color:#2f9282}
+.cs-name-red{color:#c0533f!important}
+.cs-cell-ungraded{border-color:#eebfb2!important}
+.cs-graded{color:#2f7d50}
+.cs-ungraded{color:#c0533f;font-weight:900}
 /* 黑榜（旧·已不在老师页，样式保留给落地黑榜行复用）*/
 .bb-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .bb-section-head h4,.bb-section-head h3{margin:0;font-size:16px}
