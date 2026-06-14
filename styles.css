@@ -8113,3 +8113,52 @@ b.tcc-name{
   background:none!important;border:0!important;padding:0!important;border-radius:0!important;
   font-style:normal!important;font-size:12.5px!important;font-weight:900!important;color:#6a7560!important;
 }
+
+/* ============================================================
+   2026-06-13h Shirley 第十三轮(续)：彻底修 滚动条撕卡 / 管理表单滚不动 / 课程总览居中
+   ============================================================ */
+
+/* (A) 撤掉上一版的 scrollbar-gutter:stable —— 它按系统经典 15px 预留、和 7px 细滚动条不匹配，
+   反而把内容区压窄、固定卡片溢出。改回 auto，靠"卡片自适应宽度 + 细滚动条"解决。 */
+.lane-scroll,.month-detail-list,.month-dots-grid,.recent-index,.today-recent-cards,
+.item-list.card-list,.upgraded-class-manage .item-list.card-list,.student-manage .item-list.card-list,#content{
+  scrollbar-gutter:auto!important;
+}
+/* 日程本周：日列卡片宽度自适应(滚动条一出现就自动缩)，右边留 7px 给滚动条+阴影，不再被裁 */
+.week-vertical .lane-scroll{padding-right:7px!important;overflow-x:hidden!important}
+.week-vertical .lane-scroll>*{max-width:100%!important;box-sizing:border-box!important;min-width:0!important}
+/* 月总览右侧课程列表 + 最近课程 + 管理/学生列表：同理，卡片自适应不溢出 */
+.month-detail-list{padding-right:7px!important}
+.month-detail-list>*{max-width:100%!important;box-sizing:border-box!important;min-width:0!important}
+.recent-index.today-recent-cards{padding-right:6px!important}
+.upgraded-class-manage .item-list.card-list,.student-manage .item-list.card-list{padding-right:7px!important}
+
+/* (B) 管理新增/编辑课程：面板内部按视口高度滚动(之前让它自然撑高到 1620px，
+   但 app-shell/workspace 是 overflow:hidden，超出被裁、根本滚不到下面字段填不了资料)。 */
+.upgraded-class-manage .edit-panel.preview-edit,
+.final-class-manage .edit-panel.preview-edit{
+  max-height:calc(100vh - 140px)!important;
+  overflow-y:auto!important;overflow-x:hidden!important;height:auto!important;
+  display:block!important;padding-right:14px!important;
+}
+.upgraded-class-manage .edit-panel.preview-edit>.course-editor-clean{
+  overflow:visible!important;max-height:none!important;height:auto!important;display:block!important;
+}
+/* 左侧找课程列表也按视口高度，独立滚动 */
+.upgraded-class-manage .list-panel{max-height:calc(100vh - 140px)!important}
+
+/* (C) 课程总览每行：名字定宽 + 两侧等宽弹性间隔 → "人数/出席/交作业/批改"这组数据居中，
+   进度靠右；所有列定宽，每行同一竖线对齐(每行独立 grid，定宽才对得齐) */
+.course-ov-row{
+  grid-template-columns:230px 1fr 56px 108px 108px 108px 1fr 150px!important;
+  gap:10px!important;align-items:center!important;
+}
+.course-ov-row .ov-gap{display:block}
+.course-ov-row .ov-name{min-width:0;overflow-wrap:anywhere}
+.course-ov-row .ov-count{text-align:center!important}
+.course-ov-row .ov-progress{justify-items:end!important;text-align:right!important}
+@media(max-width:900px){
+  .course-ov-row{grid-template-columns:1fr 1fr!important;row-gap:8px!important}
+  .course-ov-row .ov-name{grid-column:1/-1!important}
+  .course-ov-row .ov-gap{display:none!important}
+}

@@ -3015,12 +3015,15 @@ function courseOvRowHtml(c,s){
   const progress=info
     ?`<span class="ov-lessons ov-progress"><b>${esc(isClassDone(c)?`共 ${info.total} 堂`:courseProgressText(info))}</b><small>${esc(formatDateShort(info.first))} 开课 · ${esc(formatDateShort(info.last))} 结课</small></span>`
     :`<span class="ov-lessons ov-progress"><b>${s.lessons} 次记录</b><small>未填排期</small></span>`;
+  // 两个 .ov-gap 弹性间隔：把"人数+三率"这组数据夹在 名字 与 进度 中间居中（Shirley：别全挤右边、中间空一大块）
   return `<button class="course-ov-row${s.lessons?"":" ov-row-quiet"}" data-course-home="${safeAttr(c.id)}" type="button">
     <span class="ov-name"><b>${esc(c.className)}${isClassDone(c)?'<i class="ov-done-tag">已结课</i>':""}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(courseTypeLabel(c))} · ${esc(c.term||classTermLabel(c))}</small></span>
+    <span class="ov-gap"></span>
     <span class="ov-count">${(c.students||[]).length} 人</span>
     ${rateChip("出席",s.attRate,s.attRate===null?"":`到${s.att} 缺${s.abs}`)}
     ${rateChip("交作业",s.hwRate,s.hwRate===null?"":`${s.hwIn}/${s.hwAssigned}`)}
     ${rateChip("批改",s.gradeRate,s.gradeRate===null?"":`${s.hwGraded}/${s.hwIn}`)}
+    <span class="ov-gap"></span>
     ${progress}
   </button>`;
 }
