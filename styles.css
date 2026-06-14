@@ -8259,7 +8259,14 @@ b.tcc-name{
 .stu-back-btn{margin:0 0 12px;min-height:32px!important;padding:4px 14px!important;font-size:12.5px!important;border-radius:999px!important}
 /* 作业跟进卡片（v20260614e 重做，干净轻框）*/
 .fu-card{margin-top:16px;background:#f7fbfa;border:1.5px solid #d6e6e1;border-radius:16px;padding:15px 16px}
-.fu-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:11px}
+.fu-card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:0}
+.fu-card.open .fu-card-head{margin-bottom:11px}
+.fu-toggle{display:flex;align-items:center;gap:7px;background:none;border:0;cursor:pointer;font-family:inherit;font-size:15.5px;font-weight:950;color:#1f6f60;padding:0}
+.fu-chevron{font-size:12px;color:#8aada4;transition:transform .15s}
+.fu-card.open .fu-chevron{transform:rotate(90deg)}
+.fu-mini-log{margin-left:auto;background:#fff;border:1.4px solid #b9ddd5!important;border-radius:999px!important;color:#1f6f60!important;cursor:pointer;font-family:inherit;font-size:12px!important;font-weight:850;min-height:28px!important;padding:3px 13px!important}
+.fu-mini-log:hover{background:#eaf6f3}
+.fu-collapsed-sum{margin:8px 0 0;font-size:12.5px;font-weight:750;color:#8a8470}
 .fu-card-head h4{margin:0;font-size:15.5px;color:#1f6f60}
 .fu-badge{font-style:normal;font-size:12px;font-weight:950;border-radius:999px;padding:4px 12px}
 .fu-badge-alert{color:#b23b27;background:#fbe3dd;border:1px solid #e7b1a5}
@@ -8295,6 +8302,17 @@ b.tcc-name{
 .fu-item-line{margin:7px 0 0;font-size:13px;line-height:1.55;display:flex;gap:8px}
 .fu-item-line span{flex:0 0 auto;font-weight:950;color:#8a7f63}
 .fu-item-line em{font-style:normal;font-weight:600;color:#3a3a32}
+/* 自动算的"跟进后效果"行 */
+.fu-effect{margin:8px 0 0;font-size:12.5px;font-weight:900;border-radius:8px;padding:5px 10px}
+.fu-effect b{font-size:13.5px;margin:0 1px}
+.fu-effect-good{color:#2f7d50;background:#e6f4ea;border:1px solid #b6ddc2}
+.fu-effect-mid{color:#9a7616;background:#f8edcf;border:1px solid #e0c97f}
+.fu-effect-bad{color:#b23b27;background:#fbe3dd;border:1px solid #e7b1a5}
+.fu-effect-none{color:#8a8470;background:#f3f1ea;border:1px solid #ddd8c8}
+/* 老师详情页大标题 */
+.td-header{margin-bottom:14px}
+.td-name{margin:0;font-size:26px;font-weight:950;color:#1f6f60;letter-spacing:.5px}
+.td-sub{margin:4px 0 0;font-size:13px;font-weight:800;color:var(--muted)}
 /* 黑榜（旧·已不在老师页，样式保留给落地黑榜行复用）*/
 .bb-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .bb-section-head h4,.bb-section-head h3{margin:0;font-size:16px}

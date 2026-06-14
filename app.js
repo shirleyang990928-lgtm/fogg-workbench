@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260614e';
+const APP_VERSION='20260614f';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -1871,6 +1871,7 @@ let studentSortDir="desc";       // 找学生排序：desc=年龄大→小，asc
 let studentCatType="all";        // all | LR | CW | CR | EW | MV | 其他
 let studentTermFilter="all";     // all | 上半年 | 下半年 | 假期营 | 1对1 | 结课
 let studentRange=null;           // null=默认本周；{from,to}=用户选过（{from:"",to:""}=全部时间）
+let stuFuOpen=false;             // 学生详情"作业跟进"块是否展开（默认折叠，页面不被拉长）
 
 const STUDENT_STATUSES=["在读","停课","结课"];
 
@@ -2245,7 +2246,7 @@ function renderStudents(){
   document.querySelectorAll("[data-stu-open-course]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.stuOpenCourse)));
   // 返回黑榜/名册（取消选中学生，右面板回到落地黑榜）
   const back=document.querySelector("[data-stu-back]");
-  if(back)back.addEventListener("click",()=>{editingStudentName=null;followupFormFor="";render();});
+  if(back)back.addEventListener("click",()=>{editingStudentName=null;followupFormFor="";stuFuOpen=false;render();});
 }
 
 function refreshStudentList(){
@@ -2256,7 +2257,7 @@ function refreshStudentList(){
 }
 
 function bindStudentPicks(){
-  document.querySelectorAll("[data-pick-student]").forEach(b=>b.addEventListener("click",()=>{editingStudentName=b.dataset.pickStudent;studentDetailEditing=false;stuTimelineCourse="all";stuTimelineKind="all";studentLinkPickerOpen=false;followupFormFor="";render();}));
+  document.querySelectorAll("[data-pick-student]").forEach(b=>b.addEventListener("click",()=>{editingStudentName=b.dataset.pickStudent;studentDetailEditing=false;stuTimelineCourse="all";stuTimelineKind="all";studentLinkPickerOpen=false;followupFormFor="";stuFuOpen=false;render();}));
 }
 
 function bindStudentEvents(){
@@ -3116,23 +3117,35 @@ function followupFormHtml(name){
     </div>
     <label class="fu-field"><span>我做了什么 / 用了什么话术</span><textarea class="bb-f-action" rows="2" placeholder="例：私信家长说明孩子连续两次没交，建议每天固定一个写作业时间…"></textarea></label>
     <label class="fu-field"><span>家长怎么回应</span><textarea class="bb-f-reply" rows="2" placeholder="例：家长说最近忙，会盯着孩子按时交"></textarea></label>
-    <label class="fu-field"><span>孩子后续 / 有没有改善</span><input class="bb-f-result" placeholder="例：本周交了 2 次，继续观察"></label>
+    <label class="fu-field"><span>补充备注（选填 · 孩子后面有没有交，系统会自动算）</span><input class="bb-f-result" placeholder="例：孩子说会改，这里可写点别的观察"></label>
     <div class="fu-form-ops"><button class="btn primary bb-f-save" data-bb-save="${safeAttr(name)}" type="button">保存这次跟进</button><button class="btn ghost bb-f-cancel" type="button">取消</button></div>
   </div>`;
 }
 function followupItemHtml(name,f){
+  const eff=followupEffect(name,f.date);
+  let effLine;
+  if(eff.assigned>0){
+    const good=eff.submitted>=eff.assigned;
+    const some=eff.submitted>0;
+    effLine=`<p class="fu-effect ${good?'fu-effect-good':(some?'fu-effect-mid':'fu-effect-bad')}">跟进后交了 <b>${eff.submitted}/${eff.assigned}</b> 次${good?' ✓ 有改善，劝导有用':(some?' · 有好转，继续盯':' ✗ 还是没交，要再跟进')}</p>`;
+  }else{
+    effLine=`<p class="fu-effect fu-effect-none">跟进后还没到下次作业，再观察</p>`;
+  }
   return `<div class="fu-item">
     <div class="fu-item-head"><b class="fu-item-date">${esc(formatDateShort(f.date))}</b>${f.status?`<i class="fu-item-status">${esc(f.status)}</i>`:""}<button class="fu-item-del" data-bb-fu-del="${safeAttr(name)}|${safeAttr(f.id)}" type="button" title="删除这条跟进">✕</button></div>
     ${f.action?`<p class="fu-item-line"><span>我做了</span><em>${esc(f.action)}</em></p>`:""}
     ${f.parentReply?`<p class="fu-item-line"><span>家长回应</span><em>${esc(f.parentReply)}</em></p>`:""}
-    ${f.result?`<p class="fu-item-line"><span>孩子后续</span><em>${esc(f.result)}</em></p>`:""}
+    ${effLine}
+    ${f.result?`<p class="fu-item-line"><span>我的备注</span><em>${esc(f.result)}</em></p>`:""}
   </div>`;
 }
 
 /* 跟进表单/历史的事件绑定（学生页用，可复用）。改完整页重渲染。 */
 function bindFollowupControls(){
+  const tg=document.querySelector("[data-fu-toggle]");
+  if(tg)tg.addEventListener("click",()=>{stuFuOpen=!stuFuOpen;if(!stuFuOpen)followupFormFor="";render();});
   document.querySelectorAll("[data-bb-log]").forEach(b=>b.addEventListener("click",()=>{
-    const n=b.dataset.bbLog;followupFormFor=(followupFormFor===n)?"":n;render();
+    const n=b.dataset.bbLog;followupFormFor=(followupFormFor===n)?"":n;if(followupFormFor)stuFuOpen=true;render();
   }));
   document.querySelectorAll(".bb-f-cancel").forEach(b=>b.addEventListener("click",()=>{followupFormFor="";render();}));
   document.querySelectorAll("[data-bb-save]").forEach(b=>b.addEventListener("click",()=>{
@@ -3146,7 +3159,7 @@ function bindFollowupControls(){
     const status=form.querySelector(".bb-f-status").value;
     if(!action&&!parentReply&&!result){showToast("至少写一句你做了什么");return;}
     addFollowup(name,{id:uid("fu"),date,action,parentReply,result,status,loggedAt:new Date().toISOString()});
-    followupFormFor="";
+    followupFormFor="";stuFuOpen=true;
     showToast("已记下对「"+name+"」的跟进");
     render();
   }));
@@ -3157,21 +3170,50 @@ function bindFollowupControls(){
   }));
 }
 
-/* 学生档案页里的"作业跟进"小节：本周欠交 + 累计欠交明细 + 记录跟进表单 + 跟进历史（v20260614c，黑榜归位到学生页） */
+/* 跟进日之后这孩子作业完成情况（自动算"勸諫有没有用"）：跟进日 afterDate 之后的作业，交了几次/应交几次 */
+function followupEffect(name,afterDate){
+  let assigned=0,submitted=0,last="";
+  overviewCourses().forEach(c=>{
+    if(!(c.students||[]).some(s=>(s.name||"").trim()===name))return;
+    (Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
+      const d=String(rec.date||"");
+      if(d<=afterDate)return; // 只看跟进日之后
+      const hw=rec.homework||{};if(!homeworkAssigned(hw))return;
+      const rollTaken=Object.keys(rec.attendance||{}).some(n=>normalizeAttendanceEntry(rec.attendance[n]).status);
+      const a=normalizeAttendanceEntry((rec.attendance||{})[name]);
+      if(rollTaken&&a.status!=="到")return;
+      assigned++;if(d>last)last=d;
+      const e=(hw.entries||{})[name]||{};
+      if(e.state==="已交"||e.state==="已批改")submitted++;
+    });
+  });
+  return {assigned,submitted,last};
+}
+
+/* 学生档案页"作业跟进"小节（v20260614f）：可折叠（默认折叠，页面不被拉长）；
+   标题旁一个小铅笔钮记录跟进；每条跟进自动显示"跟进后有没有继续交"（不用手写孩子后续）。 */
 function studentFollowupSectionHtml(name){
   const def=quickRange("week");
   const owedWeek=(homeworkOwedInRange(def[0],def[1],"").owed[name]||{occ:[]}).occ;
   const owedAll=(homeworkOwedInRange("","","").owed[name]||{occ:[]}).occ;
   const fus=studentFollowups(name).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const formOpen=followupFormFor===name;
+  const open=stuFuOpen||formOpen; // 记录跟进时强制展开
+  const badge=owedWeek.length?`<i class="fu-badge fu-badge-alert">本周欠交 ${owedWeek.length} 次</i>`:`<i class="fu-badge fu-badge-ok">本周交齐 👍</i>`;
   const allDetail=owedAll.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)))
     .map(o=>`<span class="fu-miss"><b>${esc(formatDateShort(o.date))}</b> ${esc(o.className)}${o.hw?`《${esc(o.hw)}》`:""}</span>`).join("");
-  return `<section class="fu-card">
-    <div class="fu-card-head"><h4>📚 作业跟进</h4>${owedWeek.length?`<i class="fu-badge fu-badge-alert">本周欠交 ${owedWeek.length} 次</i>`:`<i class="fu-badge fu-badge-ok">本周交齐 👍</i>`}</div>
+  const body=open?`
     ${owedAll.length?`<div class="fu-owed"><span class="fu-owed-cap">累计欠交 <b>${owedAll.length}</b> 次</span><div class="fu-miss-list">${allDetail}</div></div>`:'<p class="fu-empty">目前没有欠交记录，很棒 👍</p>'}
-    <div class="fu-act-row"><button class="btn ${formOpen?'ghost':'primary'} fu-log-btn" data-bb-log="${safeAttr(name)}" type="button">${formOpen?"收起":"✎ 记录一次跟进"}</button></div>
     ${formOpen?followupFormHtml(name):""}
-    ${fus.length?`<div class="fu-history"><h5 class="fu-history-cap">跟进记录 · ${fus.length} 条</h5>${fus.map(f=>followupItemHtml(name,f)).join("")}</div>`:(formOpen?"":'<p class="fu-empty">还没有跟进记录。孩子累积欠交时，点上面"记录一次跟进"，写下你做了什么、家长怎么回、孩子后续。</p>')}
+    ${fus.length?`<div class="fu-history"><h5 class="fu-history-cap">跟进记录 · ${fus.length} 条</h5>${fus.map(f=>followupItemHtml(name,f)).join("")}</div>`:(formOpen?"":'<p class="fu-empty">还没有跟进记录。点右上"✎ 记录跟进"，写下你做了什么、家长怎么回。</p>')}`
+    :`<p class="fu-collapsed-sum">累计欠交 ${owedAll.length} 次 · 跟进 ${fus.length} 条（点标题展开）</p>`;
+  return `<section class="fu-card${open?' open':''}">
+    <div class="fu-card-head">
+      <button class="fu-toggle" data-fu-toggle type="button"><span class="fu-chevron">▸</span>📚 作业跟进</button>
+      ${badge}
+      <button class="fu-mini-log" data-bb-log="${safeAttr(name)}" type="button" title="记录一次跟进">✎ 记录跟进</button>
+    </div>
+    ${body}
   </section>`;
 }
 
@@ -3272,14 +3314,58 @@ function renderTeachers(){
   bindTeacherPanelEvents();
 }
 
+/* 从某天到今天的时长文字（加入多久） */
+function daysSpanText(dateStr){
+  const dd=parseLocalDate(dateStr);if(!dd)return "";
+  const days=Math.floor((new Date().setHours(0,0,0,0)-dd.getTime())/86400000);
+  if(days<=0)return "今天加入";
+  if(days<30)return `加入 ${days} 天`;
+  if(days<365)return `加入约 ${Math.floor(days/30)} 个月`;
+  return `加入约 ${Math.floor(days/365)} 年`;
+}
+
+/* 老师详情里的学生卡：套用课程学生卡（.cs-cell）样式，只显示基础资料 +
+   被这老师带哪个班/多久 + 这段时间在 TA 课上的出勤/作业（v20260614f） */
+function teacherStudentCardHtml(name,courses,since,until){
+  const p=studentsData.find(x=>(x.name||"").trim()===String(name).trim());
+  const age=studentAgeNum(p);
+  const meta=[p&&p.grade,p&&p.school,p&&p.city].filter(Boolean).join(" · ");
+  const inCourses=courses.filter(c=>(c.students||[]).some(s=>(s.name||"").trim()===name));
+  let earliest="";inCourses.forEach(c=>{const d=courseJoinDate(c,name);if(d&&(!earliest||d<earliest))earliest=d;});
+  const clsNames=inCourses.map(c=>c.className).join("、");
+  let att=0,abs=0,hwA=0,hwIn=0;
+  inCourses.forEach(c=>{(Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
+    const d=String(rec.date||"");if((since&&d<since)||(until&&d>until))return;
+    const a=normalizeAttendanceEntry((rec.attendance||{})[name]);
+    if(a.status==="到")att++;if(a.status==="缺席")abs++;
+    const hw=rec.homework||{};if(homeworkAssigned(hw)){
+      const rollTaken=Object.keys(rec.attendance||{}).some(n=>normalizeAttendanceEntry(rec.attendance[n]).status);
+      if(!rollTaken||a.status==="到"){hwA++;const e=(hw.entries||{})[name]||{};if(e.state==="已交"||e.state==="已批改")hwIn++;}
+    }
+  });});
+  const roll=[];
+  if(att)roll.push(`<i class="cs-n cs-ok">到 ${att}</i>`);
+  if(abs)roll.push(`<i class="cs-n cs-abs">缺 ${abs}</i>`);
+  const hwText=hwA?`<i class="cs-n cs-hw">作业 ${hwIn}/${hwA}</i>`:`<i class="cs-n cs-muted">暂无作业</i>`;
+  return `<div class="cs-cell">
+    <div class="cs-top"><button class="student-link cs-name" data-student-name="${safeAttr(name)}" type="button">${esc(name)}</button>${age!==null?`<span class="cs-age">${age}岁</span>`:""}</div>
+    <div class="cs-meta${meta?"":" cs-meta-none"}">${meta?esc(meta):"未建档 · 点名字补资料"}</div>
+    ${clsNames?`<div class="cs-join">${esc(clsNames)}${earliest?` · ${esc(daysSpanText(earliest))}`:""}</div>`:""}
+    <div class="cs-roll">${roll.join("")||'<i class="cs-n cs-muted">还没点名</i>'}${hwText}</div>
+  </div>`;
+}
+
 /* 老师详情页（独立一页，带返回 —— 镜像课程主页的进出方式） */
 function renderTeacherDetail(sel,since,until,rt){
   const students=[...new Set(sel.courses.flatMap(c=>(c.students||[]).map(s=>(s.name||"").trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,"zh-Hans-CN"));
-  setHead(sel.teacher,"",sel.courseCount+" 班 · "+sel.studentCount+" 名学生");
+  setHead("老师面板","","");
   byId("tabs").innerHTML=`<button class="btn" id="teacherBack" type="button">← 返回老师列表</button>`;
   byId("content").innerHTML=`<div class="course-home teacher-detail-page">
+    <div class="td-header">
+      <h2 class="td-name">${esc(sel.teacher)}</h2>
+      <p class="td-sub">${sel.courseCount} 个班 · ${sel.studentCount} 名学生 · ${esc(rt)}</p>
+    </div>
     <div class="stu-info-grid course-home-stats">
-      <div class="stu-tile t-blue"><span>带班 · 学生</span><b>${sel.courseCount} 班 · ${sel.studentCount} 人</b></div>
       ${rateTile("出席率 · "+rt,sel.attRate,sel.attRate===null?"":`到 ${sel.att} / 缺 ${sel.abs}`)}
       ${rateTile("交作业率 · "+rt,sel.hwRate,sel.hwRate===null?"这段时间没布置过":`交 ${sel.hwIn} / 应交 ${sel.hwAssigned}`)}
       ${rateTile("批改率 · "+rt,sel.gradeRate,sel.gradeRate===null?"还没人交":`已改 ${sel.hwGraded} / 已交 ${sel.hwIn}`)}
@@ -3289,8 +3375,8 @@ function renderTeacherDetail(sel,since,until,rt){
       <div class="tt-class-chips">${sel.courses.map(c=>`<button class="tt-class-chip${isClassDone(c)?' archived':''}" data-course-home="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${isClassDone(c)?'（已结课）':''}</button>`).join("")||'<p class="empty">没有课程</p>'}</div>
     </div>
     <div class="student-detail-extra">
-      <h4>TA 在带的学生（${sel.studentCount}）· 点名字看档案</h4>
-      <div class="tt-stu-chips">${students.map(n=>`<button class="student-link tt-stu-chip" data-student-name="${safeAttr(n)}" type="button">${esc(n)}</button>`).join("")||'<p class="empty">还没有学生</p>'}</div>
+      <h4>TA 在带的学生（${sel.studentCount}）· 数字按${esc(rt)}、只算 TA 的课 · 点名字看完整档案</h4>
+      <div class="course-student-grid">${students.map(n=>teacherStudentCardHtml(n,sel.courses,since,until)).join("")||'<p class="empty">还没有学生</p>'}</div>
     </div>
     <div class="student-detail-extra">
       <h4>📝 沟通笔记 · 老师资料</h4>
