@@ -8216,27 +8216,46 @@ b.tcc-name{
 .month-detail-list>*{flex:0 0 auto!important}
 .month-detail-list .month-lesson{min-height:0!important;height:auto!important;overflow:visible!important}
 
-/* ===== 老师面板 + 作业欠交红黑榜（v20260614b）===== */
-.teacher-panel{display:flex;flex-direction:column;gap:16px}
-/* 老师横向对比表 */
+/* ===== 老师面板（v20260614c 归位重构）+ 作业欠交跟进（学生页）===== */
+.teacher-panel{display:flex;flex-direction:column;gap:14px}
+/* 老师横向对比表：名字 + 出席/交作业/批改三个率，批改率突出 */
 .teacher-table{display:flex;flex-direction:column;gap:8px}
-.tt-row{display:grid;grid-template-columns:minmax(120px,1.4fr) repeat(3,minmax(64px,.8fr)) minmax(96px,1fr);align-items:center;gap:10px;
+.tt-row{display:grid;grid-template-columns:minmax(140px,1.6fr) repeat(3,minmax(78px,1fr));align-items:center;gap:12px;
   text-align:left;background:#fffdf7;border:1.5px solid #e3ddcb;border-radius:14px;padding:10px 14px;cursor:pointer;font-family:inherit;transition:.12s}
 .tt-row:hover{background:#f3faf8;border-color:#9fd3c8;transform:translateY(-1px)}
 .tt-row.tt-sel{background:#e3f4ef;border-color:#5fb6a6;box-shadow:0 0 0 1px #5fb6a6 inset}
 .tt-name b{display:block;font-size:14.5px;font-weight:950;color:#1f6f60}
 .tt-name small{display:block;font-size:11px;font-weight:800;color:var(--muted);margin-top:1px}
-.tt-owed{font-size:12px;font-weight:900;color:#7a9a6f;text-align:right}
-.tt-owed.tt-owed-on{color:#c0533f}
-/* 选中老师的班 */
-.tt-detail{margin-top:4px;background:#f6fbfa;border:1.5px solid #cfe7e1;border-radius:14px;padding:12px 14px}
+.tt-grade-wrap{background:#f3f8fa;border-radius:10px;padding:2px}
+/* 选中老师的详情 */
+.tt-detail{margin-top:6px;background:#f6fbfa;border:1.5px solid #cfe7e1;border-radius:14px;padding:13px 15px}
 .tt-detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
-.tt-detail-head h4{margin:0;font-size:14px;color:#1f6f60}
-.tt-class-chips{display:flex;flex-wrap:wrap;gap:8px}
+.tt-detail-head h4{margin:0;font-size:16px;color:#1f6f60}
+.tt-detail-stats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.tt-sub{margin:12px 0 7px;font-size:12.5px;font-weight:900;color:#5a6b50}
+.tt-class-chips,.tt-stu-chips{display:flex;flex-wrap:wrap;gap:8px}
 .tt-class-chip{background:#fff;border:1.4px solid #b9ddd5;border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:850;color:#1f5f70;cursor:pointer;font-family:inherit}
 .tt-class-chip:hover{background:#eaf6f3;transform:translateY(-1px)}
 .tt-class-chip.archived{opacity:.6;text-decoration:line-through}
-/* 黑榜 */
+.tt-stu-chip{background:#fff;border:1.3px solid #d7cfe8;border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:850;color:#175e74;cursor:pointer;font-family:inherit}
+.tt-stu-chip:hover{background:#f0ebf8;transform:translateY(-1px)}
+.tt-note-placeholder{margin-top:13px;background:#fbf6ee;border:1.5px dashed #d8c9a8;border-radius:12px;padding:11px 13px;font-size:12px;font-weight:700;color:#8a7448;line-height:1.6}
+.tt-note-placeholder code{background:#efe4cd;border-radius:5px;padding:1px 5px;font-size:11.5px}
+/* 学生页：本周作业欠交黑榜（落地）+ 学生档案里的作业跟进小节 */
+.stu-board{padding:2px}
+.bb-board-row{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;width:100%;text-align:left;
+  background:#fffdf7;border:1.5px solid #e6dfcd;border-radius:13px;padding:11px 15px;margin-bottom:8px;cursor:pointer;font-family:inherit;transition:.12s}
+.bb-board-row:hover{transform:translateY(-1px);border-color:#9fd3c8;background:#f6fbf9}
+.bb-board-row.bb-row-alert{background:#fdf3f0;border-color:#eebfb2}
+.bb-board-row .bb-status{margin-left:auto}
+.stu-status-line{margin:0 0 9px;flex-wrap:wrap}
+.student-overview .ov-stats{margin-bottom:14px}
+.stu-followup-block{margin-top:16px;border-top:1.5px dashed #e0d8c4;padding-top:14px}
+.stu-owed-box{margin:8px 0 4px}
+.stu-owed-cap{margin:0 0 6px;font-size:12px;font-weight:900;color:#8a7f63}
+.bb-fu-actions{margin-top:11px}
+.bb-no-fu{margin-top:10px}
+/* 黑榜（旧·已不在老师页，样式保留给跟进表单/历史复用）*/
 .bb-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .bb-section-head h4{margin:0;font-size:15px}
 .bb-todo-badge{font-size:12.5px;font-weight:950;color:#2f7d50;background:#e0f1e5;border:1px solid #a9d5b7;border-radius:999px;padding:4px 12px}
