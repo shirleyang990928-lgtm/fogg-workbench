@@ -7083,7 +7083,8 @@ b.tcc-name{
   background:#f3f8fa;padding:12px 14px;
 }
 .link-picker-hint{margin:0 0 9px;font-size:12.5px;font-weight:850;color:#23566b}
-.link-course-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.link-student-search{margin:0 0 10px;max-width:340px}
+.link-course-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;max-height:320px;overflow-y:auto;scrollbar-width:thin}
 .link-course-option{
   text-align:left;border:1.5px solid rgba(23,27,20,.55);border-radius:12px;
   background:#fff;padding:8px 12px;cursor:pointer;font-family:inherit;
@@ -8204,3 +8205,11 @@ b.tcc-name{
 .recent-course-card.plum,.today-recent-cards .recent-course-card.plum{background:#e9e3f7!important}
 .month-dot-cell em.plum{background:#8b6fc4!important}
 .recent-course-card.plum .recent-time{color:#5a4a93!important}
+
+/* ============================================================
+   2026-06-13j 月总览侧栏课程卡：容器之前是 grid 把卡高度锁成 ~102px，
+   老师那行(第三行)溢出被下一张盖住("走位")。改 flex 列，卡按内容自然撑高。
+   ============================================================ */
+.month-detail-list{display:flex!important;flex-direction:column!important;gap:9px!important;grid-template-rows:none!important}
+.month-detail-list>*{flex:0 0 auto!important}
+.month-detail-list .month-lesson{min-height:0!important;height:auto!important;overflow:visible!important}
