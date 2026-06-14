@@ -8220,13 +8220,14 @@ b.tcc-name{
 .teacher-panel{display:flex;flex-direction:column;gap:14px}
 /* 老师横向对比表：名字 + 出席/交作业/批改三个率，批改率突出 */
 .teacher-table{display:flex;flex-direction:column;gap:8px}
-.tt-row{display:grid;grid-template-columns:minmax(140px,1.6fr) repeat(3,minmax(78px,1fr));align-items:center;gap:12px;
-  text-align:left;background:#fffdf7;border:1.5px solid #e3ddcb;border-radius:14px;padding:10px 14px;cursor:pointer;font-family:inherit;transition:.12s}
+.tt-row{display:grid;grid-template-columns:minmax(140px,1.6fr) repeat(3,minmax(78px,1fr)) 64px;align-items:center;gap:12px;
+  text-align:left;background:#fffdf7;border:1.5px solid #e3ddcb;border-radius:14px;padding:11px 16px;cursor:pointer;font-family:inherit;transition:.12s}
 .tt-row:hover{background:#f3faf8;border-color:#9fd3c8;transform:translateY(-1px)}
-.tt-row.tt-sel{background:#e3f4ef;border-color:#5fb6a6;box-shadow:0 0 0 1px #5fb6a6 inset}
+.tt-row.tt-grade-low{border-color:#e7b1a5;background:#fdf5f2}
 .tt-name b{display:block;font-size:14.5px;font-weight:950;color:#1f6f60}
 .tt-name small{display:block;font-size:11px;font-weight:800;color:var(--muted);margin-top:1px}
-.tt-grade-wrap{background:#f3f8fa;border-radius:10px;padding:2px}
+.tt-go{text-align:right;font-size:12.5px;font-weight:900;color:#9fb0a8}
+.tt-row:hover .tt-go{color:#3a9282}
 /* 选中老师的详情 */
 .tt-detail{margin-top:6px;background:#f6fbfa;border:1.5px solid #cfe7e1;border-radius:14px;padding:13px 15px}
 .tt-detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
@@ -8250,14 +8251,53 @@ b.tcc-name{
 .bb-board-row .bb-status{margin-left:auto}
 .stu-status-line{margin:0 0 9px;flex-wrap:wrap}
 .student-overview .ov-stats{margin-bottom:14px}
-.stu-followup-block{margin-top:16px;border-top:1.5px dashed #e0d8c4;padding-top:14px}
-.stu-owed-box{margin:8px 0 4px}
-.stu-owed-cap{margin:0 0 6px;font-size:12px;font-weight:900;color:#8a7f63}
-.bb-fu-actions{margin-top:11px}
-.bb-no-fu{margin-top:10px}
-/* 黑榜（旧·已不在老师页，样式保留给跟进表单/历史复用）*/
+/* 学生页：左列表 + 右详情按各自内容撑高，不互相拉伸（修"点学生后左框跳超大空白"）*/
+.student-overview .student-manage{height:auto!important;overflow:visible!important;align-items:start!important}
+.student-overview .student-manage .list-panel,
+.student-overview .student-manage .edit-panel{max-height:none!important;overflow:visible!important;height:auto!important}
+.student-overview .student-manage .student-list{max-height:62vh;overflow-y:auto;scrollbar-width:thin}
+.stu-back-btn{margin:0 0 12px;min-height:32px!important;padding:4px 14px!important;font-size:12.5px!important;border-radius:999px!important}
+/* 作业跟进卡片（v20260614e 重做，干净轻框）*/
+.fu-card{margin-top:16px;background:#f7fbfa;border:1.5px solid #d6e6e1;border-radius:16px;padding:15px 16px}
+.fu-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:11px}
+.fu-card-head h4{margin:0;font-size:15.5px;color:#1f6f60}
+.fu-badge{font-style:normal;font-size:12px;font-weight:950;border-radius:999px;padding:4px 12px}
+.fu-badge-alert{color:#b23b27;background:#fbe3dd;border:1px solid #e7b1a5}
+.fu-badge-ok{color:#2f7d50;background:#e0f1e5;border:1px solid #a9d5b7}
+.fu-owed{background:#fff;border:1.3px solid #ecd6cf;border-radius:12px;padding:10px 13px;margin-bottom:12px}
+.fu-owed-cap{font-size:12.5px;font-weight:900;color:#8a6f5a}
+.fu-owed-cap b{color:#c0533f;font-size:14px;margin:0 2px}
+.fu-miss-list{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:8px}
+.fu-miss{font-size:11.5px;font-weight:750;color:#6a4f4a;background:#fdf3f0;border:1px solid #f0d9d2;border-radius:8px;padding:3px 9px}
+.fu-miss b{color:#c0533f;font-weight:900;margin-right:3px}
+.fu-empty{margin:4px 0 0;font-size:12.5px;font-weight:700;color:#8a8470;line-height:1.6}
+.fu-act-row{margin:4px 0 0}
+.fu-log-btn{min-height:36px!important;padding:7px 18px!important;font-size:13px!important;border-radius:999px!important}
+/* 记录跟进表单 */
+.fu-form{margin-top:12px;background:#fff;border:1.5px solid #cfe0db;border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:11px}
+.fu-form-grid{display:flex;flex-wrap:wrap;gap:12px}
+.fu-form-grid .fu-field{flex:1 1 180px}
+.fu-field{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:900;color:#3f6b5e}
+.fu-field input,.fu-field select,.fu-field textarea{font-family:inherit;font-size:13px;font-weight:600;border:1.4px solid #c8dcd6;border-radius:9px;padding:9px 11px;background:#fdfefe;box-sizing:border-box;width:100%;color:#2b2b25}
+.fu-field textarea{resize:vertical;line-height:1.55}
+.fu-field input:focus,.fu-field select:focus,.fu-field textarea:focus{outline:none;border-color:#5fb6a6;background:#fff}
+.fu-form-ops{display:flex;gap:10px;margin-top:3px}
+.fu-form-ops .bb-f-save{min-height:40px!important}
+/* 跟进历史 */
+.fu-history{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+.fu-history-cap{margin:0 0 2px;font-size:12.5px;font-weight:950;color:#5a6b50}
+.fu-item{background:#fff;border:1.3px solid #e2dccb;border-left:4px solid #79c1b3;border-radius:11px;padding:11px 13px}
+.fu-item-head{display:flex;align-items:center;gap:9px}
+.fu-item-date{font-size:13.5px;font-weight:950;color:#175e74}
+.fu-item-status{font-style:normal;font-size:11px;font-weight:900;color:#1f6f60;background:#e0f1ec;border:1px solid #b9ddd5;border-radius:999px;padding:2px 10px}
+.fu-item-del{margin-left:auto;border:0;background:none;color:#c9c3b4;cursor:pointer;font-size:14px;line-height:1}
+.fu-item-del:hover{color:#c0533f}
+.fu-item-line{margin:7px 0 0;font-size:13px;line-height:1.55;display:flex;gap:8px}
+.fu-item-line span{flex:0 0 auto;font-weight:950;color:#8a7f63}
+.fu-item-line em{font-style:normal;font-weight:600;color:#3a3a32}
+/* 黑榜（旧·已不在老师页，样式保留给落地黑榜行复用）*/
 .bb-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.bb-section-head h4{margin:0;font-size:15px}
+.bb-section-head h4,.bb-section-head h3{margin:0;font-size:16px}
 .bb-todo-badge{font-size:12.5px;font-weight:950;color:#2f7d50;background:#e0f1e5;border:1px solid #a9d5b7;border-radius:999px;padding:4px 12px}
 .bb-todo-badge.on{color:#b23b27;background:#fbe3dd;border-color:#e7b1a5}
 .bb-hint{margin:6px 0 12px;font-size:12px;font-weight:750;color:#7a6f55;line-height:1.55}

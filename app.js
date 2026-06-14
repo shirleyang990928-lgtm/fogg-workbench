@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260614d';
+const APP_VERSION='20260614e';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -2178,7 +2178,8 @@ function studentDetailHtml(){
   const classes=r?r.classes:[];
   const classNotes=r?r.classNotes:[];
   const showForm=isNew||studentDetailEditing;
-  return `<div class="stu-view-head">
+  return `<button class="btn ghost stu-back-btn" data-stu-back type="button">← 返回黑榜 / 名册</button>
+  <div class="stu-view-head">
     <div>
       <h3 class="student-detail-title">${esc(editingStudentName)} ${isNew?'<i class="stu-status stu-none">未建档 · 保存一次即建档</i>':`<i class="stu-status ${studentStatusClass(p.status)}">${esc(p.status)}</i>`}</h3>
       <p class="stu-view-sub">${classes.length} 门课${p.enrollDate&&!isNew?` · ${esc(formatDateShort(p.enrollDate))} 入学`:""}${p.grade&&!isNew?` · ${esc(p.grade)}`:""}</p>
@@ -2242,6 +2243,9 @@ function renderStudents(){
   bindDateRangeCtl("st",(f,t)=>{studentRange={from:f,to:t};rerenderKeepScroll();});
   // 学生页点课程 chip → 进那门课的课程主页（Shirley：之前弹"当天"的详情弹窗，看不懂为什么是 6/12）
   document.querySelectorAll("[data-stu-open-course]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.stuOpenCourse)));
+  // 返回黑榜/名册（取消选中学生，右面板回到落地黑榜）
+  const back=document.querySelector("[data-stu-back]");
+  if(back)back.addEventListener("click",()=>{editingStudentName=null;followupFormFor="";render();});
 }
 
 function refreshStudentList(){
@@ -3105,23 +3109,23 @@ function deleteFollowup(name,id){
 
 function followupFormHtml(name){
   const today=dateKey(new Date());
-  return `<div class="bb-form" data-bb-form="${safeAttr(name)}">
-    <div class="bb-form-row">
-      <label>跟进日期<input type="date" class="bb-f-date" value="${today}"></label>
-      <label>跟进后状态<select class="bb-f-status">${FOLLOWUP_STATUS.map(s=>`<option value="${safeAttr(s)}">${s}</option>`).join("")}</select></label>
+  return `<div class="fu-form" data-bb-form="${safeAttr(name)}">
+    <div class="fu-form-grid">
+      <label class="fu-field"><span>跟进日期</span><input type="date" class="bb-f-date" value="${today}"></label>
+      <label class="fu-field"><span>跟进后状态</span><select class="bb-f-status">${FOLLOWUP_STATUS.map(s=>`<option value="${safeAttr(s)}">${s}</option>`).join("")}</select></label>
     </div>
-    <label class="bb-form-full">我做了什么 / 用了什么话术<textarea class="bb-f-action" rows="2" placeholder="例：私信家长说明孩子连续两次没交，建议每天固定一个写作业时间…"></textarea></label>
-    <label class="bb-form-full">家长怎么回应<textarea class="bb-f-reply" rows="2" placeholder="例：家长说最近忙，会盯着孩子按时交"></textarea></label>
-    <label class="bb-form-full">孩子后续 / 有没有改善<input class="bb-f-result" placeholder="例：本周交了 2 次，继续观察"></label>
-    <div class="bb-form-ops"><button class="btn primary bb-f-save" data-bb-save="${safeAttr(name)}" type="button">保存这次跟进</button><button class="btn ghost bb-f-cancel" type="button">取消</button></div>
+    <label class="fu-field"><span>我做了什么 / 用了什么话术</span><textarea class="bb-f-action" rows="2" placeholder="例：私信家长说明孩子连续两次没交，建议每天固定一个写作业时间…"></textarea></label>
+    <label class="fu-field"><span>家长怎么回应</span><textarea class="bb-f-reply" rows="2" placeholder="例：家长说最近忙，会盯着孩子按时交"></textarea></label>
+    <label class="fu-field"><span>孩子后续 / 有没有改善</span><input class="bb-f-result" placeholder="例：本周交了 2 次，继续观察"></label>
+    <div class="fu-form-ops"><button class="btn primary bb-f-save" data-bb-save="${safeAttr(name)}" type="button">保存这次跟进</button><button class="btn ghost bb-f-cancel" type="button">取消</button></div>
   </div>`;
 }
 function followupItemHtml(name,f){
-  return `<div class="bb-fu-item">
-    <div class="bb-fu-head"><b>${esc(formatDateShort(f.date))}</b>${f.status?`<i class="bb-fu-status">${esc(f.status)}</i>`:""}<button class="bb-fu-del" data-bb-fu-del="${safeAttr(name)}|${safeAttr(f.id)}" type="button" title="删除这条跟进">✕</button></div>
-    ${f.action?`<p class="bb-fu-line"><span>我做了</span>${esc(f.action)}</p>`:""}
-    ${f.parentReply?`<p class="bb-fu-line"><span>家长回应</span>${esc(f.parentReply)}</p>`:""}
-    ${f.result?`<p class="bb-fu-line"><span>孩子后续</span>${esc(f.result)}</p>`:""}
+  return `<div class="fu-item">
+    <div class="fu-item-head"><b class="fu-item-date">${esc(formatDateShort(f.date))}</b>${f.status?`<i class="fu-item-status">${esc(f.status)}</i>`:""}<button class="fu-item-del" data-bb-fu-del="${safeAttr(name)}|${safeAttr(f.id)}" type="button" title="删除这条跟进">✕</button></div>
+    ${f.action?`<p class="fu-item-line"><span>我做了</span><em>${esc(f.action)}</em></p>`:""}
+    ${f.parentReply?`<p class="fu-item-line"><span>家长回应</span><em>${esc(f.parentReply)}</em></p>`:""}
+    ${f.result?`<p class="fu-item-line"><span>孩子后续</span><em>${esc(f.result)}</em></p>`:""}
   </div>`;
 }
 
@@ -3134,7 +3138,7 @@ function bindFollowupControls(){
   document.querySelectorAll("[data-bb-save]").forEach(b=>b.addEventListener("click",()=>{
     if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
     const name=b.dataset.bbSave;
-    const form=b.closest(".bb-form");if(!form)return;
+    const form=b.closest(".fu-form");if(!form)return;
     const date=form.querySelector(".bb-f-date").value||dateKey(new Date());
     const action=form.querySelector(".bb-f-action").value.trim();
     const parentReply=form.querySelector(".bb-f-reply").value.trim();
@@ -3161,14 +3165,14 @@ function studentFollowupSectionHtml(name){
   const fus=studentFollowups(name).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const formOpen=followupFormFor===name;
   const allDetail=owedAll.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)))
-    .map(o=>`<span class="bb-miss"><b>${esc(formatDateShort(o.date))}</b> ${esc(o.className)}${o.hw?`《${esc(o.hw)}》`:"（没写作业内容）"}</span>`).join("");
-  return `<div class="stu-followup-block">
-    <div class="bb-section-head"><h4>📚 作业跟进</h4>${owedWeek.length?`<span class="bb-todo-badge on">本周欠交 ${owedWeek.length} 次</span>`:`<span class="bb-todo-badge">本周交齐 👍</span>`}</div>
-    ${owedAll.length?`<div class="stu-owed-box"><p class="stu-owed-cap">累计欠交 ${owedAll.length} 次（最近在前）：</p><div class="bb-misses">${allDetail}</div></div>`:'<p class="empty">目前没有欠交记录 👍</p>'}
-    <div class="bb-fu-actions"><button class="btn ghost bb-log-btn" data-bb-log="${safeAttr(name)}" type="button">${formOpen?"收起":"✎ 记录一次跟进"}</button></div>
+    .map(o=>`<span class="fu-miss"><b>${esc(formatDateShort(o.date))}</b> ${esc(o.className)}${o.hw?`《${esc(o.hw)}》`:""}</span>`).join("");
+  return `<section class="fu-card">
+    <div class="fu-card-head"><h4>📚 作业跟进</h4>${owedWeek.length?`<i class="fu-badge fu-badge-alert">本周欠交 ${owedWeek.length} 次</i>`:`<i class="fu-badge fu-badge-ok">本周交齐 👍</i>`}</div>
+    ${owedAll.length?`<div class="fu-owed"><span class="fu-owed-cap">累计欠交 <b>${owedAll.length}</b> 次</span><div class="fu-miss-list">${allDetail}</div></div>`:'<p class="fu-empty">目前没有欠交记录，很棒 👍</p>'}
+    <div class="fu-act-row"><button class="btn ${formOpen?'ghost':'primary'} fu-log-btn" data-bb-log="${safeAttr(name)}" type="button">${formOpen?"收起":"✎ 记录一次跟进"}</button></div>
     ${formOpen?followupFormHtml(name):""}
-    ${fus.length?`<div class="bb-history"><p class="stu-owed-cap">跟进记录（${fus.length}）：</p>${fus.map(f=>followupItemHtml(name,f)).join("")}</div>`:'<p class="empty bb-no-fu">还没有跟进记录。孩子累积欠交时，点上面"记录一次跟进"，写下你做了什么、家长怎么回、孩子后续。</p>'}
-  </div>`;
+    ${fus.length?`<div class="fu-history"><h5 class="fu-history-cap">跟进记录 · ${fus.length} 条</h5>${fus.map(f=>followupItemHtml(name,f)).join("")}</div>`:(formOpen?"":'<p class="fu-empty">还没有跟进记录。孩子累积欠交时，点上面"记录一次跟进"，写下你做了什么、家长怎么回、孩子后续。</p>')}
+  </section>`;
 }
 
 /* 学生页没选学生时的落地内容：作业欠交黑榜（跟着顶部 类别/学期/时间 筛选走，点名字进档案跟进） */
@@ -3231,26 +3235,19 @@ function renderTeachers(){
   const allStudents=new Set();pool.forEach(c=>(c.students||[]).forEach(s=>{const n=(s.name||"").trim();if(n)allStudents.add(n);}));
   const chip=(cur,val,label,key)=>`<button class="tab ${cur===val?'active':''}" data-${key}="${safeAttr(val)}" type="button">${esc(label)}</button>`;
 
+  // 选了老师 → 跳到独立的老师详情页（带返回），不在列表底部展开
+  if(sel){renderTeacherDetail(sel,since,until,rt);return;}
+
   setHead("老师面板","","共 "+summary.length+" 位老师");
   byId("tabs").innerHTML="";
 
-  const tableRows=summary.map(t=>`<button class="tt-row${t.teacher===teacherPanelSel?' tt-sel':''}" data-teacher-pick="${safeAttr(t.teacher)}" type="button">
+  const tableRows=summary.map(t=>`<button class="tt-row${t.gradeRate!==null&&t.gradeRate<60?' tt-grade-low':''}" data-teacher-pick="${safeAttr(t.teacher)}" type="button">
     <span class="tt-name"><b>${esc(t.teacher)}</b><small>${t.courseCount} 班 · ${t.studentCount} 名学生</small></span>
     ${rateChip("出席",t.attRate)}
     ${rateChip("交作业",t.hwRate)}
-    <span class="tt-grade-wrap">${rateChip("批改率",t.gradeRate,t.gradeRate===null?"":`已改 ${t.hwGraded}/${t.hwIn}`)}</span>
+    ${rateChip("批改率",t.gradeRate,t.gradeRate===null?"":`已改 ${t.hwGraded}/${t.hwIn}`)}
+    <span class="tt-go">查看 ›</span>
   </button>`).join("")||'<p class="empty">这个筛选下没有老师。换个类别/学期，或去"管理→管理课程"建课填老师。</p>';
-
-  // 选中老师的详情：班级（可点进课程页）+ 学生（点名字进档案）+ 资料/笔记占位
-  const selDetail=sel?`<div class="tt-detail">
-    <div class="tt-detail-head"><h4>${esc(sel.teacher)}</h4><button class="btn ghost" id="ttClearSel" type="button">← 看全部老师</button></div>
-    <div class="tt-detail-stats">${rateChip("出席",sel.attRate)}${rateChip("交作业",sel.hwRate)}${rateChip("批改率",sel.gradeRate,sel.gradeRate===null?"":`已改 ${sel.hwGraded}/${sel.hwIn}`)}</div>
-    <h5 class="tt-sub">TA 的课程（${sel.courseCount}）· 点进课程主页</h5>
-    <div class="tt-class-chips">${sel.courses.map(c=>`<button class="tt-class-chip${isClassDone(c)?' archived':''}" data-course-home="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${isClassDone(c)?'（已结课）':''}</button>`).join("")||'<span class="empty">没有课程</span>'}</div>
-    <h5 class="tt-sub">TA 在带的学生（${sel.studentCount}）· 点名字看档案</h5>
-    <div class="tt-stu-chips">${[...new Set(sel.courses.flatMap(c=>(c.students||[]).map(s=>(s.name||"").trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,"zh-Hans-CN")).map(n=>`<button class="student-link tt-stu-chip" data-student-name="${safeAttr(n)}" type="button">${esc(n)}</button>`).join("")||'<span class="empty">还没有学生</span>'}</div>
-    <div class="tt-note-placeholder">📝 跟这位老师的沟通笔记 + 可编辑资料 —— 这块要存云端，得先在数据库加一个 <code>teachers</code> 字段。你点头我给你一行 SQL，跑完就能在这里记。</div>
-  </div>`:"";
 
   byId("content").innerHTML=`<div class="course-home course-overview teacher-panel">
     <div class="ov-toolbar">
@@ -3267,13 +3264,41 @@ function renderTeachers(){
       ${rateTile("批改率 · "+rt,aggGrade,aggGrade===null?"还没人交":`已改 ${agg.hwGraded} / 已交 ${agg.hwIn}`)}
     </div>
     <div class="student-detail-extra">
-      <h4>老师对比 · ${esc(rt)}（批改率低的排前面，提醒该批改了 · 点一位老师看 TA 的班和学生）</h4>
+      <h4>老师对比 · ${esc(rt)}（批改率低的排前面，提醒该批改了 · 点一位老师看详情）</h4>
       <div class="teacher-table">${tableRows}</div>
-      ${selDetail}
     </div>
     <p class="student-phase-hint">批改率 = 已批改 ÷ 已交，是老师该做的事，低于 60% 标红。作业欠交（学生的事）已挪到「学生」页。</p>
   </div>`;
   bindTeacherPanelEvents();
+}
+
+/* 老师详情页（独立一页，带返回 —— 镜像课程主页的进出方式） */
+function renderTeacherDetail(sel,since,until,rt){
+  const students=[...new Set(sel.courses.flatMap(c=>(c.students||[]).map(s=>(s.name||"").trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,"zh-Hans-CN"));
+  setHead(sel.teacher,"",sel.courseCount+" 班 · "+sel.studentCount+" 名学生");
+  byId("tabs").innerHTML=`<button class="btn" id="teacherBack" type="button">← 返回老师列表</button>`;
+  byId("content").innerHTML=`<div class="course-home teacher-detail-page">
+    <div class="stu-info-grid course-home-stats">
+      <div class="stu-tile t-blue"><span>带班 · 学生</span><b>${sel.courseCount} 班 · ${sel.studentCount} 人</b></div>
+      ${rateTile("出席率 · "+rt,sel.attRate,sel.attRate===null?"":`到 ${sel.att} / 缺 ${sel.abs}`)}
+      ${rateTile("交作业率 · "+rt,sel.hwRate,sel.hwRate===null?"这段时间没布置过":`交 ${sel.hwIn} / 应交 ${sel.hwAssigned}`)}
+      ${rateTile("批改率 · "+rt,sel.gradeRate,sel.gradeRate===null?"还没人交":`已改 ${sel.hwGraded} / 已交 ${sel.hwIn}`)}
+    </div>
+    <div class="student-detail-extra">
+      <h4>TA 的课程（${sel.courseCount}）· 点进课程主页</h4>
+      <div class="tt-class-chips">${sel.courses.map(c=>`<button class="tt-class-chip${isClassDone(c)?' archived':''}" data-course-home="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${isClassDone(c)?'（已结课）':''}</button>`).join("")||'<p class="empty">没有课程</p>'}</div>
+    </div>
+    <div class="student-detail-extra">
+      <h4>TA 在带的学生（${sel.studentCount}）· 点名字看档案</h4>
+      <div class="tt-stu-chips">${students.map(n=>`<button class="student-link tt-stu-chip" data-student-name="${safeAttr(n)}" type="button">${esc(n)}</button>`).join("")||'<p class="empty">还没有学生</p>'}</div>
+    </div>
+    <div class="student-detail-extra">
+      <h4>📝 沟通笔记 · 老师资料</h4>
+      <div class="tt-note-placeholder">跟这位老师的沟通交流、目前的任务、可编辑资料，都会放这里。这块要存云端、跨设备同步，得先在数据库加一个 <code>teachers</code> 字段（和你当初给学生加 <code>students</code> 字段一样，一行 SQL）。你点头我给你那行 SQL，跑完就能在这里记。</div>
+    </div>
+  </div>`;
+  byId("teacherBack").addEventListener("click",()=>{teacherPanelSel="";render();});
+  document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
 }
 
 function bindTeacherPanelEvents(){
@@ -3282,14 +3307,7 @@ function bindTeacherPanelEvents(){
   const doneBtn=document.querySelector("[data-tt-done]");
   if(doneBtn)doneBtn.addEventListener("click",()=>{teacherShowDone=!teacherShowDone;rerenderKeepScroll();});
   bindDateRangeCtl("tp",(f,t)=>{teacherFrom=f;teacherTo=t;rerenderKeepScroll();});
-  document.querySelectorAll("[data-teacher-pick]").forEach(b=>b.addEventListener("click",()=>{
-    const t=b.dataset.teacherPick;
-    teacherPanelSel=(teacherPanelSel===t)?"":t;
-    render();
-  }));
-  const clr=byId("ttClearSel");
-  if(clr)clr.addEventListener("click",()=>{teacherPanelSel="";render();});
-  document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
+  document.querySelectorAll("[data-teacher-pick]").forEach(b=>b.addEventListener("click",()=>{teacherPanelSel=b.dataset.teacherPick;render();}));
 }
 
 /* ===== 课程总览页 v2（v20260611f，Shirley 2026-06-11 深夜反馈）=====
