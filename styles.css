@@ -8162,3 +8162,45 @@ b.tcc-name{
   .course-ov-row .ov-name{grid-column:1/-1!important}
   .course-ov-row .ov-gap{display:none!important}
 }
+
+/* ============================================================
+   2026-06-13i 第十三轮(终)：日卡 min-width 撑爆根因 / 课程总览列布局重做 / 细滚动条兜底
+   ============================================================ */
+
+/* (A) 日程本周日卡：之前 min-width:180px 比列宽还大→强行撑出去被滚动条压。
+   改 min-width:0，卡片永远缩进列内，滚动条多宽都不再压卡（根治）。 */
+.week-vertical .week-lesson.vertical-note.readable-week-note,
+.week-vertical .lane-scroll>*{min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+
+/* (B) 细滚动条兜底：这环境 ::-webkit-scrollbar 不一定生效，加标准属性 scrollbar-width:thin */
+.lane-scroll,.month-detail-list,.month-dots-grid,.recent-index,.today-recent-cards,
+.item-list.card-list,#content,.edit-panel.preview-edit,.list-panel{
+  scrollbar-width:thin;scrollbar-color:rgba(36,35,31,.4) transparent;
+}
+
+/* (C) 课程总览每行：6 列全定宽 + justify-content:space-between 让列均匀铺满整行，
+   名字列给足 340px(周几·时间·老师·类别·学期 一行放得下不被切)，每行同一竖线对齐 */
+.course-overview .course-ov-list .course-ov-row{
+  display:grid!important;
+  grid-template-columns:340px 60px 116px 116px 116px 152px!important;
+  justify-content:space-between!important;
+  align-items:center!important;column-gap:14px!important;
+}
+.course-ov-row .ov-name{min-width:0;overflow-wrap:anywhere}
+.course-ov-row .ov-name small{white-space:normal}
+.course-ov-row .ov-count{text-align:center!important;justify-self:center!important}
+.course-ov-row .ov-rate{justify-items:start!important}
+.course-ov-row .ov-progress{justify-items:end!important;text-align:right!important}
+@media(max-width:980px){
+  .course-overview .course-ov-list .course-ov-row{grid-template-columns:1fr 1fr!important;justify-content:stretch!important;row-gap:8px!important}
+  .course-ov-row .ov-name{grid-column:1/-1!important}
+}
+
+/* (D) 电影类别 = 紫色 tone（plum），覆盖各种卡片 */
+.schedule-card.plum{background:linear-gradient(145deg,#faf8ff,#e7e0f6)!important}
+.week-lesson.plum,.week-lesson.vertical-note.plum{background:#e9e3f7!important}
+.month-lesson.plum{background:#e9e3f7!important}
+.tcc-card.plum{background:linear-gradient(145deg,#faf8ff,#e7e0f6)!important}
+.recent-course-card.plum,.today-recent-cards .recent-course-card.plum{background:#e9e3f7!important}
+.month-dot-cell em.plum{background:#8b6fc4!important}
+.recent-course-card.plum .recent-time{color:#5a4a93!important}

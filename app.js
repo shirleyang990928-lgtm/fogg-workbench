@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260613g';
+const APP_VERSION='20260613i';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -727,8 +727,11 @@ const CLASS_TYPE_FILTERS=[
   {value:"LR",label:"LR"},
   {value:"CW",label:"CW"},
   {value:"CR",label:"CR"},
-  {value:"EW",label:"EW"}
+  {value:"EW",label:"EW"},
+  {value:"MV",label:"电影"}
 ];
+// 类别代码 → 显示名（电影用中文，其余就是代码本身）
+function catLabel(code){const f=CLASS_TYPE_FILTERS.find(t=>t.value===code);return f?f.label:code;}
 const TERM_OPTIONS=["上半年","下半年","假期营","1对1"];
 
 function formVal(id){
@@ -742,11 +745,13 @@ function courseCode(x){
   if(/\bcw\b|创意|creative/.test(text)) return "CW";
   if(/\bcr\b|中文|趣味|chinese/.test(text)) return "CR";
   if(/\bew\b|议论|思辨|essay|argument/.test(text)) return "EW";
+  if(/\bmv\b|电影|film|movie/.test(text)) return "MV";
   return "";
 }
 
 function courseTypeLabel(x){
-  return courseCode(x)||x.courseType||"未分类";
+  const code=courseCode(x);
+  return code?catLabel(code):(x.courseType||"未分类");
 }
 
 function classTermLabel(x){
@@ -762,6 +767,7 @@ function courseTone(x){
   if(code==="CW") return "coral";
   if(code==="CR") return "leaf";
   if(code==="EW") return "sky";
+  if(code==="MV") return "plum";
   return "leaf";
 }
 
@@ -1025,7 +1031,7 @@ function classForm(x){
         <label class="field">时间<input id="classTime" type="time" value="${safeAttr(x.time)}"></label>
         <label class="field wide">课程名<input id="className" value="${safeAttr(x.className)}" placeholder="如：英文精读 HP3"></label>
         <label class="field">老师<input id="classTeacher" value="${safeAttr(x.teacher)}"></label>
-        <label class="field">分类<select id="classCourseType">${CLASS_TYPE_FILTERS.map(t=>`<option value="${t.value}" ${code===t.value?'selected':''}>${t.value}</option>`).join("")}</select></label>
+        <label class="field">分类<select id="classCourseType">${CLASS_TYPE_FILTERS.map(t=>`<option value="${t.value}" ${code===t.value?'selected':''}>${t.label}</option>`).join("")}</select></label>
         <label class="field">学期<select id="classTerm">${finalTermOptions().map(v=>`<option value="${v}" ${term===v?'selected':''}>${v}</option>`).join("")}</select></label>
       </div>
     </div>
@@ -1180,7 +1186,7 @@ function renderClassInlineEditor(item){
       <label class="field">老师<input id="modalTeacher" value="${safeAttr(item.teacher)}"></label>
     </div>
     <div class="compact-row">
-      <label class="field">分类<select id="modalType">${CLASS_TYPE_FILTERS.map(t=>`<option value="${t.value}" ${code===t.value?'selected':''}>${t.value}</option>`).join("")}</select></label>
+      <label class="field">分类<select id="modalType">${CLASS_TYPE_FILTERS.map(t=>`<option value="${t.value}" ${code===t.value?'selected':''}>${t.label}</option>`).join("")}</select></label>
       <label class="field">学期<select id="modalTerm">${finalTermOptions().map(v=>`<option value="${v}" ${(item.term||"上半年")===v?'selected':''}>${v}</option>`).join("")}</select></label>
     </div>
     <div class="compact-row">
@@ -3015,15 +3021,12 @@ function courseOvRowHtml(c,s){
   const progress=info
     ?`<span class="ov-lessons ov-progress"><b>${esc(isClassDone(c)?`共 ${info.total} 堂`:courseProgressText(info))}</b><small>${esc(formatDateShort(info.first))} 开课 · ${esc(formatDateShort(info.last))} 结课</small></span>`
     :`<span class="ov-lessons ov-progress"><b>${s.lessons} 次记录</b><small>未填排期</small></span>`;
-  // 两个 .ov-gap 弹性间隔：把"人数+三率"这组数据夹在 名字 与 进度 中间居中（Shirley：别全挤右边、中间空一大块）
   return `<button class="course-ov-row${s.lessons?"":" ov-row-quiet"}" data-course-home="${safeAttr(c.id)}" type="button">
     <span class="ov-name"><b>${esc(c.className)}${isClassDone(c)?'<i class="ov-done-tag">已结课</i>':""}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填老师")} · ${esc(courseTypeLabel(c))} · ${esc(c.term||classTermLabel(c))}</small></span>
-    <span class="ov-gap"></span>
     <span class="ov-count">${(c.students||[]).length} 人</span>
     ${rateChip("出席",s.attRate,s.attRate===null?"":`到${s.att} 缺${s.abs}`)}
     ${rateChip("交作业",s.hwRate,s.hwRate===null?"":`${s.hwIn}/${s.hwAssigned}`)}
     ${rateChip("批改",s.gradeRate,s.gradeRate===null?"":`${s.hwGraded}/${s.hwIn}`)}
-    <span class="ov-gap"></span>
     ${progress}
   </button>`;
 }
@@ -3035,7 +3038,7 @@ function renderCourses(){
   // 选"结课"时强制把已结课的班纳进来；否则按"含已结课"开关决定
   const all=termIsDone?allPool:(courseOverviewShowDone?allPool:allPool.filter(c=>!isClassDone(c)));
   const codeOf=c=>courseCode(c)||"其他";
-  const cats=["LR","CW","CR","EW"];
+  const cats=["LR","CW","CR","EW","MV"];
   if(all.some(c=>codeOf(c)==="其他"))cats.push("其他");
   // 当前筛选下的班级
   const list=all.filter(c=>
@@ -3068,7 +3071,7 @@ function renderCourses(){
   byId("tabs").innerHTML="";
   byId("content").innerHTML=`<div class="course-home course-overview">
     <div class="ov-toolbar">
-      <span class="ov-group"><i>类别</i>${chip(courseOverviewType,"all","全部","ov-type")}${cats.map(t=>chip(courseOverviewType,t,t,"ov-type")).join("")}</span>
+      <span class="ov-group"><i>类别</i>${chip(courseOverviewType,"all","全部","ov-type")}${cats.map(t=>chip(courseOverviewType,t,catLabel(t),"ov-type")).join("")}</span>
       <span class="ov-group"><i>学期</i>${chip(courseOverviewTerm,"all","全部","ov-term")}${TERM_OPTIONS.map(t=>chip(courseOverviewTerm,t,t,"ov-term")).join("")}${chip(courseOverviewTerm,"结课","结课"+(doneCount?" "+doneCount:""),"ov-term")}</span>
       <span class="ov-group"><button class="tab ov-done-toggle ${courseOverviewShowDone?'active':''}" data-ov-done type="button">含已结课${doneCount?" "+doneCount:""}</button></span>
       <span class="ov-group ov-group-time"><i>时间</i>${dateRangeCtlHtml("ov",since,until)}</span>
