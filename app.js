@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260614a';
+const APP_VERSION='20260614b';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -347,7 +347,7 @@ function filterStickers(list,scene,audience){return list.filter(x=>(scene==="all
 function updateNav(){document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));}
 function setHead(title,sub,count){byId("viewTitle").textContent=title;byId("viewSubtitle").textContent=sub;byId("viewSubtitle").hidden=!sub;byId("counter").textContent=count||"";}
 function tabs(items,current,key){return items.map(x=>`<button class="tab ${x.value===current?'active':''}" data-${key}="${safeAttr(x.value)}">${esc(x.label)}</button>`).join("");}
-function render(){updateNav();if(view==="today")renderToday();if(view==="stickers")renderStickers();if(view==="courses")renderCourses();if(view==="students")renderStudents();if(view==="manage")renderManage();if(view==="courseHome")renderCourseHome();if(view==="sop")renderSop();}
+function render(){updateNav();if(view==="today")renderToday();if(view==="stickers")renderStickers();if(view==="courses")renderCourses();if(view==="students")renderStudents();if(view==="teachers")renderTeachers();if(view==="manage")renderManage();if(view==="courseHome")renderCourseHome();if(view==="sop")renderSop();}
 /* 页内筛选用这个重渲染：保住滚动位置，不再跳回顶部（Shirley 点学生页筛选会回跳的 bug）。
    有的页是 #content 在滚，有的页（学生页）是里面的面板在滚，所以把所有滚着的容器都记下来。 */
 function rerenderKeepScroll(){
@@ -1145,6 +1145,7 @@ const NAV_ITEMS=[
   {view:"stickers",label:"话术",sub:"快速复制"},
   {view:"courses",label:"课程",sub:"总览与对比"},
   {view:"students",label:"学生",sub:"名册与关联"},
+  {view:"teachers",label:"老师",sub:"面板·欠交追踪"},
   {view:"sop",label:"SOP",sub:"做事流程"},
   {view:"manage",label:"管理",sub:"整理与备份"}
 ];
@@ -1886,6 +1887,9 @@ function normalizeStudentProfile(p){
     // 而 const 声明在下面，会报"before initialization"导致本地缓存的学生档案读不出来
     status:["在读","停课","结课"].includes(p.status)?p.status:"在读",
     note:p.note||"",
+    // 作业欠交跟进记录（v20260614b，老师面板黑榜用）：[{id,date,action,parentReply,result,status,loggedAt}]
+    // 存在学生档案里，跟着 students jsonb 列上云，不用改数据库
+    followups:Array.isArray(p.followups)?p.followups:[],
     createdAt:p.createdAt||new Date().toISOString(),
     updatedAt:p.updatedAt||new Date().toISOString()
   };
@@ -2930,6 +2934,256 @@ function refreshRecFoldAllBtn(records){
   if(!btn)return;
   const allOpen=records.length&&records.every(r=>courseRecOpenDates.has(String(r.date)));
   btn.textContent=allOpen?"▾ 全部折叠":"▸ 全部展开";
+}
+
+/* ===== 老师面板 + 作业欠交红黑榜（v20260614b）=====
+   Shirley 的真实工作流：黑榜帮她看清"这周哪些孩子作业累积欠交、第几次、几号没交什么"，
+   然后记录她的跟进动作（跟家长谈了没、家长怎么回、孩子后续状态、有没有效果），跨周累积。
+   老师面板：上面所有老师横向对比表，点一个老师 → 下面展开 TA 的班 + 黑榜按这个老师的学生筛。
+   跟进记录存在学生档案 followups 里（跟 students 列上云，不用改数据库）。 */
+const FOLLOWUP_STATUS=["已联系家长 · 观察中","家长会配合督促","孩子已改善","已解决","沟通了暂无改善"];
+let teacherPanelSel="";   // 当前选中的老师（""=未选，黑榜看全部）
+let teacherRange=null;    // {from,to}；null=默认本周
+let followupFormFor="";   // 当前展开"记录跟进"表单的学生名
+let blackboardOpen=new Set(); // 展开了跟进历史的学生名
+
+/* 把所有课程按老师分组，算每个老师的汇总（班数/学生数去重/出勤·提交·批改率/欠交人数） */
+function teacherSummary(since,until){
+  const map={};
+  overviewCourses().forEach(c=>{
+    const t=(c.teacher||"").trim()||"未填老师";
+    if(!map[t])map[t]={teacher:t,courses:[],students:new Set()};
+    map[t].courses.push(c);
+    (c.students||[]).forEach(s=>{const n=(s.name||"").trim();if(n)map[t].students.add(n);});
+  });
+  return Object.values(map).map(m=>{
+    let att=0,abs=0,hwAssigned=0,hwIn=0,hwGraded=0,lessons=0;
+    m.courses.forEach(c=>{const s=courseStats(c,since,until);att+=s.att;abs+=s.abs;hwAssigned+=s.hwAssigned;hwIn+=s.hwIn;hwGraded+=s.hwGraded;lessons+=s.lessons;});
+    const owed=homeworkOwedInRange(since,until,m.teacher).owed;
+    return {teacher:m.teacher,courses:m.courses,courseCount:m.courses.length,studentCount:m.students.size,
+      attRate:(att+abs)?Math.round(att/(att+abs)*100):null,
+      hwRate:hwAssigned?Math.round(hwIn/hwAssigned*100):null,
+      gradeRate:hwIn?Math.round(hwGraded/hwIn*100):null,
+      lessons,owedStudents:Object.keys(owed).length};
+  }).sort((a,b)=>b.owedStudents-a.owedStudents||b.courseCount-a.courseCount||a.teacher.localeCompare(b.teacher,"zh-Hans-CN"));
+}
+
+/* 这段时间内每个学生的"作业欠交"明细。teacher 非空时只看那个老师的班。
+   口径和课程主页一致：当天布置了作业、且（点过名时）学生那天"到"，但状态不是已交/已批改 = 欠交一次。
+   返回 {owed:{名:{name,occ:[{date,className,hw}]}}, sub:{名:{assigned,submitted}}} */
+function homeworkOwedInRange(since,until,teacher){
+  const owed={},sub={};
+  overviewCourses().forEach(c=>{
+    if(teacher&&((c.teacher||"").trim()||"未填老师")!==teacher)return;
+    (Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
+      const d=String(rec.date||"");
+      if((since&&d<since)||(until&&d>until))return;
+      const hw=rec.homework||{};
+      if(!homeworkAssigned(hw))return;
+      const rollTaken=Object.keys(rec.attendance||{}).some(n=>normalizeAttendanceEntry(rec.attendance[n]).status);
+      (c.students||[]).forEach(st=>{
+        const name=(st.name||"").trim();if(!name)return;
+        const a=normalizeAttendanceEntry((rec.attendance||{})[name]);
+        if(rollTaken&&a.status!=="到")return; // 缺席不算应交
+        if(!sub[name])sub[name]={assigned:0,submitted:0};
+        sub[name].assigned++;
+        const e=(hw.entries||{})[name]||{};
+        if(e.state==="已交"||e.state==="已批改"){sub[name].submitted++;return;}
+        if(!owed[name])owed[name]={name,occ:[]};
+        owed[name].occ.push({date:d,className:c.className,hw:(hw.content||"").trim()});
+      });
+    });
+  });
+  return {owed,sub};
+}
+
+/* 学生档案里的跟进记录（找不到档案返回空数组） */
+function studentFollowups(name){
+  const p=studentsData.find(x=>(x.name||"").trim()===String(name).trim());
+  return (p&&Array.isArray(p.followups))?p.followups:[];
+}
+/* 找不到档案就建一个最小档案（和"保存一次即建档"一致），保证跟进记录有处可存 */
+function ensureProfileFor(name){
+  const key=String(name||"").trim();
+  let p=studentsData.find(x=>(x.name||"").trim()===key);
+  if(!p){p=normalizeStudentProfile({name:key});studentsData.push(p);}
+  if(!Array.isArray(p.followups))p.followups=[];
+  return p;
+}
+function addFollowup(name,entry){
+  const p=ensureProfileFor(name);
+  p.followups.push(entry);p.updatedAt=new Date().toISOString();
+  saveStudents();
+}
+function deleteFollowup(name,id){
+  const p=studentsData.find(x=>(x.name||"").trim()===String(name).trim());
+  if(!p||!Array.isArray(p.followups))return;
+  p.followups=p.followups.filter(f=>f.id!==id);p.updatedAt=new Date().toISOString();
+  saveStudents();
+}
+
+function followupFormHtml(name){
+  const today=dateKey(new Date());
+  return `<div class="bb-form" data-bb-form="${safeAttr(name)}">
+    <div class="bb-form-row">
+      <label>跟进日期<input type="date" class="bb-f-date" value="${today}"></label>
+      <label>跟进后状态<select class="bb-f-status">${FOLLOWUP_STATUS.map(s=>`<option value="${safeAttr(s)}">${s}</option>`).join("")}</select></label>
+    </div>
+    <label class="bb-form-full">我做了什么 / 用了什么话术<textarea class="bb-f-action" rows="2" placeholder="例：私信家长说明孩子连续两次没交，建议每天固定一个写作业时间…"></textarea></label>
+    <label class="bb-form-full">家长怎么回应<textarea class="bb-f-reply" rows="2" placeholder="例：家长说最近忙，会盯着孩子按时交"></textarea></label>
+    <label class="bb-form-full">孩子后续 / 有没有改善<input class="bb-f-result" placeholder="例：本周交了 2 次，继续观察"></label>
+    <div class="bb-form-ops"><button class="btn primary bb-f-save" data-bb-save="${safeAttr(name)}" type="button">保存这次跟进</button><button class="btn ghost bb-f-cancel" type="button">取消</button></div>
+  </div>`;
+}
+function followupItemHtml(name,f){
+  return `<div class="bb-fu-item">
+    <div class="bb-fu-head"><b>${esc(formatDateShort(f.date))}</b>${f.status?`<i class="bb-fu-status">${esc(f.status)}</i>`:""}<button class="bb-fu-del" data-bb-fu-del="${safeAttr(name)}|${safeAttr(f.id)}" type="button" title="删除这条跟进">✕</button></div>
+    ${f.action?`<p class="bb-fu-line"><span>我做了</span>${esc(f.action)}</p>`:""}
+    ${f.parentReply?`<p class="bb-fu-line"><span>家长回应</span>${esc(f.parentReply)}</p>`:""}
+    ${f.result?`<p class="bb-fu-line"><span>孩子后续</span>${esc(f.result)}</p>`:""}
+  </div>`;
+}
+
+function blackboardRowHtml(name,occ,allTimeCount,since){
+  const fus=studentFollowups(name).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const latest=fus[0];
+  const followedThisPeriod=!!latest&&(!since||String(latest.date)>=since);
+  const cnt=occ.length;
+  const statusTag=followedThisPeriod
+    ?`<i class="bb-status bb-done">🟡 ${esc(formatDateShort(latest.date))} 已跟进</i>`
+    :`<i class="bb-status bb-todo">🔴 待跟进</i>`;
+  const detail=occ.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)))
+    .map(o=>`<span class="bb-miss"><b>${esc(formatDateShort(o.date))}</b> ${esc(o.className)}${o.hw?`《${esc(o.hw)}》`:"（没写作业内容）"}</span>`).join("");
+  const open=blackboardOpen.has(name);
+  const formOpen=followupFormFor===name;
+  return `<div class="bb-row${followedThisPeriod?"":" bb-row-alert"}">
+    <div class="bb-top">
+      <button class="student-link bb-name" data-student-name="${safeAttr(name)}" type="button">${esc(name)}</button>
+      <span class="bb-count">本周欠交 <b>${cnt}</b> 次</span>
+      ${allTimeCount>cnt?`<span class="bb-alltime">累计欠交 ${allTimeCount} 次</span>`:""}
+      ${statusTag}
+      <span class="bb-actions">
+        <button class="btn ghost bb-log-btn" data-bb-log="${safeAttr(name)}" type="button">${formOpen?"收起":"✎ 记录跟进"}</button>
+        ${fus.length?`<button class="btn ghost bb-hist-btn" data-bb-hist="${safeAttr(name)}" type="button">${open?"收起记录":`跟进记录 ${fus.length}`}</button>`:""}
+      </span>
+    </div>
+    <div class="bb-misses">${detail}</div>
+    ${formOpen?followupFormHtml(name):""}
+    ${open&&fus.length?`<div class="bb-history">${fus.map(f=>followupItemHtml(name,f)).join("")}</div>`:""}
+  </div>`;
+}
+
+function renderTeachers(){
+  const def=quickRange("week");
+  const since=teacherRange?teacherRange.from:def[0];
+  const until=teacherRange?teacherRange.to:def[1];
+  const rt=rangeText(since,until);
+  const summary=teacherSummary(since,until);
+  // 选中的老师还在不在（删课后可能没了）
+  if(teacherPanelSel&&!summary.some(t=>t.teacher===teacherPanelSel))teacherPanelSel="";
+  const sel=teacherPanelSel?summary.find(t=>t.teacher===teacherPanelSel):null;
+  // 黑榜：选了老师就按那个老师筛
+  const scopeTeacher=teacherPanelSel||"";
+  const nowData=homeworkOwedInRange(since,until,scopeTeacher);
+  const owedNow=nowData.owed,subNow=nowData.sub;
+  const owedAll=homeworkOwedInRange("","",scopeTeacher).owed; // 累计（不限时间）
+  const blackList=Object.values(owedNow).sort((a,b)=>{
+    // 🔴待跟进的排最前，再按欠交次数多→少
+    const fa=studentFollowups(a.name).some(f=>!since||String(f.date)>=since);
+    const fb=studentFollowups(b.name).some(f=>!since||String(f.date)>=since);
+    if(fa!==fb)return fa?1:-1;
+    return b.occ.length-a.occ.length||a.name.localeCompare(b.name,"zh-Hans-CN");
+  });
+  // 红榜：这段时间布置过作业、全部交齐（应交>0 且没有欠交）
+  const redList=Object.keys(subNow).filter(n=>subNow[n].assigned>0&&!owedNow[n])
+    .sort((a,b)=>subNow[b].assigned-subNow[a].assigned).slice(0,12);
+  const todoCount=blackList.filter(b=>!studentFollowups(b.name).some(f=>!since||String(f.date)>=since)).length;
+
+  setHead("老师面板",""," 共 "+summary.length+" 位老师");
+  byId("tabs").innerHTML=`<span class="course-home-range">${dateRangeCtlHtml("tp",since,until)}</span>`;
+
+  // 老师对比表
+  const tableRows=summary.map(t=>`<button class="tt-row${t.teacher===teacherPanelSel?' tt-sel':''}" data-teacher-pick="${safeAttr(t.teacher)}" type="button">
+    <span class="tt-name"><b>${esc(t.teacher)}</b><small>${t.courseCount} 班 · ${t.studentCount} 名学生</small></span>
+    ${rateChip("出席",t.attRate)}
+    ${rateChip("交作业",t.hwRate)}
+    ${rateChip("批改",t.gradeRate)}
+    <span class="tt-owed ${t.owedStudents?'tt-owed-on':''}">${t.owedStudents?`⚠ ${t.owedStudents} 人欠交`:"✓ 无欠交"}</span>
+  </button>`).join("")||'<p class="empty">还没有课程，去"管理→管理课程"建课并填老师。</p>';
+
+  // 选中老师的班
+  const selClasses=sel?`<div class="tt-detail">
+    <div class="tt-detail-head"><h4>${esc(sel.teacher)} 的课程（${sel.courseCount}）</h4><button class="btn ghost" id="ttClearSel" type="button">← 看全部老师</button></div>
+    <div class="tt-class-chips">${sel.courses.map(c=>`<button class="tt-class-chip${isClassDone(c)?' archived':''}" data-course-home="${safeAttr(c.id)}" type="button">${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.className)}${isClassDone(c)?'（已结课）':''}</button>`).join("")}</div>
+  </div>`:"";
+
+  byId("content").innerHTML=`<div class="teacher-panel">
+    <div class="student-detail-extra">
+      <h4>老师横向对比 · ${esc(rt)}（点一位老师看 TA 的班和欠交名单）</h4>
+      <div class="teacher-table">${tableRows}</div>
+      ${selClasses}
+    </div>
+    <div class="student-detail-extra blackboard-wrap">
+      <div class="bb-section-head">
+        <h4>📕 作业欠交黑榜 · ${scopeTeacher?esc(scopeTeacher):"全部老师"} · ${esc(rt)}</h4>
+        <span class="bb-todo-badge ${todoCount?'on':''}">${todoCount?`🔴 ${todoCount} 人待跟进`:"✓ 都跟进过了"}</span>
+      </div>
+      <p class="bb-hint">按这段时间欠交次数从多到少排。🔴 = 这周还没记录跟进，需要你去找家长；点"记录跟进"写下你做了什么、家长怎么回、孩子后续，会一直累积保存。</p>
+      ${blackList.length?blackList.map(b=>blackboardRowHtml(b.name,b.occ,(owedAll[b.name]?owedAll[b.name].occ.length:b.occ.length),since)).join(""):'<p class="empty">这段时间没有人欠交作业 👍（换个时间范围看看，或确认课堂记录里点过名、记了作业）。</p>'}
+      ${redList.length?`<div class="bb-red"><h4>🏅 作业全交齐（红榜 · ${esc(rt)}）</h4><div class="bb-red-list">${redList.map(n=>`<button class="student-link bb-red-chip" data-student-name="${safeAttr(n)}" type="button">${esc(n)} <i>${subNow[n].assigned}/${subNow[n].assigned}</i></button>`).join("")}</div></div>`:""}
+    </div>
+  </div>`;
+  bindTeacherPanelEvents(since);
+}
+
+function bindTeacherPanelEvents(since){
+  bindDateRangeCtl("tp",(f,t)=>{teacherRange={from:f,to:t};render();});
+  document.querySelectorAll("[data-teacher-pick]").forEach(b=>b.addEventListener("click",()=>{
+    const t=b.dataset.teacherPick;
+    teacherPanelSel=(teacherPanelSel===t)?"":t;
+    followupFormFor="";blackboardOpen=new Set();
+    render();
+  }));
+  const clr=byId("ttClearSel");
+  if(clr)clr.addEventListener("click",()=>{teacherPanelSel="";followupFormFor="";blackboardOpen=new Set();render();});
+  document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
+  // 记录跟进：展开/收起表单
+  document.querySelectorAll("[data-bb-log]").forEach(b=>b.addEventListener("click",()=>{
+    const n=b.dataset.bbLog;
+    followupFormFor=(followupFormFor===n)?"":n;
+    if(followupFormFor)blackboardOpen.add(n);
+    render();
+  }));
+  // 展开/收起跟进历史
+  document.querySelectorAll("[data-bb-hist]").forEach(b=>b.addEventListener("click",()=>{
+    const n=b.dataset.bbHist;
+    if(blackboardOpen.has(n))blackboardOpen.delete(n);else blackboardOpen.add(n);
+    render();
+  }));
+  // 取消表单
+  document.querySelectorAll(".bb-f-cancel").forEach(b=>b.addEventListener("click",()=>{followupFormFor="";render();}));
+  // 保存一次跟进
+  document.querySelectorAll("[data-bb-save]").forEach(b=>b.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    const name=b.dataset.bbSave;
+    const form=b.closest(".bb-form");if(!form)return;
+    const date=form.querySelector(".bb-f-date").value||dateKey(new Date());
+    const action=form.querySelector(".bb-f-action").value.trim();
+    const parentReply=form.querySelector(".bb-f-reply").value.trim();
+    const result=form.querySelector(".bb-f-result").value.trim();
+    const status=form.querySelector(".bb-f-status").value;
+    if(!action&&!parentReply&&!result){showToast("至少写一句你做了什么");return;}
+    addFollowup(name,{id:uid("fu"),date,action,parentReply,result,status,loggedAt:new Date().toISOString()});
+    followupFormFor="";blackboardOpen.add(name);
+    showToast("已记下对「"+name+"」的跟进");
+    render();
+  }));
+  // 删除一条跟进
+  document.querySelectorAll("[data-bb-fu-del]").forEach(b=>b.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    const [name,id]=b.dataset.bbFuDel.split("|");
+    askConfirm("删除这条跟进记录？",()=>{deleteFollowup(name,id);showToast("已删除");render();},{okText:"删除"});
+  }));
 }
 
 /* ===== 课程总览页 v2（v20260611f，Shirley 2026-06-11 深夜反馈）=====

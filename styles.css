@@ -7139,7 +7139,7 @@ b.tcc-name{
 .clock{padding:4px 10px!important}
 .time{font-size:17px!important}
 .date{font-size:10px!important;margin-top:2px!important}
-.main-nav{grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:8px!important}
+.main-nav{grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:8px!important}
 .nav-btn,.nav-btn:nth-child(n){
   min-height:38px!important;
   padding:5px 12px!important;
@@ -7871,6 +7871,8 @@ b.tcc-name{
 .main-nav .nav-btn.active[data-view="students"] span{color:#574790!important}
 .main-nav .nav-btn.active[data-view="sop"]{background:#f6dbe7!important;border-color:#dd9ebb!important}
 .main-nav .nav-btn.active[data-view="sop"] span{color:#963a63!important}
+.main-nav .nav-btn.active[data-view="teachers"]{background:#cdeae3!important;border-color:#79c1b3!important}
+.main-nav .nav-btn.active[data-view="teachers"] span{color:#1f6f60!important}
 .main-nav .nav-btn.active[data-view="manage"]{background:#ecdcc2!important;border-color:#cab084!important}
 .main-nav .nav-btn.active[data-view="manage"] span{color:#785628!important}
 
@@ -8213,3 +8215,74 @@ b.tcc-name{
 .month-detail-list{display:flex!important;flex-direction:column!important;gap:9px!important;grid-template-rows:none!important}
 .month-detail-list>*{flex:0 0 auto!important}
 .month-detail-list .month-lesson{min-height:0!important;height:auto!important;overflow:visible!important}
+
+/* ===== 老师面板 + 作业欠交红黑榜（v20260614b）===== */
+.teacher-panel{display:flex;flex-direction:column;gap:16px}
+/* 老师横向对比表 */
+.teacher-table{display:flex;flex-direction:column;gap:8px}
+.tt-row{display:grid;grid-template-columns:minmax(120px,1.4fr) repeat(3,minmax(64px,.8fr)) minmax(96px,1fr);align-items:center;gap:10px;
+  text-align:left;background:#fffdf7;border:1.5px solid #e3ddcb;border-radius:14px;padding:10px 14px;cursor:pointer;font-family:inherit;transition:.12s}
+.tt-row:hover{background:#f3faf8;border-color:#9fd3c8;transform:translateY(-1px)}
+.tt-row.tt-sel{background:#e3f4ef;border-color:#5fb6a6;box-shadow:0 0 0 1px #5fb6a6 inset}
+.tt-name b{display:block;font-size:14.5px;font-weight:950;color:#1f6f60}
+.tt-name small{display:block;font-size:11px;font-weight:800;color:var(--muted);margin-top:1px}
+.tt-owed{font-size:12px;font-weight:900;color:#7a9a6f;text-align:right}
+.tt-owed.tt-owed-on{color:#c0533f}
+/* 选中老师的班 */
+.tt-detail{margin-top:4px;background:#f6fbfa;border:1.5px solid #cfe7e1;border-radius:14px;padding:12px 14px}
+.tt-detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.tt-detail-head h4{margin:0;font-size:14px;color:#1f6f60}
+.tt-class-chips{display:flex;flex-wrap:wrap;gap:8px}
+.tt-class-chip{background:#fff;border:1.4px solid #b9ddd5;border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:850;color:#1f5f70;cursor:pointer;font-family:inherit}
+.tt-class-chip:hover{background:#eaf6f3;transform:translateY(-1px)}
+.tt-class-chip.archived{opacity:.6;text-decoration:line-through}
+/* 黑榜 */
+.bb-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.bb-section-head h4{margin:0;font-size:15px}
+.bb-todo-badge{font-size:12.5px;font-weight:950;color:#2f7d50;background:#e0f1e5;border:1px solid #a9d5b7;border-radius:999px;padding:4px 12px}
+.bb-todo-badge.on{color:#b23b27;background:#fbe3dd;border-color:#e7b1a5}
+.bb-hint{margin:6px 0 12px;font-size:12px;font-weight:750;color:#7a6f55;line-height:1.55}
+.bb-row{background:#fffdf7;border:1.5px solid #e6dfcd;border-radius:14px;padding:11px 14px;margin-bottom:9px}
+.bb-row.bb-row-alert{background:#fdf3f0;border-color:#eebfb2}
+.bb-top{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.bb-name{font-size:15px;font-weight:950;color:#175e74;background:none;border:0;cursor:pointer;padding:0;font-family:inherit}
+.bb-name:hover{text-decoration:underline}
+.bb-count{font-size:12.5px;font-weight:800;color:#5a5240}
+.bb-count b{color:#c0533f;font-size:14px}
+.bb-alltime{font-size:11.5px;font-weight:850;color:#9a7b42;background:#f6ecd6;border-radius:999px;padding:2px 9px}
+.bb-status{font-size:12px;font-weight:950;border-radius:999px;padding:3px 11px}
+.bb-status.bb-todo{color:#b23b27;background:#fbe0d9;border:1px solid #e7b1a5}
+.bb-status.bb-done{color:#9a7616;background:#f8edcf;border:1px solid #e0c97f}
+.bb-actions{margin-left:auto;display:flex;gap:7px}
+.bb-log-btn,.bb-hist-btn{min-height:30px!important;padding:3px 13px!important;font-size:12px!important;border-radius:999px!important}
+.bb-misses{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:9px}
+.bb-miss{font-size:12px;font-weight:750;color:#6a4f4a;background:#fff;border:1px solid #ecd6cf;border-radius:9px;padding:3px 9px}
+.bb-miss b{color:#b23b27;font-weight:900;margin-right:3px}
+/* 记录跟进表单 */
+.bb-form{margin-top:11px;background:#f4faf9;border:1.5px dashed #9fd0c6;border-radius:13px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.bb-form label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:850;color:#23566b}
+.bb-form-row{display:flex;flex-wrap:wrap;gap:12px}
+.bb-form-row label{flex:1 1 150px}
+.bb-form-full{width:100%}
+.bb-form input,.bb-form select,.bb-form textarea{font-family:inherit;font-size:13px;border:1.4px solid #c2d8d2;border-radius:9px;padding:8px 10px;background:#fff;box-sizing:border-box;width:100%}
+.bb-form textarea{resize:vertical;line-height:1.5}
+.bb-form-ops{display:flex;gap:9px;margin-top:2px}
+.bb-f-save{min-height:38px!important}
+/* 跟进历史 */
+.bb-history{margin-top:11px;display:flex;flex-direction:column;gap:8px}
+.bb-fu-item{background:#fff;border:1.3px solid #e2dccb;border-left:4px solid #79c1b3;border-radius:10px;padding:9px 12px}
+.bb-fu-head{display:flex;align-items:center;gap:9px}
+.bb-fu-head b{font-size:13px;color:#175e74}
+.bb-fu-status{font-size:11px;font-weight:900;color:#1f6f60;background:#e0f1ec;border-radius:999px;padding:2px 9px}
+.bb-fu-del{margin-left:auto;border:0;background:none;color:#bba;cursor:pointer;font-size:13px;line-height:1}
+.bb-fu-del:hover{color:#c0533f}
+.bb-fu-line{margin:6px 0 0;font-size:12.5px;font-weight:600;color:#4a4636;line-height:1.5}
+.bb-fu-line span{display:inline-block;min-width:62px;font-weight:900;color:#8a7f63;margin-right:5px}
+/* 红榜 */
+.bb-red{margin-top:16px;background:#f6fbf3;border:1.5px solid #cfe6c2;border-radius:14px;padding:12px 14px}
+.bb-red h4{margin:0 0 9px;font-size:13.5px;color:#3a7a3f}
+.bb-red-list{display:flex;flex-wrap:wrap;gap:8px}
+.bb-red-chip{background:#fff;border:1.3px solid #bcdfab;border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:850;color:#175e74;cursor:pointer;font-family:inherit}
+.bb-red-chip i{font-style:normal;color:#3a7a3f;font-weight:900;margin-left:3px}
+.bb-red-chip:hover{background:#eef7e8}
+@media(max-width:760px){.tt-row{grid-template-columns:1fr 1fr;gap:7px}.bb-actions{margin-left:0;width:100%}}
