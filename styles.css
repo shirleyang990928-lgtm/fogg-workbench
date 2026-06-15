@@ -8220,7 +8220,7 @@ b.tcc-name{
 .teacher-panel{display:flex;flex-direction:column;gap:14px}
 /* 老师横向对比表：名字 + 出席/交作业/批改三个率，批改率突出 */
 .teacher-table{display:flex;flex-direction:column;gap:8px}
-.tt-row{display:grid;grid-template-columns:minmax(150px,2.4fr) 112px 112px 150px 56px;align-items:center;gap:10px;
+.tt-row{display:grid;grid-template-columns:minmax(150px,2fr) 132px 132px 132px 52px;align-items:center;gap:10px;
   text-align:left;background:#fffdf7;border:1.5px solid #e3ddcb;border-radius:13px;padding:9px 15px;cursor:pointer;font-family:inherit;transition:.12s}
 .tt-row:hover{background:#f3faf8;border-color:#9fd3c8;transform:translateY(-1px)}
 .tt-row.tt-grade-low{border-color:#e7b1a5;background:#fdf5f2}
@@ -8309,12 +8309,22 @@ b.tcc-name{
 .fu-effect-mid{color:#9a7616;background:#f8edcf;border:1px solid #e0c97f}
 .fu-effect-bad{color:#b23b27;background:#fbe3dd;border:1px solid #e7b1a5}
 .fu-effect-none{color:#8a8470;background:#f3f1ea;border:1px solid #ddd8c8}
-/* 老师详情页大标题 + 收紧空白 */
-.td-name{margin:0 0 12px;font-size:28px;font-weight:950;color:#1f6f60;letter-spacing:.5px}
-.td-stats{margin-bottom:6px}
-.teacher-detail-page{display:flex;flex-direction:column;gap:10px}
-.teacher-detail-page .student-detail-extra{margin-top:6px}
-.teacher-detail-page .student-detail-extra h4{margin:0 0 9px}
+/* 老师详情页大标题居中 + 收紧空白 */
+.td-name{margin:0 0 4px;font-size:28px;font-weight:950;color:#1f6f60;letter-spacing:.5px;text-align:center}
+.td-rangebar{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.td-range-label{font-size:12px;font-weight:900;color:#8a7f63}
+.td-stats{margin-bottom:4px}
+.teacher-detail-page{display:flex;flex-direction:column;gap:8px}
+.teacher-detail-page .student-detail-extra{margin-top:4px}
+.teacher-detail-page .student-detail-extra h4{margin:0 0 8px}
+/* 老师对比行：三个率居中对齐，像课程页那样整齐 */
+.tt-row .ov-rate{justify-items:center;text-align:center}
+.tt-row .tt-name{justify-self:start}
+/* 时间线日期做成可点按钮 */
+.stu-tl-date-btn{background:#eef4f6;border:1px solid #c6dce2;border-radius:8px;color:#1f5f70;font-weight:900;font-size:12px;cursor:pointer;font-family:inherit;padding:3px 9px}
+.stu-tl-date-btn:hover{background:#dceaef;transform:translateY(-1px)}
+/* 老师学生卡：待批改作业明细 */
+.cs-ungraded-line{margin-top:7px;font-size:11.5px;font-weight:800;color:#c0533f;background:#fdf0ec;border:1px solid #f0ccc1;border-radius:8px;padding:4px 9px;line-height:1.5}
 /* 补作：欠交明细一行一项 + 标记补作按钮 */
 .fu-owed-list{display:flex;flex-direction:column;gap:7px;margin-top:9px}
 .fu-owed-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -8325,9 +8335,12 @@ b.tcc-name{
 .fu-makeup-btn.on{border-color:#79c1b3;color:#2f7d50;background:#e6f4ea}
 .fu-made-n{color:#2f7d50}
 .fu-badge-made{color:#2f7d50;background:#e6f4ea;border:1px solid #b6ddc2}
-/* 跟进记录：一行三个 */
-.fu-history{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
+/* 跟进记录：一行最多三个，但卡片够宽不挤（日期/状态不再被吃成两行）*/
+.fu-history{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
 .fu-history-cap{grid-column:1/-1;margin:0;font-size:12.5px;font-weight:950;color:#5a6b50}
+.fu-item-date{white-space:nowrap}
+.fu-item-status{white-space:nowrap}
+.fu-item-head{flex-wrap:wrap}
 /* 课堂时间线折叠 */
 .tl-section{margin-top:16px;border-top:1.5px dashed #e0d8c4;padding-top:13px}
 .tl-toggle{font-size:15px!important;color:#3f6b5e!important}

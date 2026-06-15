@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260614g';
+const APP_VERSION='20260614h';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -372,7 +372,7 @@ function renderDayColumn(day,items){return `<section class="week-day-card"><div 
 function bindScheduleCards(list=displayClasses()){document.querySelectorAll("[data-schedule-id]").forEach(btn=>btn.addEventListener("click",()=>{let item=list.find(x=>x.id===btn.dataset.scheduleId)||scheduleData.find(x=>x.id===btn.dataset.scheduleId);const d=parseLocalDate(btn.dataset.occurrenceDate);if(item&&d)item=classesOnDate([item],d)[0]||item;if(item)openClassDetailModal(item);}));}
 function bindCopy(list){document.querySelectorAll("[data-copy-id]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();const item=list.find(x=>x.id===btn.dataset.copyId);if(item)copyText(item.content);}));}
 function bindDetail(list){document.querySelectorAll("[data-detail-id]").forEach(btn=>btn.addEventListener("click",()=>{const item=list.find(x=>x.id===btn.dataset.detailId);if(item)openStickerDetail(item);}));}
-function closeStickerDetail(){byId("detailModal").classList.remove("show");byId("detailModal").setAttribute("aria-hidden","true");document.body.focus();if(recordDateOverride){recordDateOverride="";if(view==="courseHome")render();}}
+function closeStickerDetail(){byId("detailModal").classList.remove("show");byId("detailModal").setAttribute("aria-hidden","true");document.body.focus();if(recordDateOverride){recordDateOverride="";if(view==="courseHome"||view==="students")render();}}
 function renderManage(){setHead("\u7ba1\u7406","\u5206\u6b65\u6574\u7406\u8bdd\u672f\u3001\u8bfe\u7a0b\u3001\u56de\u6536\u7ad9\u548c\u5907\u4efd","");byId("tabs").innerHTML=tabs([{value:"home",label:"\u5165\u53e3"},{value:"stickers",label:"\u7ba1\u7406\u8bdd\u672f"},{value:"classes",label:"\u7ba1\u7406\u8bfe\u7a0b"},{value:"trash",label:"\u56de\u6536\u7ad9"},{value:"backup",label:"\u5907\u4efd"}],manageMode,"manage");if(manageMode==="home")renderManageHome();if(manageMode==="stickers")renderStickerManage();if(manageMode==="classes")renderClassManage();if(manageMode==="trash")renderTrash();if(manageMode==="backup")renderBackup();bindManageEvents();}
 function renderTrash(){const ss=stickersData.filter(x=>x.deletedAt), cs=scheduleData.filter(x=>x.status==="Deleted");byId("content").innerHTML=`<div class="grid-2"><section class="panel"><div class="panel-head"><h3>\u5df2\u5220\u9664\u8bdd\u672f</h3><span>${ss.length}</span></div><div class="trash-grid">${ss.map(x=>`<div class="list-item"><b>${esc(x.title)}</b><span>${SCENE_LABELS[x.scene]} · ${AUDIENCE_LABELS[x.audience]}</span><div class="form-actions"><button class="btn" data-restore-sticker="${safeAttr(x.id)}">\u6062\u590d</button><button class="btn danger" data-purge-sticker="${safeAttr(x.id)}">\u5f7b\u5e95\u5220\u9664</button></div></div>`).join("")||'<p class="empty">\u6ca1\u6709\u5df2\u5220\u9664\u8bdd\u672f\u3002</p>'}</div></section><section class="panel"><div class="panel-head"><h3>\u5df2\u5220\u9664\u8bfe\u7a0b</h3><span>${cs.length}</span></div><div class="trash-grid">${cs.map(x=>`<div class="list-item"><b>${esc(x.className)}</b><span>${esc(x.weekday)} ${esc(x.time)}</span><div class="form-actions"><button class="btn" data-restore-class="${safeAttr(x.id)}">\u6062\u590d</button><button class="btn danger" data-purge-class="${safeAttr(x.id)}">\u5f7b\u5e95\u5220\u9664</button></div></div>`).join("")||'<p class="empty">\u6ca1\u6709\u5df2\u5220\u9664\u8bfe\u7a0b\u3002</p>'}</div></section></div>`;}
 function renderBackup(){
@@ -2113,7 +2113,7 @@ function studentTimelineHtml(name,classes){
     const long=(e.remark||"").length>64;
     return `<div class="stu-tl-card">
       <div class="stu-tl-top">
-        <span class="stu-tl-date">${esc(formatDateShort(e.date))}</span>
+        <button class="stu-tl-date stu-tl-date-btn" data-tl-edit="${safeAttr(e.cls.id+"|"+e.date)}" type="button" title="点开这天，改点名/作业/评语">${esc(formatDateShort(e.date))} ✎</button>
         <span class="stu-tl-classtag">${esc(e.cls.className)}</span>
         <span class="stu-tl-chips">
           ${e.status?`<i class="att-chip ${attendanceStatusClass(e.status)}">${esc(e.status)}</i>`:""}
@@ -2155,6 +2155,14 @@ document.addEventListener("click",function(e){
   if(courseBtn){stuTimelineCourse=courseBtn.dataset.stuTlCourse;refreshStudentTimeline();return;}
   const kindBtn=e.target.closest&&e.target.closest("[data-stu-tl-kind]");
   if(kindBtn){stuTimelineKind=kindBtn.dataset.stuTlKind;refreshStudentTimeline();return;}
+  // 时间线日期 → 跳出那天的课程详情弹窗，直接改点名/作业/评语（和课程主页一样的联动）
+  const tlEdit=e.target.closest&&e.target.closest("[data-tl-edit]");
+  if(tlEdit){
+    const [cid,date]=tlEdit.dataset.tlEdit.split("|");
+    const c=scheduleData.find(x=>x.id===cid);
+    if(c){recordDateOverride=date;openClassDetailModal(c);}
+    return;
+  }
   const wrap=e.target.closest&&e.target.closest(".stu-tl-remark-wrap.clampable");
   if(wrap){
     const body=wrap.querySelector(".stu-tl-remark2");
@@ -3332,8 +3340,8 @@ function renderTeachers(){
 
   const tableRows=summary.map(t=>`<button class="tt-row${t.gradeRate!==null&&t.gradeRate<60?' tt-grade-low':''}" data-teacher-pick="${safeAttr(t.teacher)}" type="button">
     <span class="tt-name"><b>${esc(t.teacher)}</b><small>${t.courseCount} 班 · ${t.studentCount} 名学生</small></span>
-    ${rateChip("出席",t.attRate)}
-    ${rateChip("交作业",t.hwRate)}
+    ${rateChip("出席",t.attRate,t.attRate===null?"":`到${t.att} 缺${t.abs}`)}
+    ${rateChip("交作业",t.hwRate,t.hwRate===null?"":`交${t.hwIn}/${t.hwAssigned}`)}
     ${rateChip("批改率",t.gradeRate,t.gradeRate===null?"":`已改 ${t.hwGraded}/${t.hwIn}`)}
     <span class="tt-go">查看 ›</span>
   </button>`).join("")||'<p class="empty">这个筛选下没有老师。换个类别/学期，或去"管理→管理课程"建课填老师。</p>';
@@ -3388,28 +3396,35 @@ function teacherStudentCardHtml(name,courses,since,until){
   let earliest="";inCourses.forEach(c=>{const d=courseJoinDate(c,name);if(d&&(!earliest||d<earliest))earliest=d;});
   const clsNames=inCourses.map(c=>c.className).join("、");
   let att=0,abs=0,hwA=0,hwIn=0,hwGraded=0;
+  const ungradedList=[]; // 交了但这老师还没批改的作业
   inCourses.forEach(c=>{(Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
     const d=String(rec.date||"");if((since&&d<since)||(until&&d>until))return;
     const a=normalizeAttendanceEntry((rec.attendance||{})[name]);
     if(a.status==="到")att++;if(a.status==="缺席")abs++;
     const hw=rec.homework||{};if(homeworkAssigned(hw)){
       const rollTaken=Object.keys(rec.attendance||{}).some(n=>normalizeAttendanceEntry(rec.attendance[n]).status);
-      if(!rollTaken||a.status==="到"){hwA++;const e=(hw.entries||{})[name]||{};if(e.state==="已交"||e.state==="已批改")hwIn++;if(e.state==="已批改")hwGraded++;}
+      if(!rollTaken||a.status==="到"){hwA++;const e=(hw.entries||{})[name]||{};
+        if(e.state==="已交"||e.state==="已批改")hwIn++;
+        if(e.state==="已批改")hwGraded++;
+        if(e.state==="已交")ungradedList.push({date:d,hw:(hw.content||"").trim()}); // 已交未批改
+      }
     }
   });});
   // 这孩子有交但老师还没批改 → 名字标红，提醒老师批改
-  const ungraded=hwIn>hwGraded;
+  const ungraded=ungradedList.length>0;
   const roll=[];
   if(att)roll.push(`<i class="cs-n cs-ok">到 ${att}</i>`);
   if(abs)roll.push(`<i class="cs-n cs-abs">缺 ${abs}</i>`);
   let hwText;
   if(!hwA)hwText=`<i class="cs-n cs-muted">暂无作业</i>`;
   else hwText=`<i class="cs-n cs-hw">交 ${hwIn}/${hwA}</i><i class="cs-n ${ungraded?'cs-ungraded':'cs-graded'}">已改 ${hwGraded}/${hwIn}</i>`;
+  const ungradedLine=ungraded?`<div class="cs-ungraded-line">⚠ 待批改：${ungradedList.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(o=>`${esc(formatDateShort(o.date))}${o.hw?`《${esc(o.hw)}》`:""}`).join("、")}</div>`:"";
   return `<div class="cs-cell${ungraded?' cs-cell-ungraded':''}">
     <div class="cs-top"><button class="student-link cs-name${ungraded?' cs-name-red':''}" data-student-name="${safeAttr(name)}" type="button">${esc(name)}</button>${age!==null?`<span class="cs-age">${age}岁</span>`:""}</div>
     <div class="cs-meta${meta?"":" cs-meta-none"}">${meta?esc(meta):"未建档 · 点名字补资料"}</div>
     ${clsNames?`<div class="cs-join">${esc(clsNames)}${earliest?` · ${esc(daysSpanText(earliest))}`:""}</div>`:""}
     <div class="cs-roll">${roll.join("")||'<i class="cs-n cs-muted">还没点名</i>'}${hwText}</div>
+    ${ungradedLine}
   </div>`;
 }
 
@@ -3420,6 +3435,7 @@ function renderTeacherDetail(sel,since,until,rt){
   byId("tabs").innerHTML=`<button class="btn" id="teacherBack" type="button">← 返回老师列表</button>`;
   byId("content").innerHTML=`<div class="course-home teacher-detail-page">
     <h2 class="td-name">${esc(sel.teacher)}</h2>
+    <div class="td-rangebar"><span class="td-range-label">时间</span>${dateRangeCtlHtml("tp",since,until)}</div>
     <div class="stu-info-grid course-home-stats td-stats">
       <div class="stu-tile t-blue"><span>带班 · 学生</span><b>${sel.courseCount} 班 · ${sel.studentCount} 人</b><small class="ov-tile-detail">${esc(rt)}</small></div>
       ${rateTile("出席率 · "+rt,sel.attRate,sel.attRate===null?"":`到 ${sel.att} / 缺 ${sel.abs}`)}
@@ -3440,6 +3456,7 @@ function renderTeacherDetail(sel,since,until,rt){
     </div>
   </div>`;
   byId("teacherBack").addEventListener("click",()=>{teacherPanelSel="";render();});
+  bindDateRangeCtl("tp",(f,t)=>{teacherFrom=f;teacherTo=t;rerenderKeepScroll();});
   document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
 }
 
@@ -3949,6 +3966,27 @@ function importTestData(){
   ].map(normalizeSopRole);
   // 防御：normalizeSopRole 会生成新 id，这里要保住 test- 前缀
   sopCards[0].id="test-sop-0";sopCards[1].id="test-sop-1";
+  // 演示"本周黑榜 + 跟进 + 补作 + 待批改红名"：控制第一个测试班本周那条记录的作业状态，
+  // 再把 Amy/Derek 的跟进、Ben 的补作关联上去（不管今天星期几都能稳定看到效果）
+  const wkMon=weekStart();
+  const c0=classes[0];
+  const r0=(c0.classRecords&&c0.classRecords.length)?c0.classRecords[0]:null; // 本周一那条
+  if(r0){
+    const mem=(c0.students||[]).map(s=>s.name); // [Amy,Ben,Coco,Derek]
+    r0.attendance={};r0.homework={content:"本周作业 · 写读后感",assignedAt:r0.date,entries:{}};
+    mem.forEach((nm,mi)=>{
+      r0.attendance[nm]={status:"到",tag:"",remark:""};
+      // Amy/Ben/Derek 未交（欠交），Coco 已交但没批改（演示红名）
+      r0.homework.entries[nm]={state:mi===2?"已交":"未交",score:""};
+    });
+    if(profiles[0])profiles[0].followups=[
+      {id:"test-fu-0",date:dateKey(wkMon),action:"私信家长，说明 Amy 这周作业没交，建议每天固定一个写作业时间",parentReply:"家长说最近忙，会盯着孩子按时交",result:"",status:"家长会配合督促",loggedAt:new Date().toISOString()},
+      {id:"test-fu-1",date:dateKey(addDays(wkMon,-9)),action:"上周也谈过一次，了解为什么没交",parentReply:"孩子说忘了",result:"答应补上",status:"已联系家长 · 观察中",loggedAt:new Date().toISOString()}
+    ];
+    // Derek 故意不加跟进 → 演示 🔴 待跟进
+    // Ben 经跟进后补作了（演示"✓ 已补作"留榜）
+    if(profiles[1])profiles[1].makeups=[{date:r0.date,classId:c0.id,className:c0.className,hw:r0.homework.content,madeAt:new Date().toISOString()}];
+  }
   scheduleData=[...scheduleData,...classes];
   studentsData=[...studentsData,...profiles];
   sopData=[...sopData,...sopCards];
