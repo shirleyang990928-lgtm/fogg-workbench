@@ -8444,3 +8444,38 @@ b.tcc-name{
 .bb-red-chip i{font-style:normal;color:#3a7a3f;font-weight:900;margin-left:3px}
 .bb-red-chip:hover{background:#eef7e8}
 @media(max-width:760px){.tt-row{grid-template-columns:1fr 1fr;gap:7px}.bb-actions{margin-left:0;width:100%}}
+
+/* ===== v20260615a: 卡片配色区分 / 笔记交替色 / 学生反馈 / 工作量周报 / 全局搜索 / 结课报告浮层 ===== */
+/* 老师资料卡(蓝) vs 沟通笔记卡(绿) vs 学生反馈卡(琥珀)，三块颜色分开更好认 */
+.tn-profile-card{background:#f1f7fc!important;border-color:#cfe0ee!important}
+.tn-notes-card{background:#f5fbf3!important;border-color:#cfe6c2!important}
+.tn-fb-card{background:#fdf8ef!important;border-color:#ecd9b3!important;margin-top:12px}
+.tn-fb-head{margin:0 0 10px;font-size:14px;font-weight:950;color:#9a7616}
+.tn-fb-add .tn-fb-student{flex:0 0 130px}
+.tn-fb-who{flex:0 0 auto;font-size:12.5px;font-weight:950;color:#9a7616;white-space:nowrap}
+.tn-fb-date{font-size:11px;font-weight:800;color:var(--muted)}
+.tn-fb-item{border-left-color:#e0b85f!important}
+/* 沟通笔记条交替色 + 日期更跳色（数字信息和文字区分）*/
+.tn-notes-card .tn-log-item:nth-child(even){border-left-color:#7fae6a;background:#fbfdf9}
+.tn-notes-card .tn-log-item:nth-child(odd){border-left-color:#5fa6c0;background:#f7fbfd}
+.tn-log-date{color:#1f6f8c}
+/* 工作量周报 */
+.workload-panel{margin-bottom:14px}
+.wl-grid{margin:4px 0 12px}
+.wl-copy-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wl-copy-hint{font-size:11.5px;color:var(--muted);font-weight:700}
+.wl-report-text{margin:10px 0 0;background:#fbfaf4;border:1.3px solid #e3ddcb;border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.7;color:#3a3a32;white-space:pre-wrap;font-family:inherit}
+/* 全局搜索 */
+.gs-panel{margin-bottom:14px}
+.gs-results{margin-top:11px;display:flex;flex-direction:column;gap:12px}
+.gs-empty{margin:4px 0}
+.gs-group-title{margin:0 0 7px;font-size:12px;font-weight:950;color:#5a6b50}
+.gs-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.gs-item{text-align:left;background:#fffdf7;border:1.4px solid #e3ddcb;border-radius:11px;padding:8px 12px;cursor:pointer;font-family:inherit;transition:.12s}
+.gs-item:hover{background:#f3faf8;border-color:#9fd3c8;transform:translateY(-1px)}
+.gs-item b{display:block;font-size:13.5px;font-weight:900;color:#175e74}
+.gs-item small{display:block;font-size:11px;font-weight:800;color:var(--muted);margin-top:2px}
+/* 结课报告浮层 */
+.report-card{max-width:560px;width:92%;text-align:left}
+.report-pre{max-height:60vh;overflow:auto;white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.7;color:#3a3a32;background:#fbfaf4;border:1.3px solid #e3ddcb;border-radius:10px;padding:13px 15px;margin:0 0 12px}
+.report-ops{display:flex;gap:10px;justify-content:flex-end}

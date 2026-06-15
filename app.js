@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260614j';
+const APP_VERSION='20260615a';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -494,9 +494,95 @@ function bindLibraryEvents(){
 }
 
 function renderManageHome(){
-  byId("content").innerHTML=`<div class="manage-home compact earth-manage-home clean-manage-home"><button class="manage-card" data-manage-go="stickers"><b>整理话术</b><p>按分类搜索、修改、归档常用话术。</p></button><button class="manage-card" data-manage-go="classes"><b>整理课程</b><p>补开课日、Zoom、老师和学生。</p></button><button class="manage-card" data-manage-go="trash"><b>回收站</b><p>恢复误删内容。</p></button><button class="manage-card" data-manage-go="backup"><b>备份资料</b><p>导出或导入全部数据。</p></button></div>
+  byId("content").innerHTML=`${workloadReportHtml()}
+  ${globalSearchHtml()}
+  <div class="manage-home compact earth-manage-home clean-manage-home"><button class="manage-card" data-manage-go="stickers"><b>整理话术</b><p>按分类搜索、修改、归档常用话术。</p></button><button class="manage-card" data-manage-go="classes"><b>整理课程</b><p>补开课日、Zoom、老师和学生。</p></button><button class="manage-card" data-manage-go="trash"><b>回收站</b><p>恢复误删内容。</p></button><button class="manage-card" data-manage-go="backup"><b>备份资料</b><p>导出或导入全部数据。</p></button></div>
   ${testDataPanelHtml()}`;
   bindTestDataButtons();
+  bindWorkloadReport();
+  bindGlobalSearch();
+}
+
+/* ===== 工作量周报（v20260615a）：本周我做了多少事（记录/跟进/补作）+ 还要做的（待跟进/待批改）=====
+   纯计算，不存储；给一段可复制的文字方便交工作汇报。 */
+function workloadStats(since,until){
+  let lessons=0,hwGraded=0,hwUngraded=0;
+  overviewCourses().forEach(c=>{(Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
+    const d=String(rec.date||"");if(d<since||d>until)return;
+    const hw=rec.homework||{};
+    const hasContent=Object.keys(rec.attendance||{}).length||homeworkAssigned(hw)||rec.notes||rec.materials;
+    if(hasContent)lessons++;
+    if(homeworkAssigned(hw))Object.keys(hw.entries||{}).forEach(n=>{const st=(hw.entries[n]||{}).state;if(st==="已批改")hwGraded++;else if(st==="已交")hwUngraded++;});
+  });});
+  let followups=0,makeups=0;const followedNames=new Set();
+  studentsData.forEach(p=>{
+    (p.followups||[]).forEach(f=>{if(String(f.date)>=since&&String(f.date)<=until){followups++;followedNames.add(p.name);}});
+    (p.makeups||[]).forEach(m=>{const md=m.madeAt?dateKey(new Date(m.madeAt)):m.date;if(md>=since&&md<=until)makeups++;});
+  });
+  const owed=homeworkOwedInRange(since,until,"").owed;
+  const todo=Object.keys(owed).filter(n=>!studentsData.find(p=>p.name===n&&(p.followups||[]).some(f=>String(f.date)>=since))).length;
+  return {lessons,hwGraded,hwUngraded,followups,makeups,owedStudents:Object.keys(owed).length,todo,followedCount:followedNames.size};
+}
+function workloadReportHtml(){
+  const wk=quickRange("week");const since=wk[0],until=wk[1];
+  const s=workloadStats(since,until);
+  const rangeTxt=formatDateShort(since)+" ~ "+formatDateShort(until);
+  const reportText=`【本周工作量 · ${rangeTxt}】\n· 记录课堂 ${s.lessons} 次\n· 跟进家长 ${s.followups} 次（覆盖 ${s.followedCount} 个学生）\n· 标记补作 ${s.makeups} 次\n· 还要跟进 ${s.todo} 个欠交学生\n· 提醒老师批改 ${s.hwUngraded} 份已交未批改`;
+  return `<section class="panel workload-panel">
+    <div class="panel-head"><h3>📊 本周工作量</h3><span>${esc(rangeTxt)}</span></div>
+    <div class="stu-info-grid wl-grid">
+      <div class="stu-tile t-green"><span>记录课堂</span><b>${s.lessons} 次</b></div>
+      <div class="stu-tile t-blue"><span>跟进家长</span><b>${s.followups} 次</b><small class="ov-tile-detail">覆盖 ${s.followedCount} 个学生</small></div>
+      <div class="stu-tile t-yellow"><span>标记补作</span><b>${s.makeups} 次</b></div>
+      <div class="stu-tile ${s.todo?'t-pink':'no-val'}"><span>还要跟进</span><b>${s.todo} 人</b><small class="ov-tile-detail">本周欠交还没跟进</small></div>
+      <div class="stu-tile ${s.hwUngraded?'t-pink':'no-val'}"><span>提醒老师批改</span><b>${s.hwUngraded} 份</b><small class="ov-tile-detail">已交未批改</small></div>
+    </div>
+    <div class="wl-copy-row"><button class="btn ghost" id="wlCopy" type="button">📋 复制这段汇报</button><span class="wl-copy-hint">复制后可直接贴给主管 / 群里</span></div>
+    <pre class="wl-report-text" id="wlReportText">${esc(reportText)}</pre>
+  </section>`;
+}
+function bindWorkloadReport(){
+  const btn=byId("wlCopy");
+  if(btn)btn.addEventListener("click",()=>{
+    const txt=byId("wlReportText")?byId("wlReportText").textContent:"";
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>showToast("已复制本周工作量"),()=>showToast("复制失败，可手动选中"));}
+    else showToast("浏览器不支持自动复制，请手动选中");
+  });
+}
+
+/* ===== 全局搜索（v20260615a）：一个框搜 学生 / 课程 / 老师，点结果直接跳过去 ===== */
+let globalSearchQ="";
+function globalSearchResultsHtml(){
+  const kw=globalSearchQ.trim().toLowerCase();
+  if(!kw)return '<p class="empty gs-empty">输入名字，搜学生、课程、老师，点结果直接跳过去。</p>';
+  const stu=studentRoster().filter(r=>r.name.toLowerCase().includes(kw)||(r.profile&&[r.profile.school,r.profile.city,r.profile.parentName,r.profile.grade].filter(Boolean).join(" ").toLowerCase().includes(kw))).slice(0,10);
+  const courses=overviewCourses().filter(c=>(c.className||"").toLowerCase().includes(kw)||(c.teacher||"").toLowerCase().includes(kw)).slice(0,10);
+  const teachers=[...new Set(overviewCourses().map(c=>(c.teacher||"").trim()).filter(Boolean))].filter(t=>t.toLowerCase().includes(kw)).slice(0,10);
+  if(!stu.length&&!courses.length&&!teachers.length)return '<p class="empty gs-empty">没找到匹配的学生 / 课程 / 老师。</p>';
+  const grp=(title,items)=>items.length?`<div class="gs-group"><h5 class="gs-group-title">${title} · ${items.length}</h5><div class="gs-items">${items}</div></div>`:"";
+  const stuItems=stu.map(r=>`<button class="gs-item" data-gs-student="${safeAttr(r.name)}" type="button"><b>${esc(r.name)}</b><small>${r.classes.length} 门课${r.profile&&r.profile.grade?" · "+esc(r.profile.grade):""}</small></button>`).join("");
+  const courseItems=courses.map(c=>`<button class="gs-item" data-gs-course="${safeAttr(c.id)}" type="button"><b>${esc(c.className)}</b><small>${esc(c.weekday)} ${esc(formatTimeCN(c.time))} · ${esc(c.teacher||"未填")}</small></button>`).join("");
+  const teacherItems=teachers.map(t=>`<button class="gs-item" data-gs-teacher="${safeAttr(t)}" type="button"><b>${esc(t)}</b><small>老师面板</small></button>`).join("");
+  return grp("学生",stuItems)+grp("课程",courseItems)+grp("老师",teacherItems);
+}
+function globalSearchHtml(){
+  return `<section class="panel gs-panel">
+    <div class="panel-head"><h3>🔍 全局搜索</h3><span>学生 / 课程 / 老师</span></div>
+    <input class="search-input" id="globalSearch" value="${safeAttr(globalSearchQ)}" placeholder="搜名字…点结果直接跳过去" autocomplete="off">
+    <div class="gs-results">${globalSearchResultsHtml()}</div>
+  </section>`;
+}
+function bindGlobalSearch(){
+  bindGlobalSearchResults();
+}
+function refreshGlobalSearch(){
+  const box=document.querySelector(".gs-results");
+  if(box){box.innerHTML=globalSearchResultsHtml();bindGlobalSearchResults();}
+}
+function bindGlobalSearchResults(){
+  document.querySelectorAll("[data-gs-student]").forEach(b=>b.addEventListener("click",()=>{editingStudentName=b.dataset.gsStudent;studentDetailEditing=false;followupFormFor="";stuFuOpen=false;stuTlOpen=false;view="students";render();}));
+  document.querySelectorAll("[data-gs-course]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.gsCourse)));
+  document.querySelectorAll("[data-gs-teacher]").forEach(b=>b.addEventListener("click",()=>openTeacher(b.dataset.gsTeacher)));
 }
 
 /* 测试数据面板：管理入口和备份页都放一份，Shirley 上次没找到 */
@@ -1926,6 +2012,8 @@ function normalizeTeacher(t){
     role:t.role||"",
     note:t.note||"",
     logs:Array.isArray(t.logs)?t.logs:[],
+    // 学生对老师的反馈（v20260615a）：[{id,date,student,text}]
+    feedbacks:Array.isArray(t.feedbacks)?t.feedbacks:[],
     updatedAt:t.updatedAt||new Date().toISOString()
   };
 }
@@ -1934,6 +2022,7 @@ function getTeacher(name){
   let t=teachersData.find(x=>x.name===k);
   if(!t){t=normalizeTeacher({name:k});teachersData.push(t);}
   if(!Array.isArray(t.logs))t.logs=[];
+  if(!Array.isArray(t.feedbacks))t.feedbacks=[];
   return t;
 }
 function saveTeachers(){
@@ -2405,6 +2494,11 @@ document.addEventListener("input",function(e){
     e.stopImmediatePropagation();
     studentSearch=e.target.value;
     refreshStudentList();
+  }
+  if(e.target&&e.target.id==="globalSearch"){
+    e.stopImmediatePropagation();
+    globalSearchQ=e.target.value;
+    refreshGlobalSearch();
   }
 },true);
 
@@ -2972,6 +3066,43 @@ function refreshCourseLinkList(c){
   bindCourseLinkOptions(c);
 }
 
+/* 报告浮层（结课报告等长文用）：左对齐、可滚动、可复制 */
+function showReportModal(text){
+  let ov=byId("reportModal");
+  if(!ov){ov=document.createElement("div");ov.id="reportModal";ov.className="confirm-modal";document.body.appendChild(ov);}
+  ov.innerHTML=`<div class="confirm-card report-card"><pre class="report-pre">${esc(text)}</pre><div class="report-ops"><button class="btn primary" id="reportCopy" type="button">📋 复制全文</button><button class="btn ghost" id="reportClose" type="button">关闭</button></div></div>`;
+  ov.classList.add("show");
+  byId("reportCopy").onclick=()=>copyText(text);
+  byId("reportClose").onclick=()=>ov.classList.remove("show");
+  ov.onclick=e=>{if(e.target===ov)ov.classList.remove("show");};
+}
+
+/* 结课报告（v20260615a）：一门课的整体概况 + 每个学生的出勤/作业小结，纯文字方便复制汇报 */
+function courseReportText(c){
+  const s=courseStats(c,"","");
+  const sched=courseScheduleInfo(c);
+  const L=[];
+  L.push(`【结课报告 · ${c.className}】`);
+  L.push(`老师：${c.teacher||"—"} · ${courseTypeLabel(c)} · ${c.term||classTermLabel(c)}`);
+  if(sched)L.push(`排期：${formatDateShort(sched.first)} 开课 → ${formatDateShort(sched.last)} · 共 ${sched.total} 堂`);
+  L.push(`整体：记录 ${s.lessons} 次课 · 出勤率 ${s.attRate===null?"—":s.attRate+"%"} · 作业提交率 ${s.hwRate===null?"—":s.hwRate+"%"} · 批改率 ${s.gradeRate===null?"—":s.gradeRate+"%"}`);
+  L.push("");
+  L.push("学生表现：");
+  sortStudentsByAge(c.students||[]).forEach(st=>{
+    const name=st.name;let att=0,abs=0,hwA=0,hwIn=0;
+    (Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
+      const a=normalizeAttendanceEntry((rec.attendance||{})[name]);
+      if(a.status==="到")att++;if(a.status==="缺席")abs++;
+      const hw=rec.homework||{};if(homeworkAssigned(hw)){
+        const rollTaken=Object.keys(rec.attendance||{}).some(n=>normalizeAttendanceEntry(rec.attendance[n]).status);
+        if(!rollTaken||a.status==="到"){hwA++;const e=(hw.entries||{})[name]||{};if(e.state==="已交"||e.state==="已批改")hwIn++;}
+      }
+    });
+    L.push(`· ${name}：到 ${att} 缺 ${abs}${hwA?` · 作业 ${hwIn}/${hwA}`:" · 暂无作业"}`);
+  });
+  return L.join("\n");
+}
+
 function renderCourseHome(){
   const c=scheduleData.find(x=>x.id===courseHomeId);
   if(!c){view=courseHomeBack||"students";render();return;}
@@ -2990,6 +3121,7 @@ function renderCourseHome(){
   const schedSmall=sched?[courseProgressText(sched),skipNote].filter(Boolean).join(" · "):"在编辑页填开课日期或指定上课日期";
   setHead("课程主页","","共 "+(c.students||[]).length+" 名学生");
   byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>
+    <button class="btn ghost course-edit-btn" id="courseReport" type="button" title="生成这门课的结课报告，可复制">📄 结课报告</button>
     <button class="btn ghost course-edit-btn" id="courseHomeEdit" type="button" title="改时间、学生、排期、停课日期都在编辑页">✎ 编辑资料</button>`;
   byId("content").innerHTML=`<div class="course-home">
     <h2 class="td-name">${esc(c.className)}${done?"（已结课）":""}</h2>
@@ -3015,6 +3147,8 @@ function renderCourseHome(){
     </div>
   </div>`;
   byId("courseHomeBack").addEventListener("click",()=>{view=courseHomeBack||"students";render();});
+  const repBtn=byId("courseReport");
+  if(repBtn)repBtn.addEventListener("click",()=>showReportModal(courseReportText(c)));
   bindDateRangeCtl("ch",(f,t)=>{courseHomeFrom=f;courseHomeTo=t;rerenderKeepScroll();});
   // 编辑课程资料 → 跳到管理页的课程编辑器（结课也在那边）
   byId("courseHomeEdit").addEventListener("click",()=>{
@@ -3483,7 +3617,17 @@ function teacherNotesSectionHtml(name){
       <p class="tn-cloud-hint">📌 已本地保存。要跨设备 / 云端同步，数据库加一个 <code>teachers</code> 字段即可（找我要那行 SQL）。</p>
     `:`<p class="fu-collapsed-sum">点标题展开 · 共 ${logs.length} 条沟通记录</p>`}
   </div>`;
-  return profileCard+notesCard;
+  // 3) 学生对老师的反馈卡
+  const fbs=(t.feedbacks||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const fbList=fbs.length
+    ?fbs.map(f=>`<div class="tn-log-item tn-fb-item"><b class="tn-fb-who">${esc(f.student||"匿名")}</b><span class="tn-log-text">${esc(f.text)}</span><span class="tn-log-ops"><span class="tn-fb-date">${esc(formatDateShort(f.date))}</span><button class="tn-log-del" data-tn-fb-del="${safeAttr(f.id)}" type="button" title="删除">✕</button></span></div>`).join("")
+    :'<p class="fu-empty">还没有学生反馈。记下学生说这位老师怎么样（上课、批改、风格…），帮你了解学生体验。</p>';
+  const feedbackCard=`<div class="tn-card tn-fb-card">
+    <h5 class="tn-fb-head">⭐ 学生对老师的反馈 · ${fbs.length} 条</h5>
+    <div class="tn-log-add tn-fb-add"><input id="tnFbStudent" class="tn-fb-student" placeholder="哪个学生（选填）"><input id="tnFbText" placeholder="学生反馈：例 很喜欢老师讲故事…"><button class="btn primary" id="tnFbAdd" type="button">＋ 添加</button></div>
+    <div class="tn-log-list">${fbList}</div>
+  </div>`;
+  return profileCard+notesCard+feedbackCard;
 }
 
 /* 从某天到今天的时长文字（加入多久） */
@@ -3607,6 +3751,22 @@ function bindTeacherNotes(teacher){
   document.querySelectorAll("[data-tn-log-del]").forEach(b=>b.addEventListener("click",()=>{
     if(!guard())return;
     const t=getTeacher(teacher);t.logs=(t.logs||[]).filter(l=>l.id!==b.dataset.tnLogDel);t.updatedAt=new Date().toISOString();
+    saveTeachers();render();
+  }));
+  // 学生对老师的反馈：添加 / 删除
+  const addFb=()=>{
+    if(!guard())return;
+    const txt=byId("tnFbText");if(!txt)return;
+    const v=txt.value.trim();if(!v){showToast("先写一句反馈再添加");return;}
+    const t=getTeacher(teacher);t.feedbacks=t.feedbacks||[];
+    t.feedbacks.push({id:uid("fb"),date:dateKey(new Date()),student:(byId("tnFbStudent")?byId("tnFbStudent").value.trim():""),text:v});
+    t.updatedAt=new Date().toISOString();saveTeachers();showToast("已记一条学生反馈");render();
+  };
+  const fbBtn=byId("tnFbAdd");if(fbBtn)fbBtn.addEventListener("click",addFb);
+  const fbInput=byId("tnFbText");if(fbInput)fbInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addFb();}});
+  document.querySelectorAll("[data-tn-fb-del]").forEach(b=>b.addEventListener("click",()=>{
+    if(!guard())return;
+    const t=getTeacher(teacher);t.feedbacks=(t.feedbacks||[]).filter(f=>f.id!==b.dataset.tnFbDel);t.updatedAt=new Date().toISOString();
     saveTeachers();render();
   }));
 }
