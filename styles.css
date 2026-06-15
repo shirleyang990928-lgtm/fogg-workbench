@@ -8481,9 +8481,12 @@ b.tcc-name{
 .report-ops{display:flex;gap:10px;justify-content:flex-end}
 
 /* ===== v20260615b: 全局搜索条(今日页顶) + 工作量分班明细 ===== */
-.gs-bar{position:relative;margin:0 0 14px}
-.gs-input{width:100%;box-sizing:border-box}
-.gs-bar-results{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:25;background:#fffdf7;border:1.5px solid #cfe0db;border-radius:14px;box-shadow:0 10px 28px rgba(36,35,31,.16);padding:12px 14px;max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.schedule-tools{position:relative}
+.gs-bar{position:relative;margin:0}
+.gs-input{width:240px;max-width:46vw;box-sizing:border-box;padding-right:30px!important;min-height:34px}
+.gs-clear{position:absolute;top:50%;right:9px;transform:translateY(-50%);border:0;background:none;color:#a9a392;cursor:pointer;font-size:13px;line-height:1;padding:2px}
+.gs-clear:hover{color:#c0533f}
+.gs-bar-results{position:absolute;top:calc(100% + 6px);right:0;width:380px;max-width:82vw;z-index:60;background:#fffdf7;border:1.5px solid #cfe0db;border-radius:14px;box-shadow:0 10px 28px rgba(36,35,31,.18);padding:12px 14px;max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
 .gs-bar-results:empty{display:none}
 /* 工作量分班明细 */
 .wl-class-list{display:flex;flex-direction:column;gap:8px}
@@ -8501,8 +8504,9 @@ b.tcc-name{
 .tn-tile span{display:block;font-size:11px;font-weight:900;color:#3f6b8a;margin-bottom:3px}
 .tn-tile b{display:block;font-size:13.5px;font-weight:850;color:#2b3a33;line-height:1.4;overflow-wrap:anywhere}
 /* 学生反馈：小卡片网格 */
-.tn-fb-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:9px;margin-top:11px}
-.tn-fb-chip{background:#fff;border:1.3px solid #ecd9b3;border-radius:11px;padding:10px 12px;position:relative}
+.tn-fb-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:11px;margin-top:11px}
+.tn-fb-chip{background:#fff;border:1.3px solid #ecd9b3;border-radius:12px;padding:13px 15px;position:relative}
+.tn-fb-text{font-size:13.5px}
 .tn-fb-chip-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .tn-fb-who{font-size:13px;font-weight:950;color:#9a7616}
 .tn-fb-date{font-size:11px;font-weight:800;color:var(--muted)}
@@ -8512,9 +8516,15 @@ b.tcc-name{
 .tn-fb-edit-who,.tn-fb-edit-text{font-family:inherit;font-size:13px;border:1.4px solid #e0c97f;border-radius:8px;padding:7px 10px;background:#fffdf6;box-sizing:border-box;width:100%}
 /* 学生页：TA 对老师的反馈(联动) */
 .stu-tfb-card{background:#fdf8ef;border-color:#ecd9b3}
-.stu-tfb-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px;margin-top:6px}
+.stu-tfb-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:11px;margin-top:6px}
 .stu-tfb-item{text-align:left;background:#fff;border:1.3px solid #ecd9b3;border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;transition:.12s}
 .stu-tfb-item:hover{background:#fdf3e2;transform:translateY(-1px)}
 .stu-tfb-item b{display:block;font-size:13px;font-weight:950;color:#9a7616}
 .stu-tfb-item span{display:block;font-size:12.5px;font-weight:600;color:#3a3a32;margin:4px 0;line-height:1.45}
 .stu-tfb-item small{display:block;font-size:10.5px;font-weight:800;color:var(--muted)}
+
+/* 工作量：还没跟进的名字 chip */
+.wl-todo-names{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:0 0 14px;font-size:12.5px;font-weight:800;color:#7a6f55}
+.wl-todo-names b{color:#b23b27;margin-right:3px}
+.wl-todo-chip{background:#fbe3dd;border:1px solid #e7b1a5;border-radius:999px;padding:3px 12px;font-size:12px;font-weight:900;color:#b23b27;cursor:pointer;font-family:inherit}
+.wl-todo-chip:hover{background:#f8d3ca}

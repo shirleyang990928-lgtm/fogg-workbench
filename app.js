@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260615b';
+const APP_VERSION='20260615d';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -304,7 +304,7 @@ function normalizeSticker(x){const scene=x.scene||sceneFromStage(x.stage);const 
 function normalizeStudent(s){return typeof s==="string"?{id:uid("student"),name:s,note:""}:{id:s.id||uid("student"),name:s.name||"\u672a\u547d\u540d\u5b66\u751f",note:s.note||""};}
 function normalizeNote(n){const now=new Date().toISOString();return {id:n.id||uid("note"),text:n.text||"",createdAt:n.createdAt||now,updatedAt:n.updatedAt||n.createdAt||now};}
 function normalizeClassStatus(s){if(s==="Inactive")return "Paused";return ["Active","Paused","Archived","Deleted"].includes(s)?s:"Active";}
-function normalizeClassItem(x){return {id:x.id||uid("class"),weekday:x.weekday||"\u5468\u4e00",time:x.time||"",teacher:x.teacher||"",courseType:x.courseType||"\u82f1\u6587\u7cbe\u8bfb",className:x.className||"\u672a\u547d\u540d\u8bfe\u7a0b",status:normalizeClassStatus(x.status),term:x.term||x.semester||"",repeatMode:x.repeatMode||"weekly",repeatDays:Array.isArray(x.repeatDays)?x.repeatDays:[],repeatDates:Array.isArray(x.repeatDates)?x.repeatDates:[],students:(x.students||[]).map(normalizeStudent),notes:(x.notes||[]).map(normalizeNote),zoomLink:x.zoomLink||x.zoom||"",zoomId:x.zoomId||"",zoomLabel:x.zoomLabel||"",zoomPassword:x.zoomPassword||x.password||"",lesson:x.lesson||"",topic:x.topic||"",totalLessons:x.totalLessons||"20",startDate:x.startDate||"",homework:x.homework||"",report:x.report||"",classRecords:Array.isArray(x.classRecords)?x.classRecords:[],skippedDates:Array.isArray(x.skippedDates)?x.skippedDates:(Array.isArray(x.breakDates)?x.breakDates:[]),archivedAt:x.archivedAt||"",deletedAt:x.deletedAt||""};}
+function normalizeClassItem(x){return {id:x.id||uid("class"),weekday:x.weekday||"\u5468\u4e00",time:x.time||"",teacher:x.teacher||"",courseType:x.courseType||"\u82f1\u6587\u7cbe\u8bfb",className:x.className||"\u672a\u547d\u540d\u8bfe\u7a0b",status:normalizeClassStatus(x.status),term:x.term||x.semester||"",repeatMode:x.repeatMode||"weekly",repeatDays:Array.isArray(x.repeatDays)?x.repeatDays:[],repeatDates:Array.isArray(x.repeatDates)?x.repeatDates:[],students:(x.students||[]).map(normalizeStudent),notes:(x.notes||[]).map(normalizeNote),zoomLink:x.zoomLink||x.zoom||"",zoomId:x.zoomId||"",zoomLabel:x.zoomLabel||"",zoomPassword:x.zoomPassword||x.password||"",lesson:x.lesson||"",topic:x.topic||"",totalLessons:x.totalLessons||"20",startDate:x.startDate||"",homework:x.homework||"",report:x.report||"",classRecords:Array.isArray(x.classRecords)?x.classRecords:[],skippedDates:Array.isArray(x.skippedDates)?x.skippedDates:(Array.isArray(x.breakDates)?x.breakDates:[]),videoScriptWeeks:Array.isArray(x.videoScriptWeeks)?x.videoScriptWeeks:[],archivedAt:x.archivedAt||"",deletedAt:x.deletedAt||""};}
 function loadCollection(key,fallback,normalizer){try{const raw=localStorage.getItem(key);if(!raw)return fallback.map(normalizer);const parsed=JSON.parse(raw);if(!Array.isArray(parsed))throw new Error("not array");return parsed.map(normalizer);}catch(e){console.warn("local data failed",key,e);return fallback.map(normalizer);}}
 function saveStickers(){if(adminViewEmail)return;localStorage.setItem(STORAGE_KEYS.stickers,JSON.stringify(stickersData));syncToCloud();}
 function saveSchedule(){if(adminViewEmail)return;localStorage.setItem(STORAGE_KEYS.schedule,JSON.stringify(scheduleData));syncToCloud();}
@@ -502,22 +502,32 @@ function renderManageHome(){
 /* ===== 工作量周报（v20260615a）：本周我做了多少事（记录/跟进/补作）+ 还要做的（待跟进/待批改）=====
    纯计算，不存储；给一段可复制的文字方便交工作汇报。 */
 function workloadStats(since,until){
-  let lessons=0,hwGraded=0,hwUngraded=0;
-  overviewCourses().forEach(c=>{(Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
-    const d=String(rec.date||"");if(d<since||d>until)return;
-    const hw=rec.homework||{};
-    const hasContent=Object.keys(rec.attendance||{}).length||homeworkAssigned(hw)||rec.notes||rec.materials;
-    if(hasContent)lessons++;
-    if(homeworkAssigned(hw))Object.keys(hw.entries||{}).forEach(n=>{const st=(hw.entries[n]||{}).state;if(st==="已批改")hwGraded++;else if(st==="已交")hwUngraded++;});
-  });});
-  let followups=0,makeups=0;const followedNames=new Set();
-  studentsData.forEach(p=>{
-    (p.followups||[]).forEach(f=>{if(String(f.date)>=since&&String(f.date)<=until){followups++;followedNames.add(p.name);}});
-    (p.makeups||[]).forEach(m=>{const md=m.madeAt?dateKey(new Date(m.madeAt)):m.date;if(md>=since&&md<=until)makeups++;});
+  let lessons=0,hwGraded=0,hwUngraded=0,scheduled=0,recorded=0;
+  overviewCourses().forEach(c=>{
+    (Array.isArray(c.classRecords)?c.classRecords:[]).forEach(rec=>{
+      const d=String(rec.date||"");if(d<since||d>until)return;
+      const hw=rec.homework||{};
+      const hasContent=Object.keys(rec.attendance||{}).length||homeworkAssigned(hw)||rec.notes||rec.materials;
+      if(hasContent)lessons++;
+      if(homeworkAssigned(hw))Object.keys(hw.entries||{}).forEach(n=>{const st=(hw.entries[n]||{}).state;if(st==="已批改")hwGraded++;else if(st==="已交")hwUngraded++;});
+    });
+    // 本周排课的班（日程里这周有课的）+ 这周有没有记过
+    if(!isClassDone(c)&&since&&until){
+      let occurs=false;
+      for(let dt=parseLocalDate(since);dt&&dateKey(dt)<=until;dt=addDays(dt,1)){if(occursByRule(c,dt)){occurs=true;break;}}
+      if(occurs){scheduled++;
+        const hasRec=(c.classRecords||[]).some(r=>{const dd=String(r.date||"");return dd>=since&&dd<=until&&(Object.keys(r.attendance||{}).length||homeworkAssigned(r.homework||{})||r.notes||r.materials);});
+        if(hasRec)recorded++;
+      }
+    }
   });
+  let followups=0;const followedNames=new Set();
+  studentsData.forEach(p=>{(p.followups||[]).forEach(f=>{if(String(f.date)>=since&&String(f.date)<=until){followups++;followedNames.add(p.name);}});});
   const owed=homeworkOwedInRange(since,until,"").owed;
-  const todo=Object.keys(owed).filter(n=>!studentsData.find(p=>p.name===n&&(p.followups||[]).some(f=>String(f.date)>=since))).length;
-  return {lessons,hwGraded,hwUngraded,followups,makeups,owedStudents:Object.keys(owed).length,todo,followedCount:followedNames.size};
+  const todoNames=Object.keys(owed).filter(n=>!studentsData.find(p=>p.name===n&&(p.followups||[]).some(f=>String(f.date)>=since)));
+  let videoClasses=0;
+  overviewCourses().forEach(c=>{if((c.videoScriptWeeks||[]).some(w=>w>=since&&w<=until))videoClasses++;});
+  return {lessons,hwGraded,hwUngraded,scheduled,recorded,followups,owedStudents:Object.keys(owed).length,todo:todoNames.length,todoNames,followedCount:followedNames.size,videoClasses};
 }
 let workloadRange=null; // null=本周；{from,to}=自选
 /* 每个班这段时间我做了什么：记录课次 + 欠交人数 + 跟进次数 + 补作 + 待批改 */
@@ -544,15 +554,15 @@ function perClassWorkload(since,until){
 function workloadReportText(since,until,s,perClass){
   const rt=formatDateShort(since)+" ~ "+formatDateShort(until);
   const L=[`【本周工作量 · ${rt}】`,
-    `· 记录课堂 ${s.lessons} 次`,
+    `· 本周排课 ${s.scheduled} 班，已记录 ${s.recorded} 班`,
+    `· 记录课堂 ${s.lessons} 堂`,
     `· 跟进家长 ${s.followups} 次（覆盖 ${s.followedCount} 个学生）`,
-    `· 标记补作 ${s.makeups} 次`,
-    `· 还要跟进 ${s.todo} 个欠交学生`,
-    `· 提醒老师批改 ${s.hwUngraded} 份已交未批改`,"","【分班明细】"];
+    `· 还要跟进 ${s.todo} 个欠交学生${s.todoNames.length?"："+s.todoNames.join("、"):""}`,
+    `· 提醒老师批改 ${s.hwUngraded} 份已交未批改`,
+    `· 出视频文案 ${s.videoClasses} 班`,"","【分班明细】"];
   perClass.forEach(x=>{
     let seg="· "+x.c.className+"：记录 "+x.lessons+" 次";
     if(x.followups)seg+=" · 跟进 "+x.followups;
-    if(x.makeups)seg+=" · 补作 "+x.makeups;
     if(x.owed)seg+=" · 欠交 "+x.owed+" 人";
     if(x.ungraded)seg+=" · 待批改 "+x.ungraded;
     L.push(seg);
@@ -570,21 +580,24 @@ function renderWorkloadPage(){
   byId("content").innerHTML=`<div class="course-home workload-page">
     <div class="td-rangebar"><span class="td-range-label">时间</span>${dateRangeCtlHtml("wl",since,until)}</div>
     <div class="stu-info-grid course-home-stats">
-      <div class="stu-tile t-green"><span>记录课堂 · ${esc(rt)}</span><b>${s.lessons} 次</b></div>
-      <div class="stu-tile t-blue"><span>跟进家长 · ${esc(rt)}</span><b>${s.followups} 次</b><small class="ov-tile-detail">覆盖 ${s.followedCount} 个学生</small></div>
-      <div class="stu-tile t-yellow"><span>标记补作 · ${esc(rt)}</span><b>${s.makeups} 次</b></div>
+      <div class="stu-tile t-blue"><span>本周排课 · ${esc(rt)}</span><b>${s.scheduled} 班</b><small class="ov-tile-detail">已记录 ${s.recorded} 班</small></div>
+      <div class="stu-tile t-green"><span>记录课堂 · ${esc(rt)}</span><b>${s.lessons} 堂</b></div>
+      <div class="stu-tile t-yellow"><span>跟进家长 · ${esc(rt)}</span><b>${s.followups} 次</b><small class="ov-tile-detail">覆盖 ${s.followedCount} 个学生</small></div>
       <div class="stu-tile ${s.todo?'t-pink':'no-val'}"><span>还要跟进</span><b>${s.todo} 人</b><small class="ov-tile-detail">欠交还没跟进</small></div>
       <div class="stu-tile ${s.hwUngraded?'t-pink':'no-val'}"><span>提醒老师批改</span><b>${s.hwUngraded} 份</b><small class="ov-tile-detail">已交未批改</small></div>
+      <div class="stu-tile ${s.videoClasses?'t-green':'no-val'}"><span>出视频文案 · ${esc(rt)}</span><b>${s.videoClasses} 班</b><small class="ov-tile-detail">在课程主页打勾</small></div>
     </div>
+    ${s.todoNames.length?`<div class="wl-todo-names"><b>还没跟进的：</b>${s.todoNames.map(n=>`<button class="wl-todo-chip" data-gs-student="${safeAttr(n)}" type="button">${esc(n)}</button>`).join("")}</div>`:""}
     <div class="student-detail-extra">
       <div class="rec-section-head"><h4>分班明细 · ${esc(rt)}（这段时间每个班我做了什么）</h4><button class="btn ghost" id="wlCopy" type="button">📋 复制汇报</button></div>
-      <div class="wl-class-list">${perClass.length?perClass.map(x=>`<div class="wl-class-row"><button class="wl-class-name" data-course-home="${safeAttr(x.c.id)}" type="button">${esc(x.c.className)}</button><div class="wl-class-nums"><i class="cs-n cs-ok">记录 ${x.lessons}</i>${x.followups?`<i class="cs-n cs-hw">跟进 ${x.followups}</i>`:""}${x.makeups?`<i class="cs-n cs-graded">补作 ${x.makeups}</i>`:""}${x.owed?`<i class="cs-n cs-abs">欠交 ${x.owed}人</i>`:""}${x.ungraded?`<i class="cs-n cs-ungraded">待批改 ${x.ungraded}</i>`:""}</div></div>`).join(""):'<p class="empty">这段时间还没有记录。换个时间范围看看。</p>'}</div>
+      <div class="wl-class-list">${perClass.length?perClass.map(x=>`<div class="wl-class-row"><button class="wl-class-name" data-course-home="${safeAttr(x.c.id)}" type="button">${esc(x.c.className)}</button><div class="wl-class-nums"><i class="cs-n cs-ok">记录 ${x.lessons}</i>${x.followups?`<i class="cs-n cs-hw">跟进 ${x.followups}</i>`:""}${x.owed?`<i class="cs-n cs-abs">欠交 ${x.owed}人</i>`:""}${x.ungraded?`<i class="cs-n cs-ungraded">待批改 ${x.ungraded}</i>`:""}</div></div>`).join(""):'<p class="empty">这段时间还没有记录。换个时间范围看看。</p>'}</div>
     </div>
     <pre class="wl-report-text" id="wlReportText">${esc(reportText)}</pre>
   </div>`;
   bindDateRangeCtl("wl",(f,t)=>{workloadRange={from:f,to:t};render();});
   const cp=byId("wlCopy");if(cp)cp.addEventListener("click",()=>copyText(reportText));
   document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
+  bindGlobalSearchResults(); // 待跟进名字 chip 点了进学生档案
 }
 
 /* ===== 全局搜索（v20260615a）：一个框搜 学生 / 课程 / 老师，点结果直接跳过去 ===== */
@@ -602,9 +615,9 @@ function globalSearchResultsHtml(){
   const teacherItems=teachers.map(t=>`<button class="gs-item" data-gs-teacher="${safeAttr(t)}" type="button"><b>${esc(t)}</b><small>老师面板</small></button>`).join("");
   return grp("学生",stuItems)+grp("课程",courseItems)+grp("老师",teacherItems);
 }
-/* 全局搜索条：放在「今日」页顶部，结果下拉（空查询时下拉为空 → CSS :empty 隐藏）*/
+/* 全局搜索条：放在日程控制行右侧，紧凑 + 一键清空，结果下拉（空时 :empty 隐藏）*/
 function globalSearchBarHtml(){
-  return `<div class="gs-bar"><input class="search-input gs-input" id="globalSearch" value="${safeAttr(globalSearchQ)}" placeholder="🔍 全局搜索：学生 / 课程 / 老师，点结果直接跳过去" autocomplete="off"><div class="gs-results gs-bar-results">${globalSearchQ.trim()?globalSearchResultsHtml():""}</div></div>`;
+  return `<div class="gs-bar"><input class="search-input gs-input" id="globalSearch" value="${safeAttr(globalSearchQ)}" placeholder="🔍 搜学生 / 课程 / 老师" autocomplete="off"><button class="gs-clear" id="gsClear" type="button" title="清空">✕</button><div class="gs-results gs-bar-results">${globalSearchQ.trim()?globalSearchResultsHtml():""}</div></div>`;
 }
 function refreshGlobalSearch(){
   const box=document.querySelector(".gs-results");
@@ -833,8 +846,7 @@ function renderTodayDesk(classes){
     const linked=allPendingTodosForClass(x.id); // 跨所有日期查找关联待办
     return renderTodayCourseCard(x,linked);
   };
-  return `${globalSearchBarHtml()}
-  <div class="today-board clean-today todo-today">
+  return `<div class="today-board clean-today todo-today">
     ${renderTodoNotebook(day,dayItems)}
     <section class="today-panel today-lesson-panel">
       <div class="panel-head"><h3>${dateKey(day)===dateKey(new Date())?"\u4eca\u5929\u8bfe\u7a0b":dateLabel(day)+" \u8bfe\u7a0b"}</h3><span>${dayItems.length} \u8282</span></div>
@@ -1002,7 +1014,7 @@ function renderScheduleControls(){
   const viewTabs=tabs([{value:"today",label:"今日"},{value:"week",label:"本周"},{value:"month",label:"月总览"}],scheduleMode,"scheduleMode");
   const weekNav=scheduleMode==="week"?`<div class="week-jump"><button class="tab" data-week-move="-1" type="button">上一周</button><span>${activeWeekLabel()}</span><button class="tab ${finalWeekOffset===0?'active':''}" data-week-reset type="button">本周</button><button class="tab" data-week-move="1" type="button">下一周</button></div>`:"";
   const addBtn=`<button class="tab schedule-add-class" data-schedule-add-class type="button">添加课程</button>`;
-  return `<div class="schedule-controls"><div class="schedule-switch">${viewTabs}</div><div class="schedule-tools">${weekNav}${addBtn}</div></div>`;
+  return `<div class="schedule-controls"><div class="schedule-switch">${viewTabs}</div><div class="schedule-tools">${weekNav}${addBtn}${globalSearchBarHtml()}</div></div>`;
 }
 
 function renderToday(){
@@ -1281,7 +1293,13 @@ const NAV_ITEMS=[
   const nav=document.querySelector(".main-nav");
   if(!nav)return;
   nav.innerHTML=NAV_ITEMS.map(n=>`<button class="nav-btn ${view===n.view?'active':''}" data-view="${n.view}" type="button"><span>${n.label}</span><small>${n.sub}</small></button>`).join("");
-  nav.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",()=>{view=btn.dataset.view;render();}));
+  nav.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",()=>{
+    const v=btn.dataset.view;
+    // 点"课程"导航：如果刚才在看某门课的主页，就回到那门课（和"老师"导航保留所选老师一致），不强制跳回总览
+    if(v==="courses"&&courseHomeSticky&&courseHomeId&&scheduleData.some(c=>c.id===courseHomeId)){view="courseHome";}
+    else view=v;
+    render();
+  }));
 })();
 byId("detailClose").addEventListener("click",closeStickerDetail);
 byId("detailModal").addEventListener("click",e=>{if(e.target.id==="detailModal")closeStickerDetail();});
@@ -1847,6 +1865,7 @@ document.addEventListener("click",function(e){
 /* Fix: correct bindTodayEvents — matches actual HTML attribute names from renderTodoNotebook */
 function bindTodayEvents(){
   bindGlobalSearchResults();
+  const gsc=byId("gsClear");if(gsc)gsc.addEventListener("click",()=>{globalSearchQ="";render();});
   document.querySelectorAll("[data-scheduleMode]").forEach(b=>b.addEventListener("click",()=>{scheduleMode=b.dataset.schedulemode;render();}));
   document.querySelectorAll("[data-week-move]").forEach(b=>b.addEventListener("click",()=>{finalWeekOffset+=Number(b.dataset.weekMove)||0;render();}));
   document.querySelectorAll("[data-week-reset]").forEach(b=>b.addEventListener("click",()=>{finalWeekOffset=0;render();}));
@@ -2849,14 +2868,28 @@ function bindHomeworkSection(item){
    每个学生的小结 + 全部课堂记录时间线（点名、作业、笔记都在）。 */
 let courseHomeId=null;
 let courseHomeBack="students";
+let courseHomeSticky=false; // 点"课程"导航是否回到上次看的课程主页（点了课程主页就 true，点"返回"清掉）
 let courseRecOpenDates=new Set(); // 课堂记录里当前展开的日期（默认全折叠，点日期才展开）
 
 function openCourseHome(id){
   courseHomeBack=(view==="courseHome")?courseHomeBack:view;
   if(courseHomeId!==id){courseHomeFrom="";courseHomeTo="";courseRecOpenDates=new Set();courseLinkPickerOpen=false;courseLinkSearch="";} // 换班时重置日期范围+折叠状态+关联学生选择器
   courseHomeId=id;
+  courseHomeSticky=true;
   view="courseHome";
   render();
+}
+
+/* 视频文案（v20260615c）：按周记录某门课本周有没有出视频文案，只是打勾检查 */
+function videoScriptDoneThisWeek(c){
+  return (c.videoScriptWeeks||[]).includes(dateKey(weekStart()));
+}
+function toggleVideoScript(c){
+  const wk=dateKey(weekStart());
+  if(!Array.isArray(c.videoScriptWeeks))c.videoScriptWeeks=[];
+  const i=c.videoScriptWeeks.indexOf(wk);
+  if(i>=0)c.videoScriptWeeks.splice(i,1);else c.videoScriptWeeks.push(wk);
+  saveSchedule();
 }
 
 function courseStats(c,since,until){
@@ -3121,7 +3154,9 @@ function renderCourseHome(){
   const skipNote=skipsAll.length?`休息 ${skipsAll.slice(0,4).map(formatDateShort).join("、")}${skipsAll.length>4?` 等 ${skipsAll.length} 天`:""}`:"";
   const schedSmall=sched?[courseProgressText(sched),skipNote].filter(Boolean).join(" · "):"在编辑页填开课日期或指定上课日期";
   setHead("课程主页","","共 "+(c.students||[]).length+" 名学生");
+  const vsDone=videoScriptDoneThisWeek(c),vsCount=(c.videoScriptWeeks||[]).length;
   byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>
+    <button class="btn ghost course-edit-btn vs-btn${vsDone?' on':''}" id="courseVideoBtn" type="button" title="勾上=这门课本周出了视频文案；只是个检查">🎬 本周视频文案 ${vsDone?"✅":"☐"}${vsCount?` · 共${vsCount}`:""}</button>
     <button class="btn ghost course-edit-btn" id="courseHomeEdit" type="button" title="改时间、学生、排期、停课日期都在编辑页">✎ 编辑资料</button>`;
   byId("content").innerHTML=`<div class="course-home">
     <h2 class="td-name">${esc(c.className)}${done?"（已结课）":""}</h2>
@@ -3146,7 +3181,12 @@ function renderCourseHome(){
       ${recHtml||'<p class="empty">这段时间没有记录。上课时在课程详情弹窗里点名、记作业、写笔记，都会汇总到这里。</p>'}
     </div>
   </div>`;
-  byId("courseHomeBack").addEventListener("click",()=>{view=courseHomeBack||"students";render();});
+  byId("courseHomeBack").addEventListener("click",()=>{courseHomeSticky=false;view=courseHomeBack||"students";render();});
+  const vsBtn=byId("courseVideoBtn");
+  if(vsBtn)vsBtn.addEventListener("click",()=>{
+    if(adminViewEmail){showToast("正在查看他人数据，只能浏览不能修改");return;}
+    toggleVideoScript(c);showToast(videoScriptDoneThisWeek(c)?"已标记：本周出了视频文案":"已取消本周视频文案");render();
+  });
   bindDateRangeCtl("ch",(f,t)=>{courseHomeFrom=f;courseHomeTo=t;rerenderKeepScroll();});
   // 编辑课程资料 → 跳到管理页的课程编辑器（结课也在那边）
   byId("courseHomeEdit").addEventListener("click",()=>{
@@ -3219,6 +3259,13 @@ let teacherEditing=false; // 老师详情页"资料"是否在编辑态
 let teacherNotesOpen=true; // 沟通笔记是否展开
 let teacherLogEditId="";   // 正在编辑的沟通笔记 id
 let teacherFbEditId="";    // 正在编辑的学生反馈 id
+
+/* 学生下拉选项（反馈选学生用 select，保证名字和名册一致 → 联动不会因手打名字对不上而失效）*/
+function fbStudentOptions(selected){
+  const names=studentRoster().map(r=>r.name);
+  if(selected&&!names.includes(selected))names.unshift(selected);
+  return `<option value="">选哪个学生…</option>`+names.map(n=>`<option value="${safeAttr(n)}"${n===selected?" selected":""}>${esc(n)}</option>`).join("");
+}
 
 /* 某学生给过哪些老师反馈（学生页联动用）：返回 [{teacher, fb}] */
 function studentFeedbacksFor(name){
@@ -3639,12 +3686,12 @@ function teacherNotesSectionHtml(name){
   const fbs=(t.feedbacks||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const fbList=fbs.length
     ?fbs.map(f=>teacherFbEditId===f.id
-        ?`<div class="tn-fb-chip tn-fb-editing"><input class="tn-fb-edit-who" id="tnFbEditWho-${safeAttr(f.id)}" value="${safeAttr(f.student)}" placeholder="哪个学生"><input class="tn-fb-edit-text" id="tnFbEditText-${safeAttr(f.id)}" value="${safeAttr(f.text)}"><div class="tn-fb-chip-ops"><button class="btn primary tn-log-savebtn" data-tn-fb-save="${safeAttr(f.id)}" type="button">保存</button><button class="tn-log-del" data-tn-fb-canceledit="1" type="button" title="取消">✕</button></div></div>`
+        ?`<div class="tn-fb-chip tn-fb-editing"><select class="tn-fb-edit-who" id="tnFbEditWho-${safeAttr(f.id)}">${fbStudentOptions(f.student)}</select><input class="tn-fb-edit-text" id="tnFbEditText-${safeAttr(f.id)}" value="${safeAttr(f.text)}"><div class="tn-fb-chip-ops"><button class="btn primary tn-log-savebtn" data-tn-fb-save="${safeAttr(f.id)}" type="button">保存</button><button class="tn-log-del" data-tn-fb-canceledit="1" type="button" title="取消">✕</button></div></div>`
         :`<div class="tn-fb-chip"><div class="tn-fb-chip-head"><b class="tn-fb-who">${esc(f.student||"匿名")}</b><span class="tn-fb-date">${esc(formatDateShort(f.date))}</span></div><p class="tn-fb-text">${esc(f.text)}</p><div class="tn-fb-chip-ops"><button class="tn-log-edit" data-tn-fb-edit="${safeAttr(f.id)}" type="button" title="修改">✎</button><button class="tn-log-del" data-tn-fb-del="${safeAttr(f.id)}" type="button" title="删除">✕</button></div></div>`).join("")
     :'<p class="fu-empty">还没有学生反馈。记下学生说这位老师怎么样（上课、批改、风格…）。每条会同步到那个学生的档案里。</p>';
   const feedbackCard=`<div class="tn-card tn-fb-card">
     <h5 class="tn-fb-head">⭐ 学生对老师的反馈 · ${fbs.length} 条</h5>
-    <div class="tn-log-add tn-fb-add"><input id="tnFbStudent" class="tn-fb-student" placeholder="哪个学生（选填）"><input id="tnFbText" placeholder="学生反馈：例 很喜欢老师讲故事…"><button class="btn primary" id="tnFbAdd" type="button">＋ 添加</button></div>
+    <div class="tn-log-add tn-fb-add"><select id="tnFbStudent" class="tn-fb-student">${fbStudentOptions("")}</select><input id="tnFbText" placeholder="学生反馈：例 很喜欢老师讲故事…"><button class="btn primary" id="tnFbAdd" type="button">＋ 添加</button></div>
     <div class="tn-fb-list">${fbList}</div>
   </div>`;
   return profileCard+notesCard+feedbackCard;
