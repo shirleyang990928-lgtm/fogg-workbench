@@ -8220,8 +8220,9 @@ b.tcc-name{
 .teacher-panel{display:flex;flex-direction:column;gap:14px}
 /* 老师横向对比表：名字 + 出席/交作业/批改三个率，批改率突出 */
 .teacher-table{display:flex;flex-direction:column;gap:8px}
-.tt-row{display:grid;grid-template-columns:minmax(150px,2fr) 132px 132px 132px 52px;align-items:center;gap:10px;
-  text-align:left;background:#fffdf7;border:1.5px solid #e3ddcb;border-radius:13px;padding:9px 15px;cursor:pointer;font-family:inherit;transition:.12s}
+.tt-row{display:grid;grid-template-columns:minmax(150px,300px) 110px 124px 124px 124px 56px;justify-content:space-between;align-items:center;column-gap:14px;
+  text-align:left;background:#fffdf7;border:1.5px solid #e3ddcb;border-radius:13px;padding:10px 18px;cursor:pointer;font-family:inherit;transition:.12s}
+.tt-count{text-align:center;justify-self:center;font-size:13px;font-weight:900;color:#5a6b50}
 .tt-row:hover{background:#f3faf8;border-color:#9fd3c8;transform:translateY(-1px)}
 .tt-row.tt-grade-low{border-color:#e7b1a5;background:#fdf5f2}
 .tt-name b{display:block;font-size:14.5px;font-weight:950;color:#1f6f60}
@@ -8297,8 +8298,12 @@ b.tcc-name{
 .fu-item-head{display:flex;align-items:center;gap:9px}
 .fu-item-date{font-size:13.5px;font-weight:950;color:#175e74}
 .fu-item-status{font-style:normal;font-size:11px;font-weight:900;color:#1f6f60;background:#e0f1ec;border:1px solid #b9ddd5;border-radius:999px;padding:2px 10px}
-.fu-item-del{margin-left:auto;border:0;background:none;color:#c9c3b4;cursor:pointer;font-size:14px;line-height:1}
-.fu-item-del:hover{color:#c0533f}
+.fu-item-ops{margin-left:auto;display:flex;align-items:center;gap:4px}
+.fu-item-edit,.fu-item-del{border:0;background:none;color:#a9a392;cursor:pointer;font-size:13px;line-height:1;padding:3px 5px;border-radius:6px}
+.fu-item-edit:hover{color:#1f6f60;background:#e6f4ef}
+.fu-item-del:hover{color:#c0533f;background:#fbeae6}
+.fu-item-editing{padding:0;border:0;background:none}
+.fu-item-editing .fu-form{margin-top:0}
 .fu-item-line{margin:7px 0 0;font-size:13px;line-height:1.55;display:flex;gap:8px}
 .fu-item-line span{flex:0 0 auto;font-weight:950;color:#8a7f63}
 .fu-item-line em{font-style:normal;font-weight:600;color:#3a3a32}
@@ -8325,6 +8330,29 @@ b.tcc-name{
 .stu-tl-date-btn:hover{background:#dceaef;transform:translateY(-1px)}
 /* 老师学生卡：待批改作业明细 */
 .cs-ungraded-line{margin-top:7px;font-size:11.5px;font-weight:800;color:#c0533f;background:#fdf0ec;border:1px solid #f0ccc1;border-radius:8px;padding:4px 9px;line-height:1.5}
+.cs-n.cs-note{color:#8a6d33}
+/* 老师资料 + 沟通笔记卡 */
+.tn-card{background:#f7fbfa;border:1.5px solid #d6e6e1;border-radius:14px;padding:14px 16px}
+.tn-view{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:start}
+.tn-field{display:flex;flex-direction:column;gap:3px}
+.tn-field span{font-size:11.5px;font-weight:900;color:#8a7f63}
+.tn-field b{font-size:13.5px;font-weight:850;color:#2b3a33}
+.tn-field-wide{grid-column:1/-1}
+.tn-edit-btn{align-self:start;min-height:32px!important;padding:4px 14px!important;font-size:12.5px!important;border-radius:999px!important}
+.tn-view .tn-edit-btn{grid-column:1/-1;justify-self:start}
+.tn-form{display:flex;flex-direction:column;gap:10px}
+.tn-sub{margin:15px 0 8px;font-size:13px;font-weight:950;color:#1f6f60;border-top:1.5px dashed #d6e6e1;padding-top:12px}
+.tn-log-add{display:flex;gap:8px}
+.tn-log-add input{flex:1 1 auto;font-family:inherit;font-size:13px;border:1.4px solid #c8dcd6;border-radius:9px;padding:9px 11px;background:#fff;box-sizing:border-box}
+.tn-log-add .btn{min-height:38px!important;white-space:nowrap}
+.tn-log-list{margin-top:10px;display:flex;flex-direction:column;gap:7px}
+.tn-log-item{display:flex;align-items:baseline;gap:10px;background:#fff;border:1.3px solid #e2dccb;border-left:4px solid #79c1b3;border-radius:10px;padding:9px 12px}
+.tn-log-date{flex:0 0 auto;font-size:12.5px;font-weight:950;color:#175e74;white-space:nowrap}
+.tn-log-text{flex:1 1 auto;font-size:13px;font-weight:600;color:#3a3a32;line-height:1.5}
+.tn-log-del{flex:0 0 auto;border:0;background:none;color:#c9c3b4;cursor:pointer;font-size:13px;padding:2px 5px;border-radius:6px}
+.tn-log-del:hover{color:#c0533f;background:#fbeae6}
+.tn-cloud-hint{margin:12px 0 0;font-size:11.5px;font-weight:700;color:#8a7f63;line-height:1.5}
+.tn-cloud-hint code{background:#efe4cd;border-radius:5px;padding:1px 5px}
 /* 补作：欠交明细一行一项 + 标记补作按钮 */
 .fu-owed-list{display:flex;flex-direction:column;gap:7px;margin-top:9px}
 .fu-owed-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
