@@ -1,5 +1,5 @@
 /* ===== 版本号：每次改完代码请同步更新，用于确认浏览器没有在用旧缓存 ===== */
-const APP_VERSION='20260614i';
+const APP_VERSION='20260614j';
 console.log('课堂工作台 app.js 版本：'+APP_VERSION);
 
 /* ===== SUPABASE 配置 ===== */
@@ -2905,7 +2905,7 @@ function courseRecordEntryHtml(c,rec){
       <button class="rec-toggle-zone" data-rec-toggle="${safeAttr(rec.date)}" type="button">
         <span class="rec-chevron">▸</span>
         <span class="rec-head-date">${rec.date?esc(formatDateShort(rec.date)):"未标日期"}</span>
-        <span class="rec-head-sum">${sumText.join("")||(note?'<i class="cs-n cs-note">📝 仅笔记/Todo</i>':'<i class="cs-n cs-muted">未记录</i>')}</span>
+        <span class="rec-head-sum">${sumText.join("")||(note?'<i class="cs-n cs-note">📝 笔记</i>':'<i class="cs-n cs-muted">未记录</i>')}</span>
       </button>
       <button class="rec-edit-icon" data-edit-record-date="${safeAttr(rec.date)}" type="button" title="回到这天，直接改点名、作业、笔记">✎ 改这天</button>
     </div>
@@ -2988,11 +2988,12 @@ function renderCourseHome(){
   const skipsAll=skippedDates(c).slice().sort();
   const skipNote=skipsAll.length?`休息 ${skipsAll.slice(0,4).map(formatDateShort).join("、")}${skipsAll.length>4?` 等 ${skipsAll.length} 天`:""}`:"";
   const schedSmall=sched?[courseProgressText(sched),skipNote].filter(Boolean).join(" · "):"在编辑页填开课日期或指定上课日期";
-  setHead(c.className+(done?"（已结课）":""),"","共 "+(c.students||[]).length+" 名学生");
+  setHead("课程主页","","共 "+(c.students||[]).length+" 名学生");
   byId("tabs").innerHTML=`<button class="btn" id="courseHomeBack" type="button">← 返回</button>
-    <span class="course-home-range">${dateRangeCtlHtml("ch",since,until)}</span>
     <button class="btn ghost course-edit-btn" id="courseHomeEdit" type="button" title="改时间、学生、排期、停课日期都在编辑页">✎ 编辑资料</button>`;
   byId("content").innerHTML=`<div class="course-home">
+    <h2 class="td-name">${esc(c.className)}${done?"（已结课）":""}</h2>
+    <div class="td-rangebar"><span class="td-range-label">时间</span>${dateRangeCtlHtml("ch",since,until)}</div>
     <div class="stu-info-grid course-home-info">
       <div class="stu-tile t-blue"><span>时间</span><b>${esc(c.weekday)} ${esc(formatTimeCN(c.time))}</b></div>
       <div class="stu-tile t-green"><span>老师 · 课程</span><b>${c.teacher?`<button class="tile-teacher-link" data-open-teacher="${safeAttr(c.teacher)}" type="button" title="看这位老师的面板">${esc(c.teacher)}</button>`:"未填"} · ${esc(c.courseType||"未填")}</b></div>
@@ -3083,6 +3084,8 @@ let teacherFrom="";
 let teacherTo="";
 let teacherPanelSel="";   // 点开看详情的老师
 let teacherEditing=false; // 老师详情页"资料"是否在编辑态
+let teacherNotesOpen=true; // 沟通笔记是否展开
+let teacherLogEditId="";   // 正在编辑的沟通笔记 id
 
 /* 把给定课程池按老师分组，算每个老师的汇总（班数/学生数去重/出勤·提交·批改率） */
 function teacherSummary(pool,since,until){
@@ -3208,6 +3211,7 @@ function followupFormHtml(name,edit){
 function followupItemHtml(name,f){
   if(followupEditId===f.id)return `<div class="fu-item fu-item-editing">${followupFormHtml(name,f)}</div>`;
   const eff=followupEffect(name,f.date);
+  const autoResolved=eff.assigned>0&&eff.submitted>=eff.assigned; // 跟进后全交了→自动算已解决
   let effLine;
   if(eff.assigned>0){
     const good=eff.submitted>=eff.assigned;
@@ -3216,8 +3220,9 @@ function followupItemHtml(name,f){
   }else{
     effLine=`<p class="fu-effect fu-effect-none">跟进后还没到下次作业，再观察</p>`;
   }
+  const statusChip=autoResolved?`<i class="fu-item-status fu-status-resolved">✓ 已解决</i>`:(f.status?`<i class="fu-item-status">${esc(f.status)}</i>`:"");
   return `<div class="fu-item">
-    <div class="fu-item-head"><b class="fu-item-date">${esc(formatDateShort(f.date))}</b>${f.status?`<i class="fu-item-status">${esc(f.status)}</i>`:""}
+    <div class="fu-item-head"><b class="fu-item-date">${esc(formatDateShort(f.date))}</b>${statusChip}
       <span class="fu-item-ops"><button class="fu-item-edit" data-fu-edit="${safeAttr(name)}|${safeAttr(f.id)}" type="button" title="修改这条">✎</button><button class="fu-item-del" data-bb-fu-del="${safeAttr(name)}|${safeAttr(f.id)}" type="button" title="删除这条跟进">✕</button></span></div>
     ${f.action?`<p class="fu-item-line"><span>我做了</span><em>${esc(f.action)}</em></p>`:""}
     ${f.parentReply?`<p class="fu-item-line"><span>家长回应</span><em>${esc(f.parentReply)}</em></p>`:""}
@@ -3436,37 +3441,49 @@ function renderTeachers(){
 /* 跳到某位老师的面板详情（课程主页点老师名时用，双向跳转） */
 function openTeacher(name){
   const t=String(name||"").trim();if(!t)return;
-  teacherPanelSel=t;teacherEditing=false;teacherType="all";teacherTerm="all";teacherShowDone=false;teacherFrom="";teacherTo="";
+  teacherPanelSel=t;teacherEditing=false;teacherLogEditId="";teacherType="all";teacherTerm="all";teacherShowDone=false;teacherFrom="";teacherTo="";
   view="teachers";render();
 }
 
-/* 老师详情里的"资料 + 沟通笔记"区（v20260614i）：可编辑、本地存、加字段后自动上云 */
+/* 老师详情里的"资料"卡 + "沟通笔记"卡（v20260614j，分两块）：资料一行大字+小铅笔，笔记可折叠+可改 */
 function teacherNotesSectionHtml(name){
   const t=getTeacher(name);
   const logs=(t.logs||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  const profile=teacherEditing
-    ?`<div class="tn-form">
-        <label class="fu-field"><span>联系方式（微信 / 电话）</span><input id="tnContact" value="${safeAttr(t.contact)}" placeholder="例：微信 wx_xxx"></label>
-        <label class="fu-field"><span>负责 / 角色</span><input id="tnRole" value="${safeAttr(t.role)}" placeholder="例：LR 主教 · 资深"></label>
+  // 1) 资料卡：一行展示，右上小铅笔
+  const profileCard=teacherEditing
+    ?`<div class="tn-card tn-profile-card"><div class="tn-form">
+        <div class="tn-form-row">
+          <label class="fu-field"><span>联系方式</span><input id="tnContact" value="${safeAttr(t.contact)}" placeholder="微信 / 电话"></label>
+          <label class="fu-field"><span>负责 / 角色</span><input id="tnRole" value="${safeAttr(t.role)}" placeholder="例：LR 主教 · 资深"></label>
+        </div>
         <label class="fu-field"><span>一句话备注</span><input id="tnNote" value="${safeAttr(t.note)}" placeholder="例：沟通顺畅，批改偏慢需提醒"></label>
-        <div class="fu-form-ops"><button class="btn primary" id="tnSave" type="button">保存资料</button><button class="btn ghost" id="tnCancel" type="button">取消</button></div>
-      </div>`
-    :`<div class="tn-view">
-        <div class="tn-field"><span>联系方式</span><b>${t.contact?esc(t.contact):"—"}</b></div>
-        <div class="tn-field"><span>负责 / 角色</span><b>${t.role?esc(t.role):"—"}</b></div>
-        <div class="tn-field tn-field-wide"><span>备注</span><b>${t.note?esc(t.note):"—"}</b></div>
-        <button class="btn ghost tn-edit-btn" id="tnEdit" type="button">✎ 编辑资料</button>
+        <div class="fu-form-ops"><button class="btn primary" id="tnSave" type="button">保存</button><button class="btn ghost" id="tnCancel" type="button">取消</button></div>
+      </div></div>`
+    :`<div class="tn-card tn-profile-card">
+        <button class="tn-edit-pen" id="tnEdit" type="button" title="编辑资料">✎</button>
+        <div class="tn-oneline">
+          <span class="tn-inline"><i>联系</i>${t.contact?esc(t.contact):"—"}</span>
+          <span class="tn-inline"><i>角色</i>${t.role?esc(t.role):"—"}</span>
+          <span class="tn-inline"><i>备注</i>${t.note?esc(t.note):"—"}</span>
+        </div>
       </div>`;
+  // 2) 沟通笔记卡：可折叠 + 每条可改可删
   const logList=logs.length
-    ?logs.map(l=>`<div class="tn-log-item"><b class="tn-log-date">${esc(formatDateShort(l.date))}</b><span class="tn-log-text">${esc(l.text)}</span><button class="tn-log-del" data-tn-log-del="${safeAttr(l.id)}" type="button" title="删除">✕</button></div>`).join("")
+    ?logs.map(l=>teacherLogEditId===l.id
+        ?`<div class="tn-log-item tn-log-editing"><input class="tn-log-edit-input" id="tnLogEdit-${safeAttr(l.id)}" value="${safeAttr(l.text)}"><button class="btn primary tn-log-savebtn" data-tn-log-save="${safeAttr(l.id)}" type="button">保存</button><button class="tn-log-del" data-tn-log-canceledit="1" type="button" title="取消">✕</button></div>`
+        :`<div class="tn-log-item"><b class="tn-log-date">${esc(formatDateShort(l.date))}</b><span class="tn-log-text">${esc(l.text)}</span><span class="tn-log-ops"><button class="tn-log-edit" data-tn-log-edit="${safeAttr(l.id)}" type="button" title="修改">✎</button><button class="tn-log-del" data-tn-log-del="${safeAttr(l.id)}" type="button" title="删除">✕</button></span></div>`).join("")
     :'<p class="fu-empty">还没有沟通记录。在上面记下你跟这位老师聊了什么、布置了什么任务。</p>';
-  return `<div class="tn-card">
-    ${profile}
-    <h5 class="tn-sub">沟通 / 交流笔记</h5>
-    <div class="tn-log-add"><input id="tnLogText" placeholder="记一条沟通 / 交流 / 任务，回车或点添加…"><button class="btn primary" id="tnLogAdd" type="button">＋ 添加</button></div>
-    <div class="tn-log-list">${logList}</div>
-    <p class="tn-cloud-hint">📌 已本地保存。要跨设备 / 云端同步，数据库加一个 <code>teachers</code> 字段即可（跟你当初加 students 一样，找我要那行 SQL）。</p>
+  const notesCard=`<div class="tn-card tn-notes-card${teacherNotesOpen?' open':''}">
+    <div class="tn-notes-head">
+      <button class="fu-toggle" data-tn-toggle type="button"><span class="fu-chevron">▸</span>💬 沟通 / 交流笔记 · ${logs.length} 条</button>
+    </div>
+    ${teacherNotesOpen?`
+      <div class="tn-log-add"><input id="tnLogText" placeholder="记一条沟通 / 交流 / 任务，回车或点添加…"><button class="btn primary" id="tnLogAdd" type="button">＋ 添加</button></div>
+      <div class="tn-log-list">${logList}</div>
+      <p class="tn-cloud-hint">📌 已本地保存。要跨设备 / 云端同步，数据库加一个 <code>teachers</code> 字段即可（找我要那行 SQL）。</p>
+    `:`<p class="fu-collapsed-sum">点标题展开 · 共 ${logs.length} 条沟通记录</p>`}
   </div>`;
+  return profileCard+notesCard;
 }
 
 /* 从某天到今天的时长文字（加入多久） */
@@ -3548,7 +3565,7 @@ function renderTeacherDetail(sel,since,until,rt){
       ${teacherNotesSectionHtml(sel.teacher)}
     </div>
   </div>`;
-  byId("teacherBack").addEventListener("click",()=>{teacherPanelSel="";teacherEditing=false;render();});
+  byId("teacherBack").addEventListener("click",()=>{teacherPanelSel="";teacherEditing=false;teacherLogEditId="";render();});
   bindDateRangeCtl("tp",(f,t)=>{teacherFrom=f;teacherTo=t;rerenderKeepScroll();});
   document.querySelectorAll("[data-course-home]").forEach(b=>b.addEventListener("click",()=>openCourseHome(b.dataset.courseHome)));
   bindTeacherNotes(sel.teacher);
@@ -3565,6 +3582,8 @@ function bindTeacherNotes(teacher){
     t.contact=byId("tnContact").value.trim();t.role=byId("tnRole").value.trim();t.note=byId("tnNote").value.trim();t.updatedAt=new Date().toISOString();
     saveTeachers();teacherEditing=false;showToast("已保存老师资料");render();
   });
+  // 折叠/展开沟通笔记
+  const tg=document.querySelector("[data-tn-toggle]");if(tg)tg.addEventListener("click",()=>{teacherNotesOpen=!teacherNotesOpen;render();});
   const addLog=()=>{
     if(!guard())return;
     const inp=byId("tnLogText");if(!inp)return;
@@ -3575,6 +3594,16 @@ function bindTeacherNotes(teacher){
   };
   const addBtn=byId("tnLogAdd");if(addBtn)addBtn.addEventListener("click",addLog);
   const logInput=byId("tnLogText");if(logInput)logInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addLog();}});
+  // 改某条沟通笔记
+  document.querySelectorAll("[data-tn-log-edit]").forEach(b=>b.addEventListener("click",()=>{teacherLogEditId=b.dataset.tnLogEdit;render();}));
+  document.querySelectorAll("[data-tn-log-canceledit]").forEach(b=>b.addEventListener("click",()=>{teacherLogEditId="";render();}));
+  document.querySelectorAll("[data-tn-log-save]").forEach(b=>b.addEventListener("click",()=>{
+    if(!guard())return;
+    const id=b.dataset.tnLogSave;const inp=byId("tnLogEdit-"+id);if(!inp)return;
+    const v=inp.value.trim();if(!v){showToast("内容不能为空");return;}
+    const t=getTeacher(teacher);const l=(t.logs||[]).find(x=>x.id===id);if(l){l.text=v;t.updatedAt=new Date().toISOString();saveTeachers();}
+    teacherLogEditId="";showToast("已更新");render();
+  }));
   document.querySelectorAll("[data-tn-log-del]").forEach(b=>b.addEventListener("click",()=>{
     if(!guard())return;
     const t=getTeacher(teacher);t.logs=(t.logs||[]).filter(l=>l.id!==b.dataset.tnLogDel);t.updatedAt=new Date().toISOString();
@@ -3588,7 +3617,7 @@ function bindTeacherPanelEvents(){
   const doneBtn=document.querySelector("[data-tt-done]");
   if(doneBtn)doneBtn.addEventListener("click",()=>{teacherShowDone=!teacherShowDone;rerenderKeepScroll();});
   bindDateRangeCtl("tp",(f,t)=>{teacherFrom=f;teacherTo=t;rerenderKeepScroll();});
-  document.querySelectorAll("[data-teacher-pick]").forEach(b=>b.addEventListener("click",()=>{teacherPanelSel=b.dataset.teacherPick;teacherEditing=false;render();}));
+  document.querySelectorAll("[data-teacher-pick]").forEach(b=>b.addEventListener("click",()=>{teacherPanelSel=b.dataset.teacherPick;teacherEditing=false;teacherLogEditId="";render();}));
 }
 
 /* ===== 课程总览页 v2（v20260611f，Shirley 2026-06-11 深夜反馈）=====
